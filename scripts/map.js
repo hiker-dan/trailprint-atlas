@@ -42,12 +42,18 @@ function getIconForHikeType(hikeType) {
 fetch('data/hikes.json')
     .then(response => response.json())
     .then(data => {
+        // Create a feature group to hold all the trail layers.
+        const allTrailsGroup = L.featureGroup().addTo(map);
+
         data.forEach(hike => {
+            // FIX 1: Construct the full path to the GPX file.
+            // The JSON only has the filename, but we need to tell the browser
+            // to look inside the 'data/trails/' folder.
+            const gpxPath = `data/trails/${hike.gpx_file}`;
+
             // Create a new GPX layer from the file path in our data
-            const gpxLayer = new L.GPX(hike.gpx_file, {
+            const gpxLayer = new L.GPX(gpxPath, {
                 async: true,
-                // This is the definitive fix: Instruct the plugin to only parse 'track' data.
-                // This completely ignores the 'waypoint' data in the GPX file that was causing the broken image.
                 gpx_options: {
                     parseElements: ['track']
                 },
@@ -56,13 +62,17 @@ fetch('data/hikes.json')
                     endIconUrl: null // No icon at the end of the trail
                 },
                 polyline_options: {
-                    color: '#e74c3c', // A nice reddish-orange color
+                    color: '#e74c3c',
                     weight: 5,
                     opacity: 0.85
                 }
             }).on('loaded', function(e) {
-                // Once the GPX is loaded, fit the map bounds to the trail
-                map.fitBounds(e.target.getBounds());
+                // When a trail loads successfully, add it to our group.
+                allTrailsGroup.addLayer(e.target);
+            }).on('error', function(e) {
+                // If a GPX file is missing or invalid, log a warning to the console
+                // but don't stop the rest of the map from loading.
+                console.warn(`Could not load trail: ${gpxPath}`);
             }).bindPopup(`
                 <h3>${hike.trail_name}</h3>
                 <p><strong>Date Hiked:</strong> ${new Date(hike.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</p>
@@ -70,7 +80,19 @@ fetch('data/hikes.json')
                 <p><strong>Distance:</strong> ${hike.miles} miles</p>
                 <p><strong>Elevation Gain:</strong> ${hike.elevation_gain} ft</p>
                 <p><strong>Difficulty:</strong> ${hike.difficulty}</p>
-            `).addTo(map);
+            `);
         });
+
+        // FIX 2: Wait a moment for all trails to attempt loading, then zoom the map.
+        // This is a simple way to ensure we only zoom once, after all the
+        // successful trails have been added to the group.
+        setTimeout(() => {
+            // Check if any trails were actually loaded before trying to zoom.
+            if (allTrailsGroup.getLayers().length > 0) {
+                map.fitBounds(allTrailsGroup.getBounds().pad(0.1)); // .pad() adds a nice margin
+            } else {
+                console.warn("No trails were loaded. Check GPX file paths and data.");
+            }
+        }, 1000); // Wait 1 second.
     })
     .catch(error => console.error('Error loading hike data:', error));

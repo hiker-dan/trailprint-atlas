@@ -1,0 +1,24 @@
+[
+  {
+    "trail_id": "pcr_01",
+    "trail_name": "Pine Creek Canyon",
+    "date_completed": "2023-11-25",
+    "location": "Red Rock Canyon NCA",
+    "region": "Nevada, USA",
+    "primary_geography": "Desert Canyon",
+    "miles": 3.4,
+    "elevation_gain": 550,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Moderate",
+    "hike_type": "Day Hike",
+    "hiked_with": ["Partner", "Friends"],
+    "description": "A beautiful and varied hike that follows a creek bed deep into a canyon, featuring seasonal waterfalls and unique sandstone formations.",
+    "notes": "Perfect weather for a post-Thanksgiving hike. The creek was flowing more than usual, which was a nice surprise. Saw a few bighorn sheep up on the ridges.",
+    "trip_tag": "2023_Vegas_Thanksgiving",
+    "all_trails_url": "https://www.alltrails.com/trail/us/nevada/pine-creek-canyon-trail",
+    "official_trail_url": "https://www.redrockcanyonlv.org/pine-creek-canyon/",
+    "gpx_file": "data/trails/pine_creek_canyon.gpx",
+    "images": []
+  }
+]

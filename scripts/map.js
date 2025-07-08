@@ -59,12 +59,39 @@ function getIconForHikeType(hikeType) {
     });
 }
 
+/**
+ * Returns a color based on the year of the hike.
+ * @param {string} year - The four-digit year of the hike.
+ * @returns {string} A hex color code.
+ */
+function getColorForYear(year) {
+    const colorMap = {
+        "2022": "#3498db", // A nice blue
+        "2023": "#2ecc71", // A vibrant green
+        "2024": "#f1c40f", // A sunflower yellow
+        "2025": "#e67e22", // A carrot orange
+        "2026": "#9b59b6", // A rich amethyst
+        // Add more years and colors as needed
+    };
+
+    // Return the specific color if available, otherwise fall back to a default.
+    return colorMap[year] || '#e74c3c'; // Default reddish-orange
+}
+
+let allHikesData = []; // Will hold the full, original dataset
+const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
+
+// --- New Filter State Management ---
+const activeFilters = {
+    year: new Set(),
+    hike_type: new Set(),
+    difficulty: new Set(),
+    size: new Set()
+};
+
 fetch('data/hikes.json')
     .then(response => response.json())
     .then(data => {
-        // Create a feature group to hold all the trail layers.
-        const allTrailsGroup = L.featureGroup().addTo(map);
-
         // --- Data Grouping ---
         // We group all hikes by their trail_name to handle multiple hikes of the same trail.
         const trailGroups = {};
@@ -75,75 +102,215 @@ fetch('data/hikes.json')
             trailGroups[hike.trail_name].push(hike);
         });
 
-        // --- Render Grouped Trails ---
-        // Now, we loop through the grouped trails instead of the raw data.
-        for (const trailName in trailGroups) {
-            const hikesForTrail = trailGroups[trailName];
-
-            // Sort hikes by date to always use the most recent one as the representative.
-            hikesForTrail.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
-            const representativeHike = hikesForTrail[0];
-
-            let dateList = hikesForTrail.map(h => 
-                `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-            ).join('');
-
-            // If it's a viewpoint with coordinates, create a marker.
-            if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
-                const popupContent = `
-                    <h3>${representativeHike.trail_name}</h3>
-                    <p><strong>Location:</strong> ${representativeHike.location}</p>
-                    <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
-                    <ul>${dateList}</ul>
-                `;
-                const marker = L.marker([representativeHike.latitude, representativeHike.longitude], {
-                    icon: getIconForHikeType(representativeHike.hike_type)
-                }).bindPopup(popupContent);
-                allTrailsGroup.addLayer(marker);
-            } 
-            // Otherwise, if it has a GPX file, create a trail as before.
-            else if (representativeHike.gpx_file) {
-                const gpxPath = `data/trails/${representativeHike.gpx_file}`;
-                const popupContent = `
-                    <h3>${representativeHike.trail_name}</h3>
-                    <p><strong>Location:</strong> ${representativeHike.location}</p>
-                    <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
-                    <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain} ft</p>
-                    <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
-                    <ul>${dateList}</ul>
-                `;
-
-                const gpxLayer = new L.GPX(gpxPath, {
-                    async: true,
-                    gpx_options: { parseElements: ['track'] },
-                    marker_options: {
-                        startIcon: getIconForHikeType(representativeHike.hike_type),
-                        endIconUrl: null,
-                    },
-                    polyline_options: { color: '#e74c3c', weight: 5, opacity: 0.85 },
-                }).on('loaded', function(e) {
-                    // This part is intentionally left empty. The layer is already in the group.
-                }).on('error', function(e) {
-                    console.warn(`Could not load trail: ${gpxPath}`);
-                    allTrailsGroup.removeLayer(gpxLayer); // Clean up failed layer
-                }).bindPopup(popupContent);
-
-                // Add the layer to the group to start the loading process.
-                allTrailsGroup.addLayer(gpxLayer);
-            }
-        }
-
-        // Add the layer control to the map
-        L.control.layers(baseMaps).addTo(map);
-
-        // This is a more robust way to zoom the map. It waits for all the
-        // 'loaded' events to fire before fitting the bounds.
-        setTimeout(() => {
-            if (allTrailsGroup.getLayers().length > 0) {
-                map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
-            } else {
-                console.warn("No trails were loaded. Check GPX file paths and data.");
-            }
-        }, 1500); // Wait 1.5 seconds to allow GPX files to load.
+        allHikesData = Object.values(trailGroups); // Store the grouped data
+        populateFilters(allHikesData);
+        renderMapLayers(allHikesData); // Initial render with all data
+        setupEventListeners();
     })
     .catch(error => console.error('Error loading hike data:', error));
+
+function renderMapLayers(trailGroupsToRender) {
+    allTrailsGroup.clearLayers(); // Clear all previous layers
+
+    trailGroupsToRender.forEach(hikesForTrail => {
+        const representativeHike = hikesForTrail[0]; // Already sorted from initial processing
+
+        let dateList = hikesForTrail.map(h => 
+            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
+        ).join('');
+
+        if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
+            const popupContent = `
+                <h3>${representativeHike.trail_name}</h3>
+                <p><strong>Location:</strong> ${representativeHike.location}</p>
+                <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
+                <ul>${dateList}</ul>
+            `;
+            const marker = L.marker([representativeHike.latitude, representativeHike.longitude], {
+                icon: getIconForHikeType(representativeHike.hike_type)
+            }).bindPopup(popupContent);
+            allTrailsGroup.addLayer(marker);
+        } else if (representativeHike.gpx_file) {
+            const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
+            const trailColor = getColorForYear(yearsHiked[0]);
+            const startIcon = getIconForHikeType(representativeHike.hike_type);
+            if (yearsHiked.length > 1) {
+                startIcon.options.className += ' multi-year-icon-style';
+            }
+            const markerOptions = { startIcon: startIcon, endIconUrl: null };
+            const gpxPath = `data/trails/${representativeHike.gpx_file}`;
+            const popupContent = `
+                <h3>${representativeHike.trail_name}</h3>
+                <p><strong>Location:</strong> ${representativeHike.location}</p>
+                <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
+                <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain} ft</p>
+                <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
+                <ul>${dateList}</ul>
+            `;
+            const gpxLayer = new L.GPX(gpxPath, {
+                async: true,
+                gpx_options: { parseElements: ['track'] },
+                marker_options: markerOptions,
+                polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
+            }).on('error', function(e) {
+                allTrailsGroup.removeLayer(gpxLayer);
+            }).bindPopup(popupContent);
+            allTrailsGroup.addLayer(gpxLayer);
+        }
+    });
+
+    // After rendering, zoom the map to fit the new set of layers.
+    setTimeout(() => { // Use timeout to wait for GPX layers to load
+        if (allTrailsGroup.getLayers().length > 0) {
+            map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
+        }
+    }, 1500);
+}
+
+function populateFilters(trailGroups) {
+    const years = new Set();
+    const types = new Set();
+    const difficulties = new Set();
+    const sizes = new Set();
+
+    trailGroups.forEach(group => {
+        // We only need to check the representative hike for each group
+        const representativeHike = group[0];
+        types.add(representativeHike.hike_type);
+        difficulties.add(representativeHike.difficulty);
+        sizes.add(representativeHike.hike_size);
+        // For year, we need to check all hikes in the group
+        group.forEach(hike => years.add(new Date(hike.date_completed).getFullYear()));
+    });
+
+    const createFilterTags = (elementId, items, filterType) => {
+        const container = document.getElementById(elementId);
+        container.innerHTML = ''; // Clear existing tags
+        [...items].sort().forEach(item => {
+            const tag = document.createElement('button');
+            tag.className = 'filter-tag';
+            tag.dataset.filterType = filterType;
+            tag.dataset.filterValue = item;
+            tag.innerText = item;
+            container.appendChild(tag);
+        });
+    };
+
+    createFilterTags('year-filter-options', years, 'year');
+    createFilterTags('type-filter-options', types, 'hike_type');
+    createFilterTags('difficulty-filter-options', difficulties, 'difficulty');
+    createFilterTags('size-filter-options', sizes, 'size');
+}
+
+function updateActiveFiltersDisplay() {
+    const displayContainer = document.getElementById('active-filters-display');
+    displayContainer.innerHTML = '<h5>Active Filters:</h5>';
+    let hasActiveFilters = false;
+
+    for (const type in activeFilters) {
+        activeFilters[type].forEach(value => {
+            hasActiveFilters = true;
+            const activeTag = document.createElement('div');
+            activeTag.className = 'active-filter-tag';
+            activeTag.innerHTML = `<span>${value} <span class="remove-filter-btn" data-filter-type="${type}" data-filter-value="${value}">&times;</span></span>`;
+            displayContainer.appendChild(activeTag);
+        });
+    }
+
+    displayContainer.style.display = hasActiveFilters ? 'block' : 'none';
+}
+
+function applyFilters() {
+    const filteredGroups = allHikesData.filter(group => {
+        // A group matches if at least one hike within it matches all active filters.
+        return group.some(hike => {
+            const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(new Date(hike.date_completed).getFullYear().toString());
+            const typeMatch = activeFilters.hike_type.size === 0 || activeFilters.hike_type.has(hike.hike_type);
+            const difficultyMatch = activeFilters.difficulty.size === 0 || activeFilters.difficulty.has(hike.difficulty);
+            const sizeMatch = activeFilters.size.size === 0 || activeFilters.size.has(hike.hike_size);
+            return yearMatch && typeMatch && difficultyMatch && sizeMatch;
+        });
+    });
+
+    renderMapLayers(filteredGroups);
+    updateActiveFiltersDisplay();
+}
+
+function setupEventListeners() {
+    document.getElementById('filter-toggle-btn').addEventListener('click', () => {
+        document.getElementById('filter-panel').classList.toggle('visible');
+    });
+
+    // Event delegation for filter tags
+    document.getElementById('filter-panel').addEventListener('click', (e) => {
+        const target = e.target;
+        if (target.classList.contains('filter-tag')) {
+            const { filterType, filterValue } = target.dataset;
+            target.classList.toggle('active');
+            if (activeFilters[filterType].has(filterValue)) {
+                activeFilters[filterType].delete(filterValue);
+            } else {
+                activeFilters[filterType].add(filterValue);
+            }
+            applyFilters();
+        }
+
+        if (target.classList.contains('remove-filter-btn')) {
+            const { filterType, filterValue } = target.dataset;
+            activeFilters[filterType].delete(filterValue);
+            // Deactivate the corresponding button in the options list
+            const buttonToDeactivate = document.querySelector(`.filter-tag[data-filter-type="${filterType}"][data-filter-value="${filterValue}"]`);
+            if (buttonToDeactivate) {
+                buttonToDeactivate.classList.remove('active');
+            }
+            applyFilters();
+        }
+    });
+
+    document.getElementById('reset-filters-btn').addEventListener('click', () => {
+        for (const type in activeFilters) {
+            activeFilters[type].clear();
+        }
+        document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
+        applyFilters();
+    });
+}
+
+// --- Create Custom Filter Control ---
+const filterControl = L.control({ position: 'topright' });
+
+filterControl.onAdd = function (map) {
+    const div = L.DomUtil.create('div', 'filter-control-container');
+    div.innerHTML = `
+        <button id="filter-toggle-btn">Filters</button>
+        <div id="filter-panel">
+            <h4>Filter Hikes</h4>
+            <div class="filter-group">
+                <label for="year-filter">Year</label>
+                <div class="filter-options" id="year-filter-options"></div>
+            </div>
+            <div class="filter-group">
+                <label for="type-filter">Hike Type</label>
+                <div class="filter-options" id="type-filter-options"></div>
+            </div>
+            <div class="filter-group">
+                <label for="difficulty-filter">Difficulty</label>
+                <div class="filter-options" id="difficulty-filter-options"></div>
+            </div>
+            <div class="filter-group">
+                <label for="size-filter">Hike Size</label>
+                <div class="filter-options" id="size-filter-options"></div>
+            </div>
+            <div id="active-filters-display" style="display: none;"></div>
+            <button id="reset-filters-btn">Reset Filters</button>
+        </div>
+    `;
+    // Stop map clicks from propagating into our filter panel
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+};
+
+filterControl.addTo(map);
+
+// Add the layer control to the map (base maps)
+L.control.layers(baseMaps).addTo(map);

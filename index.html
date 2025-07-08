@@ -22,6 +22,84 @@
             /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
             box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
         }
+
+        /* Style for the icon of a multi-year hike */
+        .multi-year-icon-style {
+            border: 3px solid #f1c40f; /* A prominent gold border */
+            box-sizing: border-box;    /* Ensures the border doesn't increase the icon's size */
+        }
+
+        /* --- Filter Control Styles --- */
+        .leaflet-top.leaflet-right {
+            /* Ensure our control has space from the existing layer control */
+            top: 50px;
+        }
+        .filter-control-container {
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+        }
+        #filter-panel {
+            display: none; /* Hidden by default */
+            width: 200px;
+            margin-top: 10px;
+        }
+        #filter-panel.visible {
+            display: block; /* Shown when active */
+        }
+        .filter-group {
+            margin-bottom: 10px;
+        }
+        .filter-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .filter-group select {
+            width: 100%;
+            padding: 5px;
+        }
+        #filter-toggle-btn, #reset-filters-btn {
+            width: 100%;
+            padding: 8px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        /* --- New Tag-Based Filter Styles --- */
+        .filter-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .filter-tag {
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            border-radius: 15px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease-in-out;
+        }
+        .filter-tag:hover {
+            background-color: #e0e0e0;
+        }
+        .filter-tag.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        #active-filters-display {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .remove-filter-btn {
+            margin-left: 8px;
+            color: #ffcccc;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>

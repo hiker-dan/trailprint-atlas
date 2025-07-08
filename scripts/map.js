@@ -28,6 +28,24 @@ const baseMaps = {
     "Satellite": satelliteMap
 };
 
+// --- Global Data Maps ---
+const ICON_MAP = {
+    "Overnight Trip": "overnight-trip-icon.png",
+    "Day Trip": "day-trip-icon.png",
+    "Day Hike": "day-hike-icon.png",
+    "Car Camping": "car-camping-icon.png",
+    "Backpacking": "backpacking-icon.png",
+    "Viewpoint": "viewpoint-icon.png"
+};
+
+const COLOR_MAP = {
+    "2022": "#3498db", // A nice blue
+    "2023": "#2ecc71", // A vibrant green
+    "2024": "#f1c40f", // A sunflower yellow
+    "2025": "#e67e22", // A carrot orange
+    "2026": "#9b59b6", // A rich amethyst
+};
+
 // Load hike data from JSON and add GPX tracks to the map
 
 /**
@@ -36,18 +54,8 @@ const baseMaps = {
  * @returns {L.Icon} A Leaflet Icon object.
  */
 function getIconForHikeType(hikeType) {
-    // Map hike types to their corresponding icon filenames.
-    const iconMap = {
-        "Overnight Trip": "overnight-trip-icon.png",
-        "Day Trip": "day-trip-icon.png",
-        "Day Hike": "day-hike-icon.png",
-        "Car Camping": "car-camping-icon.png",
-        "Backpacking": "backpacking-icon.png",
-        "Viewpoint": "viewpoint-icon.png"
-    };
-
     // Use the specific icon if available, otherwise fall back to a default.
-    const iconFilename = iconMap[hikeType] || 'hiker-icon.png'; // Default icon
+    const iconFilename = ICON_MAP[hikeType] || 'hiker-icon.png'; // Default icon
 
     return L.icon({
         iconUrl: `assets/icons/${iconFilename}`,
@@ -65,17 +73,8 @@ function getIconForHikeType(hikeType) {
  * @returns {string} A hex color code.
  */
 function getColorForYear(year) {
-    const colorMap = {
-        "2022": "#3498db", // A nice blue
-        "2023": "#2ecc71", // A vibrant green
-        "2024": "#f1c40f", // A sunflower yellow
-        "2025": "#e67e22", // A carrot orange
-        "2026": "#9b59b6", // A rich amethyst
-        // Add more years and colors as needed
-    };
-
     // Return the specific color if available, otherwise fall back to a default.
-    return colorMap[year] || '#e74c3c'; // Default reddish-orange
+    return COLOR_MAP[year] || '#7f8c8d'; // Default grey for other years
 }
 
 let allHikesData = []; // Will hold the full, original dataset
@@ -106,6 +105,7 @@ fetch('data/hikes.json')
         populateFilters(allHikesData);
         renderMapLayers(allHikesData); // Initial render with all data
         setupEventListeners();
+        renderLegend();
     })
     .catch(error => console.error('Error loading hike data:', error));
 
@@ -134,7 +134,7 @@ function renderMapLayers(trailGroupsToRender) {
             const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
             const trailColor = getColorForYear(yearsHiked[0]);
             const startIcon = getIconForHikeType(representativeHike.hike_type);
-            if (yearsHiked.length > 1) {
+            if (hikesForTrail.length > 1) {
                 startIcon.options.className += ' multi-year-icon-style';
             }
             const markerOptions = { startIcon: startIcon, endIconUrl: null };
@@ -314,3 +314,35 @@ filterControl.addTo(map);
 
 // Add the layer control to the map (base maps)
 L.control.layers(baseMaps).addTo(map);
+
+function renderLegend() {
+    const legendContainer = document.getElementById('legend-container');
+    if (!legendContainer) return;
+
+    let colorHtml = '<h3>Trail Colors (by Year)</h3>';
+    for (const year in COLOR_MAP) {
+        const color = COLOR_MAP[year];
+        colorHtml += `<div class="legend-item"><span class="legend-color-box" style="background-color: ${color};"></span> ${year}</div>`;
+    }
+
+    let iconHtml = '<h3>Icon Types</h3>';
+    for (const type in ICON_MAP) {
+        const iconFile = ICON_MAP[type];
+        iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${type}</div>`;
+    }
+
+    let specialHtml = '<h3>Special Indicators</h3>';
+    specialHtml += `
+        <div class="legend-item">
+            <div class="legend-icon-wrapper">
+                <img src="assets/icons/hiker-icon.png" class="legend-icon hike-icon multi-year-icon-style" />
+            </div>
+            Hiked More Than Once
+        </div>`;
+
+    legendContainer.innerHTML = `
+        <div class="legend-section">${colorHtml}</div>
+        <div class="legend-section">${iconHtml}</div>
+        <div class="legend-section">${specialHtml}</div>
+    `;
+}

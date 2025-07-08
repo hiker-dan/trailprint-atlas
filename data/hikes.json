@@ -707,7 +707,7 @@
     "region": "Twentynine Palms, CA",
     "primary_geography": "Desert",
     "miles": 0,
-    "elevation_gain": 0,
+    "elevation_gain": 0, 
     "summit_trail": false,
     "summit_elevation": null,
     "difficulty": "Easy",
@@ -721,7 +721,9 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/poi/us/california/intersection-rock",
     "official_trail_url": "https://www.nps.gov/places/intersection-rock.htm",
-    "gpx_file": "Intersection_Rock_06.26.22.gpx",
+    "gpx_file": null,
+    "latitude": 34.01517385300547,
+    "longitude": -116.16281572707169,
     "images": []
   },
   {
@@ -746,7 +748,9 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/keys-view?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/keys-view.htm",
-    "gpx_file": "Keys_View_06.26.22.gpx",
+    "gpx_file": null,
+    "latitude": 33.92774505810837,
+    "longitude": -116.18737331860687,
     "images": []
   },
   {
@@ -896,7 +900,9 @@
     "trip_tag": "NY to LA Road Trip",
     "all_trails_url": "https://www.alltrails.com/poi/us/arizona/sedona/airport-mesa-viewpoint",
     "official_trail_url": "https://sedona.org/top-attractions-in-sedona-az/airport-mesa-sedona/?utm_source=chatgpt.com",
-    "gpx_file": "Airport_Mesa_Viewpoint_01.10.22.gpx",
+    "gpx_file": null,
+    "latitude": 34.85593790506682,
+    "longitude": -111.77944309745108,
     "images": []
   },
   {
@@ -921,7 +927,9 @@
     "trip_tag": "NY to LA Road Trip",
     "all_trails_url": null,
     "official_trail_url": "https://www.nps.gov/places/000/grandeur-point.htm",
-    "gpx_file": "Grandeur_Point_01.08.22.gpx",
+    "gpx_file": null,
+    "latitude": 36.06479699639211,
+    "longitude": -112.1203647002704,
     "images": []
   }
 ]

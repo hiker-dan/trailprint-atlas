@@ -84,44 +84,53 @@ fetch('data/hikes.json')
             hikesForTrail.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
             const representativeHike = hikesForTrail[0];
 
-            const gpxPath = `data/trails/${representativeHike.gpx_file}`;
-
-            // --- Create the Popup Content ---
-            // List all dates the trail was hiked.
             let dateList = hikesForTrail.map(h => 
                 `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
             ).join('');
 
-            const popupContent = `
-                <h3>${representativeHike.trail_name}</h3>
-                <p><strong>Location:</strong> ${representativeHike.location}</p>
-                <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
-                <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain} ft</p>
-                <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
-                <ul>${dateList}</ul>
-            `;
+            // If it's a viewpoint with coordinates, create a marker.
+            if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
+                const popupContent = `
+                    <h3>${representativeHike.trail_name}</h3>
+                    <p><strong>Location:</strong> ${representativeHike.location}</p>
+                    <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
+                    <ul>${dateList}</ul>
+                `;
+                const marker = L.marker([representativeHike.latitude, representativeHike.longitude], {
+                    icon: getIconForHikeType(representativeHike.hike_type)
+                }).bindPopup(popupContent);
+                allTrailsGroup.addLayer(marker);
+            } 
+            // Otherwise, if it has a GPX file, create a trail as before.
+            else if (representativeHike.gpx_file) {
+                const gpxPath = `data/trails/${representativeHike.gpx_file}`;
+                const popupContent = `
+                    <h3>${representativeHike.trail_name}</h3>
+                    <p><strong>Location:</strong> ${representativeHike.location}</p>
+                    <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
+                    <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain} ft</p>
+                    <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
+                    <ul>${dateList}</ul>
+                `;
 
-            // Create a new GPX layer from the file path in our data
-            const gpxLayer = new L.GPX(gpxPath, {
-                async: true,
-                gpx_options: {
-                    parseElements: ['track'],
-                },
-                marker_options: {
-                    startIcon: getIconForHikeType(representativeHike.hike_type),
-                    endIconUrl: null,
-                },
-                polyline_options: {
-                    color: '#e74c3c',
-                    weight: 5,
-                    opacity: 0.85,
-                },
-            }).on('loaded', function(e) {
-                // When a trail loads successfully, add it to our group.
-                allTrailsGroup.addLayer(e.target);
-            }).on('error', function(e) {
-                console.warn(`Could not load trail: ${gpxPath}`);
-            }).bindPopup(popupContent);
+                const gpxLayer = new L.GPX(gpxPath, {
+                    async: true,
+                    gpx_options: { parseElements: ['track'] },
+                    marker_options: {
+                        startIcon: getIconForHikeType(representativeHike.hike_type),
+                        endIconUrl: null,
+                    },
+                    polyline_options: { color: '#e74c3c', weight: 5, opacity: 0.85 },
+                }).on('loaded', function(e) {
+                    // This part is intentionally left empty. The layer is already in the group.
+                }).on('error', function(e) {
+                    console.warn(`Could not load trail: ${gpxPath}`);
+                    allTrailsGroup.removeLayer(gpxLayer); // Clean up failed layer
+                }).bindPopup(popupContent);
+
+                // Add the layer to the group to start the loading process.
+                allTrailsGroup.addLayer(gpxLayer);
+            }
         }
 
         // Add the layer control to the map

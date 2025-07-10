@@ -79,6 +79,7 @@ function getColorForYear(year) {
 
 let allHikesData = []; // Will hold the full, original dataset
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
+const layerReferences = {}; // To store references to map layers by trail_id
 
 // --- New Filter State Management ---
 const activeFilters = {
@@ -112,6 +113,7 @@ fetch('data/hikes.json')
 function renderMapLayers(trailGroupsToRender) {
     allTrailsGroup.clearLayers(); // Clear all previous layers
 
+    renderTrailList(trailGroupsToRender); // Update the trail list whenever the map is rendered
     trailGroupsToRender.forEach(hikesForTrail => {
         const representativeHike = hikesForTrail[0]; // Already sorted from initial processing
 
@@ -130,6 +132,7 @@ function renderMapLayers(trailGroupsToRender) {
                 icon: getIconForHikeType(representativeHike.hike_type)
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(marker);
+            layerReferences[representativeHike.trail_id] = marker; // Store reference
         } else if (representativeHike.gpx_file) {
             const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
             const trailColor = getColorForYear(yearsHiked[0]);
@@ -156,6 +159,7 @@ function renderMapLayers(trailGroupsToRender) {
                 allTrailsGroup.removeLayer(gpxLayer);
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(gpxLayer);
+            layerReferences[representativeHike.trail_id] = gpxLayer; // Store reference
         }
     });
 
@@ -165,6 +169,27 @@ function renderMapLayers(trailGroupsToRender) {
             map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
         }
     }, 1500);
+}
+
+function renderTrailList(trailGroupsToRender) {
+    const listContainer = document.getElementById('trail-list-container');
+    listContainer.innerHTML = '<h2>Trails</h2>'; // Reset list with a header
+
+    // Sort trail groups alphabetically by name
+    trailGroupsToRender.sort((a, b) => a[0].trail_name.localeCompare(b[0].trail_name));
+
+    trailGroupsToRender.forEach(group => {
+        const representativeHike = group[0];
+        const listItem = document.createElement('div');
+        listItem.className = 'trail-list-item';
+        // Store the trail_id on the element for our click listener
+        listItem.dataset.trailId = representativeHike.trail_id;
+        listItem.innerHTML = `
+            <h4>${representativeHike.trail_name}</h4>
+            <p>${representativeHike.location}</p>
+        `;
+        listContainer.appendChild(listItem);
+    });
 }
 
 function populateFilters(trailGroups) {
@@ -273,6 +298,19 @@ function setupEventListeners() {
         }
         document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
         applyFilters();
+    });
+
+    // Event delegation for the trail list
+    document.getElementById('trail-list-container').addEventListener('click', (e) => {
+        const listItem = e.target.closest('.trail-list-item');
+        if (listItem) {
+            const trailId = listItem.dataset.trailId;
+            const layer = layerReferences[trailId];
+            if (layer) {
+                map.fitBounds(layer.getBounds());
+                layer.openPopup();
+            }
+        }
     });
 }
 

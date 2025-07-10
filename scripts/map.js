@@ -113,43 +113,26 @@ fetch('data/hikes.json')
 function renderMapLayers(trailGroupsToRender) {
     allTrailsGroup.clearLayers(); // Clear all previous layers
 
-    renderTrailList(trailGroupsToRender); // Update the trail list whenever the map is rendered
+    renderTrailList(trailGroupsToRender);
     trailGroupsToRender.forEach(hikesForTrail => {
-        const representativeHike = hikesForTrail[0]; // Already sorted from initial processing
-
-        let dateList = hikesForTrail.map(h => 
-            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-        ).join('');
+        const representativeHike = hikesForTrail[0];
+        const popupContent = generatePopupHtml(hikesForTrail);
 
         if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
-            const popupContent = `
-                <h3>${representativeHike.trail_name}</h3>
-                <p><strong>Location:</strong> ${representativeHike.location}</p>
-                <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
-                <ul>${dateList}</ul>
-            `;
             const marker = L.marker([representativeHike.latitude, representativeHike.longitude], {
                 icon: getIconForHikeType(representativeHike.hike_type)
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(marker);
-            layerReferences[representativeHike.trail_id] = marker; // Store reference
+            layerReferences[representativeHike.trail_id] = marker;
         } else if (representativeHike.gpx_file) {
             const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
             const trailColor = getColorForYear(yearsHiked[0]);
             const startIcon = getIconForHikeType(representativeHike.hike_type);
-            if (hikesForTrail.length > 1) {
+            if (hikesForTrail.length > 1) { // Simplified Golden Halo rule
                 startIcon.options.className += ' multi-year-icon-style';
             }
             const markerOptions = { startIcon: startIcon, endIconUrl: null };
             const gpxPath = `data/trails/${representativeHike.gpx_file}`;
-            const popupContent = `
-                <h3>${representativeHike.trail_name}</h3>
-                <p><strong>Location:</strong> ${representativeHike.location}</p>
-                <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
-                <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain} ft</p>
-                <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
-                <ul>${dateList}</ul>
-            `;
             const gpxLayer = new L.GPX(gpxPath, {
                 async: true,
                 gpx_options: { parseElements: ['track'] },
@@ -159,7 +142,7 @@ function renderMapLayers(trailGroupsToRender) {
                 allTrailsGroup.removeLayer(gpxLayer);
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(gpxLayer);
-            layerReferences[representativeHike.trail_id] = gpxLayer; // Store reference
+            layerReferences[representativeHike.trail_id] = gpxLayer;
         }
     });
 
@@ -190,6 +173,64 @@ function renderTrailList(trailGroupsToRender) {
         `;
         listContainer.appendChild(listItem);
     });
+}
+
+function generatePopupHtml(hikesForTrail) {
+    const representativeHike = hikesForTrail[0];
+    let dateList = hikesForTrail.map(h => 
+        `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
+    ).join('');
+
+    if (representativeHike.hike_type === 'Viewpoint') {
+        return `
+            <h3>${representativeHike.trail_name}</h3>
+            <p><strong>Recreation or Natural Area:</strong> ${representativeHike.location}</p>
+            <p><strong>Near:</strong> ${representativeHike.region}</p>
+            <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
+            <ul>${dateList}</ul>
+        `;
+    } else {
+        let summitHtml = '';
+        if (representativeHike.summit_trail && representativeHike.summit_elevation) {
+            summitHtml = `<p><strong>Summit Elevation:</strong> ${representativeHike.summit_elevation.toLocaleString()} ft</p>`;
+        }
+        return `
+            <h3>${representativeHike.trail_name}</h3>
+            <p><strong>Recreation or Natural Area:</strong> ${representativeHike.location}</p>
+            <p><strong>Near:</strong> ${representativeHike.region}</p>
+            <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
+            <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain.toLocaleString()} ft</p>
+            ${summitHtml}
+            <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
+            <ul>${dateList}</ul>
+        `;
+    }
+}
+
+function generateListDetailsHtml(hikesForTrail) {
+    const representativeHike = hikesForTrail[0];
+    let dateList = hikesForTrail.map(h => 
+        `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
+    ).join('');
+
+    if (representativeHike.hike_type === 'Viewpoint') {
+        return `
+            <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
+            <ul>${dateList}</ul>
+        `;
+    } else {
+        let summitHtml = '';
+        if (representativeHike.summit_trail && representativeHike.summit_elevation) {
+            summitHtml = `<p><strong>Summit Elevation:</strong> ${representativeHike.summit_elevation.toLocaleString()} ft</p>`;
+        }
+        return `
+            <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
+            <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain.toLocaleString()} ft</p>
+            ${summitHtml}
+            <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
+            <ul>${dateList}</ul>
+        `;
+    }
 }
 
 function populateFilters(trailGroups) {
@@ -304,11 +345,38 @@ function setupEventListeners() {
     document.getElementById('trail-list-container').addEventListener('click', (e) => {
         const listItem = e.target.closest('.trail-list-item');
         if (listItem) {
+            const wasActive = listItem.classList.contains('active');
+
+            // Close any currently open panel
+            const existingPanel = document.querySelector('.trail-details-panel');
+            if (existingPanel) {
+                existingPanel.previousElementSibling.classList.remove('active');
+                existingPanel.remove();
+            }
+
+            // If the clicked item was not already active, open a new one
+            if (!wasActive) {
+                listItem.classList.add('active');
+                const trailId = listItem.dataset.trailId;
+                const trailGroup = allHikesData.find(group => group[0].trail_id === trailId);
+                if (trailGroup) {
+                    const detailsContent = generateListDetailsHtml(trailGroup);
+                    const detailsPanel = document.createElement('div');
+                    detailsPanel.className = 'trail-details-panel';
+                    detailsPanel.innerHTML = detailsContent;
+                    listItem.after(detailsPanel);
+                }
+            }
+
+            // Always zoom the map
             const trailId = listItem.dataset.trailId;
             const layer = layerReferences[trailId];
             if (layer) {
-                map.fitBounds(layer.getBounds());
-                layer.openPopup();
+                if (layer.getBounds) { // It's a GPX layer
+                    map.fitBounds(layer.getBounds());
+                } else if (layer.getLatLng) { // It's a Marker
+                    map.setView(layer.getLatLng(), 15);
+                }
             }
         }
     });

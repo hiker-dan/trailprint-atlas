@@ -319,23 +319,27 @@ function renderLegend() {
     const legendContainer = document.getElementById('legend-container');
     if (!legendContainer) return;
 
-    let colorHtml = '<h3>Trail Colors (by Year)</h3>';
+    // Section 1: Trail Colors
+    let colorHtml = '<h3>Trail Color (Year Last Hiked)</h3>';
     for (const year in COLOR_MAP) {
         const color = COLOR_MAP[year];
-        colorHtml += `<div class="legend-item"><span class="legend-color-box" style="background-color: ${color};"></span> ${year}</div>`;
+        colorHtml += `<div class="legend-item"><span class="legend-trail-segment" style="background-color: ${color};"></span> ${year}</div>`;
     }
 
-    let iconHtml = '<h3>Icon Types</h3>';
+    // Section 2: Hike Types
+    let iconHtml = '<h3>Hike Type</h3>';
     for (const type in ICON_MAP) {
         const iconFile = ICON_MAP[type];
-        iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${type}</div>`;
+        const labelText = (type === 'Viewpoint') ? `${type} (No Trail Path)` : type;
+        iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${labelText}</div>`;
     }
 
+    // Section 3: Special Indicators
     let specialHtml = '<h3>Special Indicators</h3>';
     specialHtml += `
         <div class="legend-item">
             <div class="legend-icon-wrapper">
-                <img src="assets/icons/hiker-icon.png" class="legend-icon hike-icon multi-year-icon-style" />
+                <img src="assets/icons/blank-icon.png" class="legend-icon hike-icon multi-year-icon-style" />
             </div>
             Hiked More Than Once
         </div>`;

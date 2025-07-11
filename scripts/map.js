@@ -86,7 +86,8 @@ const activeFilters = {
     year: new Set(),
     hike_type: new Set(),
     difficulty: new Set(),
-    size: new Set()
+    size: new Set(),
+    search: '' // New property for the search term
 };
 
 fetch('data/hikes.json')
@@ -156,7 +157,7 @@ function renderMapLayers(trailGroupsToRender) {
 
 function renderTrailList(trailGroupsToRender) {
     const listContainer = document.getElementById('trail-list-container');
-    listContainer.innerHTML = '<h2>Trails</h2>'; // Reset list with a header
+    listContainer.innerHTML = ''; // Clear only the list items
 
     // Sort trail groups alphabetically by name
     trailGroupsToRender.sort((a, b) => a[0].trail_name.localeCompare(b[0].trail_name));
@@ -288,14 +289,25 @@ function updateActiveFiltersDisplay() {
 
 function applyFilters() {
     const filteredGroups = allHikesData.filter(group => {
-        // A group matches if at least one hike within it matches all active filters.
-        return group.some(hike => {
+        // Check search filter first, as it applies to the whole group
+        const representativeHike = group[0];
+        const searchMatch = activeFilters.search === '' || 
+                            representativeHike.trail_name.toLowerCase().includes(activeFilters.search) ||
+                            representativeHike.location.toLowerCase().includes(activeFilters.search);
+
+        if (!searchMatch) {
+            return false; // If it doesn't match search, no need to check other filters
+        }
+
+        // Then, check that the group contains at least one hike matching the tag filters.
+        const tagFiltersMatch = group.some(hike => {
             const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(new Date(hike.date_completed).getFullYear().toString());
             const typeMatch = activeFilters.hike_type.size === 0 || activeFilters.hike_type.has(hike.hike_type);
             const difficultyMatch = activeFilters.difficulty.size === 0 || activeFilters.difficulty.has(hike.difficulty);
             const sizeMatch = activeFilters.size.size === 0 || activeFilters.size.has(hike.hike_size);
             return yearMatch && typeMatch && difficultyMatch && sizeMatch;
         });
+        return tagFiltersMatch;
     });
 
     renderMapLayers(filteredGroups);
@@ -335,9 +347,19 @@ function setupEventListeners() {
 
     document.getElementById('reset-filters-btn').addEventListener('click', () => {
         for (const type in activeFilters) {
-            activeFilters[type].clear();
+            if (activeFilters[type] instanceof Set) {
+                activeFilters[type].clear();
+            }
         }
+        activeFilters.search = ''; // Also clear the search term
+        document.getElementById('trail-search-input').value = ''; // And clear the input field
         document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
+        applyFilters();
+    });
+
+    // Event listener for the search input
+    document.getElementById('trail-search-input').addEventListener('input', (e) => {
+        activeFilters.search = e.target.value.toLowerCase();
         applyFilters();
     });
 

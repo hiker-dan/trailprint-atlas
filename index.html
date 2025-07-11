@@ -161,22 +161,40 @@
             display: flex;
             flex-direction: row;
         }
-        #trail-list-container {
+        #trail-list-panel {
             width: 300px;
             height: 80vh; /* Match map height */
-            overflow-y: auto; /* Add scrollbar if list is long */
             background-color: #fff;
             border-right: 1px solid #ddd;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
         }
-        #trail-list-container h2 {
+        #trail-list-header {
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+        #trail-list-header h2 {
             margin: 0;
             padding: 15px;
             background-color: #f9f9f9;
             border-bottom: 1px solid #ddd;
             font-size: 18px;
-            position: sticky;
-            top: 0;
+        }
+        #trail-search-container {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            background-color: #f9f9f9;
+        }
+        #trail-search-input {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box; /* Important for 100% width */
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #trail-list-container {
+            overflow-y: auto; /* Add scrollbar if list is long */
+            flex-grow: 1; /* Allow list to take up remaining space */
         }
         .trail-list-item {
             padding: 15px;
@@ -222,7 +240,13 @@
     <p>My personal hiking journal.</p>
 
     <div class="content-wrapper">
-        <div id="trail-list-container"></div>
+        <div id="trail-list-panel">
+            <div id="trail-list-header">
+                <h2>Trails</h2>
+                <div id="trail-search-container"><input type="search" id="trail-search-input" placeholder="Search trails by name..."></div>
+            </div>
+            <div id="trail-list-container"></div>
+        </div>
         <div id="map"></div>
     </div>
 

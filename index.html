@@ -159,6 +159,94 @@
             margin-top: 10px;
             margin-bottom: 30px;
         }
+        /* --- Featured Adventure Section --- */
+        .featured-adventure-section {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start; /* Align items to the top for a cleaner look as content expands */
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+            border: 1px solid #e9e9e9;
+            margin-top: 40px;
+        }
+        .featured-adventure-visuals {
+            flex-shrink: 0;
+            width: 40%;
+        }
+        .featured-adventure-image-container {
+            height: 300px; /* Fixed height for consistency */
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .featured-adventure-image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Ensures image covers the container without distortion */
+        }
+        .featured-adventure-content {
+            flex-grow: 1;
+            text-align: left;
+        }
+        .featured-adventure-content .subtitle {
+            font-size: 1em;
+            text-transform: uppercase;
+            color: #e67e22; /* An adventurous orange color */
+            letter-spacing: 1px;
+            font-weight: bold;
+            margin: 0;
+        }
+        .featured-adventure-content .title {
+            font-size: 2.2em;
+            margin: 5px 0 15px 0;
+            color: #2c3e50;
+        }
+        .featured-adventure-content .panel-description {
+            font-size: 1.1em;
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .featured-trip-hikes-list {
+            margin-bottom: 20px;
+        }
+        .featured-trip-hike-item {
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .featured-trip-hike-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        .featured-trip-hike-item h4 {
+            margin: 0 0 5px 0;
+            font-size: 1.2em;
+            color: #333;
+        }
+        .featured-trip-hike-item .hike-meta {
+            font-size: 0.9em;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        .featured-trip-hike-item .hike-description {
+            font-size: 1em;
+            line-height: 1.5;
+            color: #555;
+            margin: 0;
+        }
+
+        .featured-adventure-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            text-align: center;
+        }
+
     </style>
 </head>
 <body>
@@ -205,6 +293,48 @@
             <p>(Click to open the interactive map)</p>
         </div>
     </a>
+
+    <div class="container">
+        <!-- Featured Adventure Section -->
+        <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
+            <div class="featured-adventure-visuals">
+                <div class="featured-adventure-image-container">
+                    <!-- Image will be set by JS -->
+                    <img id="featured-trip-image" src="" alt="Photo from the latest adventure">
+                </div>
+                <div class="featured-adventure-stats">
+                    <div class="stat-item" id="featured-trip-days-stat"></div>
+                    <div class="stat-item" id="featured-trip-miles-stat"></div>
+                    <div class="stat-item" id="featured-trip-elevation-stat"></div>
+                </div>
+            </div>
+            <div class="featured-adventure-content">
+                <h3 class="subtitle">Latest Adventure</h3>
+                <h2 class="title" id="featured-trip-title">--</h2>
+                <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
+            </div>
+        </div>
+
+        <!-- Go-To Trail Section -->
+        <div class="featured-adventure-section" id="goto-trail-section" style="display: none;">
+            <div class="featured-adventure-visuals">
+                <div class="featured-adventure-image-container">
+                    <img id="goto-trail-image" src="" alt="Photo from the go-to trail">
+                </div>
+                <div class="featured-adventure-stats">
+                    <div class="stat-item" id="goto-trail-times-hiked-stat"></div>
+                    <div class="stat-item" id="goto-trail-miles-stat"></div>
+                    <div class="stat-item" id="goto-trail-elevation-stat"></div>
+                </div>
+            </div>
+            <div class="featured-adventure-content">
+                <h3 class="subtitle">The Go-To Trail</h3>
+                <h2 class="title" id="goto-trail-title">--</h2>
+                <p class="panel-description" id="goto-trail-description">--</p>
+                <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <!-- Bottom Stats Dashboard -->
@@ -363,6 +493,92 @@
                         document.getElementById('most-recent-hike-date').innerText = '--';
                     }
 
+                    // --- Find and Display Featured Adventure ---
+                    const hikesWithTripTag = data.filter(hike => hike.trip_tag);
+
+                    if (hikesWithTripTag.length > 0) {
+                        // Find the most recent hike that is part of any trip
+                        const latestTripHike = hikesWithTripTag.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+                        const latestTripTag = latestTripHike.trip_tag;
+
+                        // Now, gather all hikes associated with that specific trip
+                        const adventureHikes = data.filter(h => h.trip_tag === latestTripTag);
+                        
+                        // Find the latest hike within that trip to pull the description and image from
+                        const latestHikeInTrip = adventureHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+
+                        // Populate the title
+                        document.getElementById('featured-trip-title').innerText = latestTripTag;
+
+                        // Populate the list of hikes for the trip
+                        const hikesListContainer = document.getElementById('featured-trip-hikes-list');
+                        hikesListContainer.innerHTML = ''; // Clear previous content
+                        adventureHikes
+                            .sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed)) // Sort chronologically
+                            .forEach(hike => {
+                                const hikeItemHtml = `
+                                    <div class="featured-trip-hike-item">
+                                        <h4>${hike.trail_name}</h4>
+                                        <div class="hike-meta">${hike.miles} miles | ${hike.elevation_gain.toLocaleString()} ft gain</div>
+                                        <p class="hike-description">${hike.description}</p>
+                                    </div>
+                                `;
+                                hikesListContainer.innerHTML += hikeItemHtml;
+                            });
+
+                        // Calculate stats for the featured adventure
+                        const tripMiles = adventureHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
+                        const tripElevation = adventureHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
+                        const tripDays = new Set(adventureHikes.map(h => h.date_completed)).size; // Count unique days
+                        
+                        // Populate the summary stats at the bottom with clearer labels
+                        document.getElementById('featured-trip-days-stat').innerHTML = `<span class="number">${tripDays}</span><span class="label">Trip Day${tripDays !== 1 ? 's' : ''}</span>`;
+                        document.getElementById('featured-trip-miles-stat').innerHTML = `<span class="number">${Math.round(tripMiles)}</span><span class="label">Total Miles</span>`;
+                        document.getElementById('featured-trip-elevation-stat').innerHTML = `<span class="number">${tripElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
+
+                        // TODO: Add an image path to your hikes.json for this to work! e.g., "images": ["path/to/image.jpg"]
+                        // document.getElementById('featured-trip-image').src = latestHikeInTrip.images[0] || 'path/to/default-image.jpg';
+                        document.getElementById('featured-adventure').style.display = 'flex';
+                    }
+
+                    // --- Find and Display the "Go-To" (Most Hiked) Trail ---
+                    const trailCounts = {};
+                    data.forEach(hike => {
+                        if (hike.trail_name) { // Ensure trail_name exists
+                            trailCounts[hike.trail_name] = (trailCounts[hike.trail_name] || 0) + 1;
+                        }
+                    });
+
+                    let mostHikedTrailName = '';
+                    let maxHikes = 1; // Only feature trails hiked more than once
+                    for (const trailName in trailCounts) {
+                        if (trailCounts[trailName] > maxHikes) {
+                            maxHikes = trailCounts[trailName];
+                            mostHikedTrailName = trailName;
+                        }
+                    }
+
+                    if (mostHikedTrailName) {
+                        const mostHikedHikes = data.filter(h => h.trail_name === mostHikedTrailName);
+                        const representativeHike = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+
+                        const totalMiles = mostHikedHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
+                        const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
+
+                        document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
+                        document.getElementById('goto-trail-description').innerText = representativeHike.description;
+
+                        const datesHtml = mostHikedHikes
+                            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+                            .map(h => `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`)
+                            .join('');
+                        document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
+
+                        document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
+                        document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
+                        document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
+                        document.getElementById('goto-trail-section').style.display = 'flex';
+                    }
                 });
             }).catch(error => {
                 console.error("Error loading homepage map data:", error);

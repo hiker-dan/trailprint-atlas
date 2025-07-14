@@ -287,6 +287,20 @@ function updateActiveFiltersDisplay() {
     displayContainer.style.display = hasActiveFilters ? 'block' : 'none';
 }
 
+function clearAllFilters() {
+    // 1. Reset filters state
+    for (const type in activeFilters) {
+        if (activeFilters[type] instanceof Set) {
+            activeFilters[type].clear();
+        }
+    }
+    activeFilters.search = '';
+
+    // 2. Reset UI elements
+    document.getElementById('trail-search-input').value = '';
+    document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
+}
+
 function applyFilters() {
     const filteredGroups = allHikesData.filter(group => {
         // Check search filter first, as it applies to the whole group
@@ -346,14 +360,7 @@ function setupEventListeners() {
     });
 
     document.getElementById('reset-filters-btn').addEventListener('click', () => {
-        for (const type in activeFilters) {
-            if (activeFilters[type] instanceof Set) {
-                activeFilters[type].clear();
-            }
-        }
-        activeFilters.search = ''; // Also clear the search term
-        document.getElementById('trail-search-input').value = ''; // And clear the input field
-        document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
+        clearAllFilters();
         applyFilters();
     });
 
@@ -403,6 +410,30 @@ function setupEventListeners() {
         }
     });
 }
+
+// --- Create Custom Reset Control ---
+const resetControl = L.control({ position: 'topleft' });
+
+resetControl.onAdd = function(map) {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const button = L.DomUtil.create('a', 'leaflet-control-reset-view', container);
+    button.innerHTML = '&#x21bb;'; // Refresh symbol
+    button.href = '#';
+    button.title = 'Reset all filters';
+    button.setAttribute('role', 'button');
+    button.setAttribute('aria-label', 'Reset all filters');
+
+    // Prevent map events from firing when clicking the button
+    L.DomEvent.on(button, 'click', L.DomEvent.stop);
+    L.DomEvent.on(button, 'click', () => {
+        clearAllFilters();
+        applyFilters();
+    });
+
+    return container;
+};
+
+resetControl.addTo(map);
 
 // --- Create Custom Filter Control ---
 const filterControl = L.control({ position: 'topright' });

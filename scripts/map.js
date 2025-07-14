@@ -3,15 +3,14 @@
 const map = L.map('map').setView([39.82, -98.58], 5);
 
 // --- Define Base Map Tile Layers ---
-const streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+const esriTopoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+	attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
 });
 
 const voyagerMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
 	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 	subdomains: 'abcd',
-	maxZoom: 20
+	maxZoom: 19
 });
 
 const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -19,12 +18,12 @@ const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/se
 });
 
 // Set the default map layer
-voyagerMap.addTo(map);
+esriTopoMap.addTo(map);
 
 // Create a base maps object
 const baseMaps = {
-    "Voyager": voyagerMap,
-    "Street Map": streetMap,
+    "Topo": esriTopoMap,
+    "Simple": voyagerMap,
     "Satellite": satelliteMap
 };
 
@@ -124,7 +123,7 @@ function renderMapLayers(trailGroupsToRender) {
                 icon: getIconForHikeType(representativeHike.hike_type)
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(marker);
-            layerReferences[representativeHike.trail_id] = marker;
+            layerReferences[representativeHike.trail_name] = marker;
         } else if (representativeHike.gpx_file) {
             const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
             const trailColor = getColorForYear(yearsHiked[0]);
@@ -143,7 +142,7 @@ function renderMapLayers(trailGroupsToRender) {
                 allTrailsGroup.removeLayer(gpxLayer);
             }).bindPopup(popupContent);
             allTrailsGroup.addLayer(gpxLayer);
-            layerReferences[representativeHike.trail_id] = gpxLayer;
+            layerReferences[representativeHike.trail_name] = gpxLayer;
         }
     });
 
@@ -166,8 +165,8 @@ function renderTrailList(trailGroupsToRender) {
         const representativeHike = group[0];
         const listItem = document.createElement('div');
         listItem.className = 'trail-list-item';
-        // Store the trail_id on the element for our click listener
-        listItem.dataset.trailId = representativeHike.trail_id;
+        // Store the trail_name on the element for our click listener
+        listItem.dataset.trailName = representativeHike.trail_name;
         listItem.innerHTML = `
             <h4>${representativeHike.trail_name}</h4>
             <p>${representativeHike.location}</p>
@@ -386,8 +385,8 @@ function setupEventListeners() {
             // If the clicked item was not already active, open a new one
             if (!wasActive) {
                 listItem.classList.add('active');
-                const trailId = listItem.dataset.trailId;
-                const trailGroup = allHikesData.find(group => group[0].trail_id === trailId);
+                const trailName = listItem.dataset.trailName;
+                const trailGroup = allHikesData.find(group => group[0].trail_name === trailName);
                 if (trailGroup) {
                     const detailsContent = generateListDetailsHtml(trailGroup);
                     const detailsPanel = document.createElement('div');
@@ -398,8 +397,8 @@ function setupEventListeners() {
             }
 
             // Always zoom the map
-            const trailId = listItem.dataset.trailId;
-            const layer = layerReferences[trailId];
+            const trailName = listItem.dataset.trailName;
+            const layer = layerReferences[trailName];
             if (layer) {
                 if (layer.getBounds) { // It's a GPX layer
                     map.fitBounds(layer.getBounds());

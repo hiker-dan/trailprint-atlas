@@ -54,7 +54,8 @@ function renderTrailGroup(hikesForTrail, options = {}) {
             const haloDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
                 radius: 6,
                 fillColor: trailColor,
-                stroke: false, // No border on the halo
+                stroke: false,
+                className: 'breathing-halo', // Apply the animation class
                 fillOpacity: 0.5
             });
             const mainDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
@@ -80,7 +81,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
             const markerOpts = { startIconUrl: null, endIconUrl: null, shadowUrl: null };
             const haloLine = new L.GPX(`data/trails/${representativeHike.gpx_file}`, {
                 async: true, gpx_options: { parseElements: ['track'] }, marker_options: markerOpts,
-                polyline_options: { color: trailColor, weight: 7, opacity: 0.4 } // The thick, semi-transparent halo
+                polyline_options: { color: trailColor, weight: 7, opacity: 0.4, className: 'breathing-halo' }
             });
             const mainLine = new L.GPX(`data/trails/${representativeHike.gpx_file}`, {
                 async: true, gpx_options: { parseElements: ['track'] }, marker_options: markerOpts,

@@ -16,6 +16,7 @@
             color: #333;
         }
         .container {
+            /* The main content container */
             max-width: 800px;
             margin: 40px auto;
             padding: 20px;
@@ -60,6 +61,21 @@
             width: 100%;
             background-color: #1d1d1d; /* Dark background to hide satellite tile seams */
         }
+        /* Keyframe animation for the "breathing" glow effect */
+        @keyframes breathing-glow {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0.4; }
+        }
+        /* Class to apply the animation to our halo layers */
+        .breathing-halo {
+            /* ease-in-out makes the pulse smooth */
+            animation: breathing-glow 4s ease-in-out infinite;
+        }
+        .map-overlay {
+            /* This ensures the overlay doesn't cover our new stats panel */
+            pointer-events: none; 
+        }
         .map-overlay {
             position: absolute;
             top: 0;
@@ -75,7 +91,6 @@
             flex-direction: column;
             opacity: 0;
             transition: opacity 0.3s ease-in-out;
-            pointer-events: none; /* Allows clicks to go through to the link */
         }
         .showcase-map-container:hover .map-overlay {
             opacity: 1;
@@ -90,6 +105,60 @@
             font-size: 1.2em;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
         }
+        /* --- Stats Panel Styles --- */
+        .stats-dashboard {
+            display: flex;
+            justify-content: center; /* Center the groups */
+            gap: 20px; /* Space between the stat "bubbles" */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            margin: 20px auto; /* Spacing for above and below the map */
+        }
+        .stat-group {
+            display: flex; /* Aligns stat items within a group */
+            gap: 40px; /* Space between items in a group */
+            align-items: center;
+            padding: 15px 30px;
+            /* Style each group as a "bubble" or card */
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+            border: 1px solid #e9e9e9;
+        }
+        .stat-item {
+            text-align: center;
+            color: #555;
+        }
+        .stat-item .number {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #2c3e50; /* A strong, dark blue/gray */
+            display: block;
+            margin-bottom: 5px;
+        }
+        .stat-item .date-number {
+            font-size: 1.4em; /* Slightly smaller for date strings */
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .stat-item .label {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .sub-label {
+            font-size: 1em; /* Make it slightly more prominent */
+            color: #777;
+            margin-top: 4px;
+        }
+        .hike-record-title {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+            margin-top: 10px;
+            margin-bottom: 30px;
+        }
     </style>
 </head>
 <body>
@@ -101,6 +170,31 @@
     <div class="container">
         <h1>Welcome to The Trailprint Atlas</h1>
         <p>A living journal of every trail I've ever hiked. Below is a snapshot of my journey so far. Click the map to explore it in full detail.</p>
+        <h2 class="hike-record-title">Hike Record: <span id="start-year">....</span> - Present</h2>
+
+        <!-- Top Stats Dashboard -->
+        <div class="stats-dashboard" id="stats-dashboard-top">
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="stats-hikes" class="number">--</div>
+                    <div class="label">Total Hikes</div>
+                </div>
+                <div class="stat-item">
+                    <div id="stats-trails" class="number">--</div>
+                    <div class="label">Unique Trails</div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="stats-miles" class="number">--</div>
+                    <div class="label">Miles Hiked</div>
+                </div>
+                <div class="stat-item">
+                    <div id="stats-elevation" class="number">--</div>
+                    <div class="label">Feet Climbed</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Showcase Map Section -->
@@ -113,6 +207,30 @@
     </a>
 
     <div class="container">
+        <!-- Bottom Stats Dashboard -->
+        <div class="stats-dashboard" id="stats-dashboard-bottom">
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="stats-highest-summit" class="number">--</div>
+                    <div class="label">Highest Summit</div>
+                    <div id="stats-highest-summit-name" class="sub-label"></div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="first-hike-date" class="date-number">--</div>
+                    <div class="label">First Hike</div>
+                    <div id="first-hike-name" class="sub-label"></div>
+                </div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="most-recent-hike-date" class="date-number">--</div>
+                    <div class="label">Latest Hike</div>
+                    <div id="most-recent-hike-name" class="sub-label"></div>
+                </div>
+            </div>
+        </div>
         <!-- You can add more homepage content here later -->
     </div>
 
@@ -184,6 +302,67 @@
                     } else {
                         homeMap.setView([39.82, -98.58], 4); // Fallback if no trails exist
                     }
+
+                    // --- Calculate and Display Stats ---
+                    const uniqueTrails = Object.values(trailGroups);
+                    const totalHikes = data.length;
+                    const totalUniqueTrails = uniqueTrails.length;
+                    const totalMiles = uniqueTrails.reduce((sum, group) => {
+                        // Use the miles from the representative hike for each unique trail
+                        // The '|| 0' handles cases where miles might be missing.
+                        return sum + (group[0].miles || 0);
+                    }, 0);
+                    const totalElevation = data.reduce((sum, hike) => {
+                        return sum + (hike.elevation_gain || 0);
+                    }, 0);
+                    const highestSummitHike = data
+                        .filter(hike => hike.summit_trail && hike.summit_elevation)
+                        .reduce((maxHike, currentHike) => {
+                            // If maxHike is null or the current hike is higher, it becomes the new max
+                            return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
+                        }, null); // Start with null to handle cases with no summits
+
+                    // Format and display the stats with commas for thousands
+                    document.getElementById('stats-hikes').innerText = totalHikes.toLocaleString();
+                    document.getElementById('stats-trails').innerText = totalUniqueTrails.toLocaleString();
+                    document.getElementById('stats-miles').innerText = Math.round(totalMiles).toLocaleString();
+                    document.getElementById('stats-elevation').innerText = Math.round(totalElevation).toLocaleString();
+                    
+                    if (highestSummitHike) {
+                        document.getElementById('stats-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
+                        document.getElementById('stats-highest-summit-name').innerText = `on ${highestSummitHike.trail_name}`;
+                    } else {
+                        document.getElementById('stats-highest-summit').innerText = '--';
+                        document.getElementById('stats-highest-summit-name').innerText = 'No summits recorded';
+                    }
+
+                    // --- Calculate and Display Time Range ---
+                    if (data.length > 0) {
+                        // Find the earliest year in the dataset
+                        const startYear = data.reduce((min, hike) => {
+                            const year = new Date(hike.date_completed).getFullYear();
+                            return year < min ? year : min;
+                        }, new Date().getFullYear()); // Start with the current year as the initial minimum
+                        document.getElementById('start-year').innerText = startYear;
+                    }
+
+                    // --- Calculate and Display First/Most Recent Hikes ---
+                    if (data.length > 0) {
+                        const sortedHikes = [...data].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+                        const firstHike = sortedHikes[0];
+                        const mostRecentHike = sortedHikes[sortedHikes.length - 1];
+                        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+
+                        document.getElementById('first-hike-date').innerText = new Date(firstHike.date_completed).toLocaleDateString('en-US', dateOptions);
+                        document.getElementById('first-hike-name').innerText = `${firstHike.trail_name} - ${firstHike.location}`;
+
+                        document.getElementById('most-recent-hike-date').innerText = new Date(mostRecentHike.date_completed).toLocaleDateString('en-US', dateOptions);
+                        document.getElementById('most-recent-hike-name').innerText = `${mostRecentHike.trail_name} - ${mostRecentHike.location}`;
+                    } else {
+                        document.getElementById('first-hike-date').innerText = '--';
+                        document.getElementById('most-recent-hike-date').innerText = '--';
+                    }
+
                 });
             }).catch(error => {
                 console.error("Error loading homepage map data:", error);

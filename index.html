@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Trailprint Atlas</title>
+    <!-- Add Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
     <style>
         body { 
             margin: 0; 
@@ -35,6 +39,57 @@
         nav a:hover {
             text-decoration: underline;
         }
+        /* Style for our custom hike icons (for viewpoints) */
+        .hike-icon {
+            /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%; /* This makes the background circular */
+            /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+        }
+        /* --- Showcase Map Styles --- */
+        .showcase-map-container {
+            position: relative;
+            height: 50vh; /* Adjust height as needed */
+            cursor: pointer;
+            overflow: hidden; /* Hide anything that might stick out */
+            display: block; /* Ensures the link takes up the full container space */
+        }
+        #home-map {
+            height: 100%;
+            width: 100%;
+            background-color: #1d1d1d; /* Dark background to hide satellite tile seams */
+        }
+        .map-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.2); /* Dark overlay */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-direction: column;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none; /* Allows clicks to go through to the link */
+        }
+        .showcase-map-container:hover .map-overlay {
+            opacity: 1;
+        }
+        .map-overlay h3 {
+            margin: 0;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+        }
+        .map-overlay p {
+            margin-top: 10px;
+            font-size: 1.2em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
+        }
     </style>
 </head>
 <body>
@@ -45,8 +100,95 @@
 
     <div class="container">
         <h1>Welcome to The Trailprint Atlas</h1>
-        <p>This is the homepage for your personal hiking journal. From here, you can explore all of your adventures on the interactive map.</p>
-        <p>In the future, this page will feature a high-level dashboard with your hiking statistics and a simplified map view.</p>
+        <p>A living journal of every trail I've ever hiked. Below is a snapshot of my journey so far. Click the map to explore it in full detail.</p>
     </div>
+
+    <!-- Showcase Map Section -->
+    <a href="map.html" class="showcase-map-container" title="Explore the Interactive Map">
+        <div id="home-map"></div>
+        <div class="map-overlay">
+            <h3>Explore the Atlas</h3>
+            <p>(Click to open the interactive map)</p>
+        </div>
+    </a>
+
+    <div class="container">
+        <!-- You can add more homepage content here later -->
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+   crossorigin=""></script>
+
+   <!-- Leaflet-GPX Plugin -->
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
+
+   <!-- Our new shared trail renderer -->
+   <script src="scripts/trail-renderer.js"></script>
+
+   <!-- Custom script for the homepage map -->
+   <script>
+        // --- Simplified Map for Homepage ---
+
+        // 1. Initialize a non-interactive map
+        const homeMap = L.map('home-map', {
+            zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+            touchZoom: false, boxZoom: false, keyboard: false, tap: false
+        });
+
+        // 2. Add the same beautiful base layer
+        // We're using CartoDB's "Dark Matter" theme. It's visually stunning, makes the trails pop,
+        // and completely eliminates the distracting tile seams for a clean, professional look.
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+	        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        }).addTo(homeMap);
+
+        // 4. Fetch hike data and render only the GPX trails
+        fetch('data/hikes.json')
+            .then(response => response.json())
+            .then(data => {
+                // Group hikes by trail name, so we only draw each trail once
+                const trailGroups = {};
+                data.forEach(hike => {
+                    if (!trailGroups[hike.trail_name]) trailGroups[hike.trail_name] = [];
+                    trailGroups[hike.trail_name].push(hike);
+                });
+
+                const allLayersGroup = L.featureGroup().addTo(homeMap);
+                const loadingPromises = []; // An array to hold our loading promises
+
+                Object.values(trailGroups).forEach(group => {
+                    // Use the shared renderer in non-interactive mode
+                    const layer = renderTrailGroup(group, { isInteractive: false });
+                    if (layer) {
+                        allLayersGroup.addLayer(layer);
+                        // If it's a GPX layer, it loads asynchronously. We create a promise for it.
+                        if (group[0].gpx_file) {
+                            const gpxPromise = new Promise(resolve => {
+                                // The 'loaded' event tells us the download and parsing is complete.
+                                layer.on('loaded', () => resolve());
+                                // We also resolve on error to prevent the map from waiting forever.
+                                layer.on('error', () => resolve());
+                            });
+                            loadingPromises.push(gpxPromise);
+                        }
+                    }
+                });
+
+                // 5. Wait for all promises to resolve, then set the map view.
+                Promise.all(loadingPromises).then(() => {
+                    // This code will only run after ALL GPX files have been loaded.
+                    if (allLayersGroup.getLayers().length > 0) {
+                        homeMap.fitBounds(allLayersGroup.getBounds().pad(0.1));
+                    } else {
+                        homeMap.setView([39.82, -98.58], 4); // Fallback if no trails exist
+                    }
+                });
+            }).catch(error => {
+                console.error("Error loading homepage map data:", error);
+                homeMap.setView([39.82, -98.58], 4);
+            });
+   </script>
 </body>
 </html>

@@ -27,55 +27,6 @@ const baseMaps = {
     "Satellite": satelliteMap
 };
 
-// --- Global Data Maps ---
-const ICON_MAP = {
-    "Overnight Trip": "overnight-trip-icon.png",
-    "Day Trip": "day-trip-icon.png",
-    "Day Hike": "day-hike-icon.png",
-    "Car Camping": "car-camping-icon.png",
-    "Backpacking": "backpacking-icon.png",
-    "Viewpoint": "viewpoint-icon.png"
-};
-
-const COLOR_MAP = {
-    "2022": "#3498db", // A nice blue
-    "2023": "#2ecc71", // A vibrant green
-    "2024": "#f1c40f", // A sunflower yellow
-    "2025": "#e67e22", // A carrot orange
-    "2026": "#9b59b6", // A rich amethyst
-};
-
-// Load hike data from JSON and add GPX tracks to the map
-
-/**
- * Creates a Leaflet icon object based on the hike type.
- * @param {string} hikeType - The type of hike (e.g., "Overnight Trip", "Day Hike").
- * @returns {L.Icon} A Leaflet Icon object.
- */
-function getIconForHikeType(hikeType) {
-    // Use the specific icon if available, otherwise fall back to a default.
-    const iconFilename = ICON_MAP[hikeType] || 'hiker-icon.png'; // Default icon
-
-    return L.icon({
-        iconUrl: `assets/icons/${iconFilename}`,
-        iconSize:     [32, 32], // size of the icon
-        iconAnchor:   [16, 32], // point of the icon which will correspond to marker's location
-        popupAnchor:  [0, -32], // point from which the popup should open relative to the iconAnchor
-        shadowUrl: null, // Explicitly disable the shadow for this icon
-        className: 'hike-icon' // Add a CSS class for styling
-    });
-}
-
-/**
- * Returns a color based on the year of the hike.
- * @param {string} year - The four-digit year of the hike.
- * @returns {string} A hex color code.
- */
-function getColorForYear(year) {
-    // Return the specific color if available, otherwise fall back to a default.
-    return COLOR_MAP[year] || '#7f8c8d'; // Default grey for other years
-}
-
 let allHikesData = []; // Will hold the full, original dataset
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
 const layerReferences = {}; // To store references to map layers by trail_id
@@ -115,34 +66,14 @@ function renderMapLayers(trailGroupsToRender) {
 
     renderTrailList(trailGroupsToRender);
     trailGroupsToRender.forEach(hikesForTrail => {
-        const representativeHike = hikesForTrail[0];
-        const popupContent = generatePopupHtml(hikesForTrail);
-
-        if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
-            const marker = L.marker([representativeHike.latitude, representativeHike.longitude], {
-                icon: getIconForHikeType(representativeHike.hike_type)
-            }).bindPopup(popupContent);
-            allTrailsGroup.addLayer(marker);
-            layerReferences[representativeHike.trail_name] = marker;
-        } else if (representativeHike.gpx_file) {
-            const yearsHiked = [...new Set(hikesForTrail.map(h => new Date(h.date_completed).getFullYear().toString()))];
-            const trailColor = getColorForYear(yearsHiked[0]);
-            const startIcon = getIconForHikeType(representativeHike.hike_type);
-            if (hikesForTrail.length > 1) { // Simplified Golden Halo rule
-                startIcon.options.className += ' multi-year-icon-style';
-            }
-            const markerOptions = { startIcon: startIcon, endIconUrl: null };
-            const gpxPath = `data/trails/${representativeHike.gpx_file}`;
-            const gpxLayer = new L.GPX(gpxPath, {
-                async: true,
-                gpx_options: { parseElements: ['track'] },
-                marker_options: markerOptions,
-                polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
-            }).on('error', function(e) {
-                allTrailsGroup.removeLayer(gpxLayer);
-            }).bindPopup(popupContent);
-            allTrailsGroup.addLayer(gpxLayer);
-            layerReferences[representativeHike.trail_name] = gpxLayer;
+        // Use the shared renderer in interactive mode
+        const layer = renderTrailGroup(hikesForTrail, {
+            isInteractive: true,
+            popupHtmlGenerator: generatePopupHtml // Pass the function to generate popups
+        });
+        if (layer) {
+            allTrailsGroup.addLayer(layer);
+            layerReferences[hikesForTrail[0].trail_name] = layer;
         }
     });
 
@@ -401,7 +332,7 @@ function setupEventListeners() {
             const layer = layerReferences[trailName];
             if (layer) {
                 if (layer.getBounds) { // It's a GPX layer
-                    map.fitBounds(layer.getBounds());
+                    map.fitBounds(layer.getBounds(), { padding: [50, 50] });
                 } else if (layer.getLatLng) { // It's a Marker
                     map.setView(layer.getLatLng(), 15);
                 }
@@ -479,15 +410,15 @@ function renderLegend() {
 
     // Section 1: Trail Colors
     let colorHtml = '<h3>Trail Color (Year Last Hiked)</h3>';
-    for (const year in COLOR_MAP) {
-        const color = COLOR_MAP[year];
+    for (const year in RENDERER_CONFIG.COLOR_MAP) {
+        const color = RENDERER_CONFIG.COLOR_MAP[year];
         colorHtml += `<div class="legend-item"><span class="legend-trail-segment" style="background-color: ${color};"></span> ${year}</div>`;
     }
 
     // Section 2: Hike Types
     let iconHtml = '<h3>Hike Type</h3>';
-    for (const type in ICON_MAP) {
-        const iconFile = ICON_MAP[type];
+    for (const type in RENDERER_CONFIG.ICON_MAP) {
+        const iconFile = RENDERER_CONFIG.ICON_MAP[type];
         const labelText = (type === 'Viewpoint') ? `${type} (No Trail Path)` : type;
         iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${labelText}</div>`;
     }

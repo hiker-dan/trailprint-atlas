@@ -15,13 +15,6 @@
             background-color: #f4f4f4;
             color: #333;
         }
-        .container {
-            /* The main content container */
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 20px;
-            text-align: center;
-        }
         h1 {
             font-size: 2.5em;
         }
@@ -51,10 +44,18 @@
         /* --- Showcase Map Styles --- */
         .showcase-map-container {
             position: relative;
-            height: 50vh; /* Adjust height as needed */
+            height: 60vh; /* Make the hero map taller */
             cursor: pointer;
             overflow: hidden; /* Hide anything that might stick out */
             display: block; /* Ensures the link takes up the full container space */
+        }
+        .hero-title-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensures the title is on top of the map tiles */
         }
         #home-map {
             height: 100%;
@@ -74,7 +75,7 @@
         }
         .map-overlay {
             /* This ensures the overlay doesn't cover our new stats panel */
-            pointer-events: none; 
+            pointer-events: none;
         }
         .map-overlay {
             position: absolute;
@@ -105,17 +106,29 @@
             font-size: 1.2em;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
         }
+        .hero-title-overlay h1 {
+            font-size: 4.5em;
+            color: rgba(255, 255, 255, 0.50); /* Make the title slightly transparent to let the map shine through */
+            margin: 0;
+            text-shadow: 3px 3px 8px rgba(0,0,0,0.8);
+            pointer-events: none; /* Make sure title doesn't block the link */
+        }
+        .container {
+            max-width: 900px; /* Widen container for more space */
+            margin: 40px auto;
+            padding: 20px;
+            text-align: center;
+        }
         /* --- Stats Panel Styles --- */
         .stats-dashboard {
             display: flex;
             justify-content: center; /* Center the groups */
             gap: 20px; /* Space between the stat "bubbles" */
             flex-wrap: wrap; /* Allow wrapping on smaller screens */
-            margin: 20px auto; /* Spacing for above and below the map */
+            margin: 30px auto 0 auto; /* Spacing for above and below the map */
         }
         .stat-group {
             display: flex; /* Aligns stat items within a group */
-            gap: 40px; /* Space between items in a group */
             align-items: center;
             padding: 15px 30px;
             /* Style each group as a "bubble" or card */
@@ -124,6 +137,30 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.07);
             border: 1px solid #e9e9e9;
         }
+        /* New rule to add a divider between stat items */
+        .stat-group > .stat-item + .stat-item {
+            padding-left: 30px;
+            margin-left: 30px;
+            border-left: 1px solid #eee;
+        }
+        .stat-group--emphasized {
+            /* A darker, more premium "bubble" to make these stats pop */
+            background-color: #2c3e50; /* Dark blue-gray */
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            padding: 25px 40px;
+            transform: translateY(-5px); /* Slightly lift the element */
+        }
+        .stat-group--emphasized .stat-item .number {
+            font-size: 2.4em; /* Larger font for the numbers */
+            color: #f1c40f; /* A striking gold color that pops on the dark background */
+        }
+        .stat-group--emphasized .stat-item .label {
+            color: #bdc3c7; /* A light gray for readability on the dark background */
+        }
+        /* Remove the divider for emphasized stats since they are in separate bubbles */
+        .stat-group--emphasized > .stat-item + .stat-item { border-left: none; }
+        
         .stat-item {
             text-align: center;
             color: #555;
@@ -152,12 +189,13 @@
             color: #777;
             margin-top: 4px;
         }
-        .hike-record-title {
-            font-size: 2em;
-            font-weight: bold;
+        .dashboard-title { 
+            font-size: 2.2em; /* Make title bigger to match emphasized stats */
+            font-weight: 600;
             color: #333;
-            margin-top: 10px;
-            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 0; 
         }
         /* --- Featured Adventure Section --- */
         .featured-adventure-section {
@@ -255,44 +293,43 @@
         <a href="map.html">Interactive Map</a>
     </nav>
 
-    <div class="container">
-        <h1>Welcome to The Trailprint Atlas</h1>
-        <p>A living journal of every trail I've ever hiked. Below is a snapshot of my journey so far. Click the map to explore it in full detail.</p>
-        <h2 class="hike-record-title">Hike Record: <span id="start-year">....</span> - Present</h2>
-
-        <!-- Top Stats Dashboard -->
-        <div class="stats-dashboard" id="stats-dashboard-top">
-            <div class="stat-group">
-                <div class="stat-item">
-                    <div id="stats-hikes" class="number">--</div>
-                    <div class="label">Total Hikes</div>
-                </div>
-                <div class="stat-item">
-                    <div id="stats-trails" class="number">--</div>
-                    <div class="label">Unique Trails</div>
-                </div>
-            </div>
-            <div class="stat-group">
-                <div class="stat-item">
-                    <div id="stats-miles" class="number">--</div>
-                    <div class="label">Miles Hiked</div>
-                </div>
-                <div class="stat-item">
-                    <div id="stats-elevation" class="number">--</div>
-                    <div class="label">Feet Climbed</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Showcase Map Section -->
     <a href="map.html" class="showcase-map-container" title="Explore the Interactive Map">
         <div id="home-map"></div>
+        <div class="hero-title-overlay">
+            <h1>The Trailprint Atlas</h1>
+        </div>
         <div class="map-overlay">
             <h3>Explore the Atlas</h3>
             <p>(Click to open the interactive map)</p>
         </div>
     </a>
+
+    <div class="container">
+        <h2 class="dashboard-title">Key Atlas Stats (<span id="start-year">....</span> - Present)</h2>
+        <!-- Combined Stats Dashboard -->
+        <div class="stats-dashboard">
+            <div class="stat-group stat-group--emphasized">
+                <div class="stat-item"><div id="stats-hikes" class="number">--</div><div class="label">Total Hikes</div></div>
+                <div class="stat-item"><div id="stats-trails" class="number">--</div><div class="label">Unique Trails</div></div>
+            </div>
+            <div class="stat-group stat-group--emphasized">
+                <div class="stat-item"><div id="stats-miles" class="number">--</div><div class="label">Miles Hiked</div></div>
+                <div class="stat-item"><div id="stats-elevation" class="number">--</div><div class="label">Feet Climbed</div></div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-item"><div id="first-hike-date" class="date-number">--</div><div class="label">First Hike</div><div id="first-hike-name" class="sub-label"></div></div>
+                <div class="stat-item"><div id="most-recent-hike-date" class="date-number">--</div><div class="label">Latest Hike</div><div id="most-recent-hike-name" class="sub-label"></div></div>
+            </div>
+            <div class="stat-group">
+                <div class="stat-item">
+                    <div id="stats-highest-summit" class="number">--</div>
+                    <div class="label">Highest Summit</div>
+                    <div id="stats-highest-summit-name" class="sub-label"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="container">
         <!-- Featured Adventure Section -->
@@ -332,33 +369,6 @@
                 <h2 class="title" id="goto-trail-title">--</h2>
                 <p class="panel-description" id="goto-trail-description">--</p>
                 <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
-            </div>
-        </div>
-    </div>
-
-    <div class="container">
-        <!-- Bottom Stats Dashboard -->
-        <div class="stats-dashboard" id="stats-dashboard-bottom">
-            <div class="stat-group">
-                <div class="stat-item">
-                    <div id="stats-highest-summit" class="number">--</div>
-                    <div class="label">Highest Summit</div>
-                    <div id="stats-highest-summit-name" class="sub-label"></div>
-                </div>
-            </div>
-            <div class="stat-group">
-                <div class="stat-item">
-                    <div id="first-hike-date" class="date-number">--</div>
-                    <div class="label">First Hike</div>
-                    <div id="first-hike-name" class="sub-label"></div>
-                </div>
-            </div>
-            <div class="stat-group">
-                <div class="stat-item">
-                    <div id="most-recent-hike-date" class="date-number">--</div>
-                    <div class="label">Latest Hike</div>
-                    <div id="most-recent-hike-name" class="sub-label"></div>
-                </div>
             </div>
         </div>
         <!-- You can add more homepage content here later -->
@@ -452,11 +462,11 @@
                             return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
                         }, null); // Start with null to handle cases with no summits
 
-                    // Format and display the stats with commas for thousands
-                    document.getElementById('stats-hikes').innerText = totalHikes.toLocaleString();
-                    document.getElementById('stats-trails').innerText = totalUniqueTrails.toLocaleString();
-                    document.getElementById('stats-miles').innerText = Math.round(totalMiles).toLocaleString();
-                    document.getElementById('stats-elevation').innerText = Math.round(totalElevation).toLocaleString();
+                    // Animate the main stats for a "wow" effect
+                    animateCountUp('stats-hikes', totalHikes);
+                    animateCountUp('stats-trails', totalUniqueTrails);
+                    animateCountUp('stats-miles', Math.round(totalMiles));
+                    animateCountUp('stats-elevation', Math.round(totalElevation));
                     
                     if (highestSummitHike) {
                         document.getElementById('stats-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
@@ -584,6 +594,25 @@
                 console.error("Error loading homepage map data:", error);
                 homeMap.setView([39.82, -98.58], 4);
             });
+
+        // --- Helper function for the count-up animation ---
+        function animateCountUp(elementId, finalValue, duration = 2000) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const currentValue = Math.floor(progress * finalValue);
+                element.innerText = currentValue.toLocaleString();
+
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
    </script>
 </body>
 </html>

@@ -29,7 +29,7 @@ const baseMaps = {
 
 let allHikesData = []; // Will hold the full, original dataset
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
-const layerReferences = {}; // To store references to map layers by trail_id
+let layerReferences = {}; // To store references to map layers by trail_id
 
 // --- New Filter State Management ---
 const activeFilters = {
@@ -63,26 +63,39 @@ fetch('data/hikes.json')
 
 function renderMapLayers(trailGroupsToRender) {
     allTrailsGroup.clearLayers(); // Clear all previous layers
+    layerReferences = {}; // Reset references to prevent memory leaks and bugs
 
     renderTrailList(trailGroupsToRender);
+    const loadingPromises = []; // An array to hold our loading promises
+
     trailGroupsToRender.forEach(hikesForTrail => {
         // Use the shared renderer in interactive mode
         const layer = renderTrailGroup(hikesForTrail, {
             isInteractive: true,
             popupHtmlGenerator: generatePopupHtml // Pass the function to generate popups
         });
+
         if (layer) {
             allTrailsGroup.addLayer(layer);
             layerReferences[hikesForTrail[0].trail_name] = layer;
+
+            // If it's a GPX layer, it loads asynchronously. We create a promise for it.
+            if (hikesForTrail[0].gpx_file) {
+                const gpxPromise = new Promise(resolve => {
+                    layer.on('loaded', () => resolve());
+                    layer.on('error', () => resolve()); // Also resolve on error to not wait forever
+                });
+                loadingPromises.push(gpxPromise);
+            }
         }
     });
 
-    // After rendering, zoom the map to fit the new set of layers.
-    setTimeout(() => { // Use timeout to wait for GPX layers to load
+    // Wait for all promises to resolve, then set the map view.
+    Promise.all(loadingPromises).then(() => {
         if (allTrailsGroup.getLayers().length > 0) {
             map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
         }
-    }, 1500);
+    });
 }
 
 function renderTrailList(trailGroupsToRender) {

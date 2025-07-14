@@ -73,6 +73,10 @@
             /* ease-in-out makes the pulse smooth */
             animation: breathing-glow 4s ease-in-out infinite;
         }
+        /* Add a smooth transition for the trail fade-in effect */
+        .leaflet-path.trail-path {
+            transition: opacity 1.5s ease-in, fill-opacity 1.5s ease-in;
+        }
         .map-overlay {
             /* This ensures the overlay doesn't cover our new stats panel */
             pointer-events: none;
@@ -414,36 +418,36 @@
                 });
 
                 const allLayersGroup = L.featureGroup().addTo(homeMap);
-                const loadingPromises = []; // An array to hold our loading promises
 
                 Object.values(trailGroups).forEach(group => {
                     // Use the shared renderer in non-interactive mode
                     const layer = renderTrailGroup(group, { isInteractive: false });
                     if (layer) {
                         allLayersGroup.addLayer(layer);
-                        // If it's a GPX layer, it loads asynchronously. We create a promise for it.
-                        if (group[0].gpx_file) {
-                            const gpxPromise = new Promise(resolve => {
-                                // The 'loaded' event tells us the download and parsing is complete.
-                                layer.on('loaded', () => resolve());
-                                // We also resolve on error to prevent the map from waiting forever.
-                                layer.on('error', () => resolve());
-                            });
-                            loadingPromises.push(gpxPromise);
-                        }
                     }
                 });
 
-                // 5. Wait for all promises to resolve, then set the map view.
-                Promise.all(loadingPromises).then(() => {
-                    // This code will only run after ALL GPX files have been loaded.
-                    if (allLayersGroup.getLayers().length > 0) {
-                        homeMap.fitBounds(allLayersGroup.getBounds().pad(0.1));
-                    } else {
-                        homeMap.setView([39.82, -98.58], 4); // Fallback if no trails exist
-                    }
+                // 5. Animate the map layers
+                const layersToAnimate = allLayersGroup.getLayers();
 
-                    // --- Calculate and Display Stats ---
+                if (layersToAnimate.length === 0) {
+                    homeMap.setView([39.82, -98.58], 4); // Fallback
+                } else {
+                    homeMap.fitBounds(allLayersGroup.getBounds().pad(0.1));
+
+                    layersToAnimate.forEach((layer, index) => {
+                        setTimeout(() => {
+                            layer.eachLayer(feature => { // feature is always a CircleMarker
+                                const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
+                                feature.setStyle({ fillOpacity: finalOpacity });
+                            });
+                        }, index * 75); // Slow down the animation by 50% for a more majestic feel
+                    });
+                }
+
+                // --- Calculate and Display Stats ---
+                // This code runs immediately now, no need to wait for a promise
+                (function calculateAndDisplayStats() {
                     const uniqueTrails = Object.values(trailGroups);
                     const totalHikes = data.length;
                     const totalUniqueTrails = uniqueTrails.length;
@@ -502,7 +506,7 @@
                         document.getElementById('first-hike-date').innerText = '--';
                         document.getElementById('most-recent-hike-date').innerText = '--';
                     }
-
+                    
                     // --- Find and Display Featured Adventure ---
                     const hikesWithTripTag = data.filter(hike => hike.trip_tag);
 
@@ -589,7 +593,7 @@
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
-                });
+                })();
             }).catch(error => {
                 console.error("Error loading homepage map data:", error);
                 homeMap.setView([39.82, -98.58], 4);

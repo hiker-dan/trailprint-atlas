@@ -44,30 +44,14 @@ function renderTrailGroup(hikesForTrail, options = {}) {
 
     // --- Layer Creation ---
     let layer;
-    if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
-        if (isInteractive) {
+
+    if (isInteractive) {
+        // --- INTERACTIVE MAP LOGIC (No changes here) ---
+        if (representativeHike.hike_type === 'Viewpoint' && representativeHike.latitude && representativeHike.longitude) {
             layer = L.marker([representativeHike.latitude, representativeHike.longitude], {
                 icon: getIcon(representativeHike.hike_type)
             });
-        } else {
-            // For the homepage, render a "halo" dot to match the trail paths
-            const haloDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
-                radius: 6,
-                fillColor: trailColor,
-                stroke: false,
-                className: 'breathing-halo', // Apply the animation class
-                fillOpacity: 0.5
-            });
-            const mainDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
-                radius: 3,
-                fillColor: trailColor,
-                stroke: false, // No border on the main dot
-                fillOpacity: 0.9
-            });
-            layer = L.featureGroup([haloDot, mainDot]);
-        }
-    } else if (representativeHike.gpx_file) {
-        if (isInteractive) {
+        } else if (representativeHike.gpx_file) {
             // Standard rendering for the interactive map
             const markerOpts = { startIcon: getIcon(representativeHike.hike_type), endIconUrl: null };
             layer = new L.GPX(`data/trails/${representativeHike.gpx_file}`, {
@@ -76,24 +60,26 @@ function renderTrailGroup(hikesForTrail, options = {}) {
                 marker_options: markerOpts,
                 polyline_options: { color: trailColor, weight: 5, opacity: 0.85 }
             });
-        } else {
-            // "Halo" effect rendering for the non-interactive homepage map
-            const markerOpts = { startIconUrl: null, endIconUrl: null, shadowUrl: null };
-            const haloLine = new L.GPX(`data/trails/${representativeHike.gpx_file}`, {
-                async: true, gpx_options: { parseElements: ['track'] }, marker_options: markerOpts,
-                polyline_options: { color: trailColor, weight: 7, opacity: 0.4, className: 'breathing-halo' }
+        }
+    } else {
+        // --- HOMEPAGE MAP LOGIC (Radically Simplified) ---
+        // Render ALL hikes as simple dots, provided they have coordinates.
+        if (representativeHike.latitude && representativeHike.longitude) {
+            const haloDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
+                radius: 6,
+                fillColor: trailColor,
+                stroke: false, // No border on the halo
+                className: 'breathing-halo trail-path', // Add class for transition
+                fillOpacity: 0 // Start invisible
             });
-            const mainLine = new L.GPX(`data/trails/${representativeHike.gpx_file}`, {
-                async: true, gpx_options: { parseElements: ['track'] }, marker_options: markerOpts,
-                polyline_options: { color: trailColor, weight: 3, opacity: 0.9 } // The crisp main line
+            const mainDot = L.circleMarker([representativeHike.latitude, representativeHike.longitude], {
+                radius: 3,
+                fillColor: trailColor,
+                stroke: false, // No border on the main dot
+                className: 'trail-path', // Add class for transition
+                fillOpacity: 0 // Start invisible
             });
-
-            // Group both lines together. The FeatureGroup itself doesn't have a 'loaded' event,
-            // so we listen to one of the lines and fire the event on the group.
-            // This ensures our promise-based loader on index.html still works perfectly.
-            layer = L.featureGroup([haloLine, mainLine]);
-            mainLine.on('loaded', () => layer.fire('loaded'));
-            mainLine.on('error', () => layer.fire('error'));
+            layer = L.featureGroup([haloDot, mainDot]);
         }
     }
 

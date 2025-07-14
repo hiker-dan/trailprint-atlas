@@ -21,6 +21,8 @@
     "trip_tag": "Mt. Lowe Backpacking Trip",
     "all_trails_url": "https://www.alltrails.com/explore/map/mount-lowe-trail-camp-and-inspiration-point-via-mount-lowe-motorway-closed-663772e?u=i&sh=yeki4v",
     "official_trail_url": "https://www.fs.usda.gov/r05/angeles/recreation/trails/mt-lowe-trail-camp-hike-campground",
+    "latitude": 34.22649713106343,
+    "longitude": -118.11037903156928,
     "gpx_file": "Mount_Lowe_Peak_via_Upper_Sam_Merrill_Trail_12.16.23.gpx",
     "images": []
   },
@@ -46,6 +48,8 @@
     "trip_tag": "Mt. Lowe Backpacking Trip",
     "all_trails_url": "https://www.alltrails.com/explore/map/mount-lowe-trail-camp-and-inspiration-point-via-mount-lowe-motorway-closed-445e105?u=i&sh=yeki4v",
     "official_trail_url": "https://www.fs.usda.gov/r05/angeles/recreation/trails/mt-lowe-trail-camp-hike-campground",
+    "latitude": 34.239310727162916,
+    "longitude": -118.09347021921532,
     "gpx_file": "Mount_Lowe_Trail_Camp_Inspiration_Point_and_Muir_Peak_via_Mount_Lowe_Motorway_12.15.23.gpx",
     "images": []
   },
@@ -71,6 +75,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
     "official_trail_url": null,
+    "latitude": 34.23417540706874,
+    "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_12.04.23.gpx",
     "images": []
   },
@@ -96,6 +102,8 @@
     "trip_tag": "Ryan & Hannah Thanksgiving JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/ryan-mountain-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/thingstodo/hike-ryan-mountain.htm",
+    "latitude": 34.00370930975995,
+    "longitude": -116.1360257526086,
     "gpx_file": "Ryan_Mountain_Trail_11.25.23.gpx",
     "images": []
   },
@@ -121,6 +129,8 @@
     "trip_tag": "Ryan & Hannah Thanksgiving JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hidden-valley--3?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/hidden-valley-trailhead.htm",
+    "latitude": 34.012633890065096,
+    "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_11.25.23.gpx",
     "images": []
   },
@@ -146,6 +156,8 @@
     "trip_tag": "Ryan & Hannah Thanksgiving JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/cholla-cactus-garden?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/cholla-cactus-cholla-cactus-garden.htm",
+    "latitude": 33.9258273477068,
+    "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_11.25.23.gpx",
     "images": []
   },
@@ -171,6 +183,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/eaton-canyon-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://parks.lacounty.gov/eaton-canyon-natural-area-and-nature-center/",
+    "latitude": 34.178852664142134,
+    "longitude": -118.09661203066445,
     "gpx_file": "Eaton_Canyon_Trail_11.13.23.gpx",
     "images": []
   },
@@ -196,6 +210,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
     "official_trail_url": null,
+    "latitude": 34.23417540706874,
+    "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_11.12.23.gpx",
     "images": []
   },
@@ -221,6 +237,8 @@
     "trip_tag": "San Diego Film Fest Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/grinding-rocks-climbers-loop-and-father-junipero-serra-loop?u=i&sh=yeki4v",
     "official_trail_url": "https://mtrp.org/the-park-2/",
+    "latitude": 32.820197509382304,
+    "longitude": -117.05571479499046,
     "gpx_file": "Father_Junipero_Serra_Loop_10.06.23.gpx",
     "images": []
   },
@@ -246,6 +264,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
     "official_trail_url": null,
+    "latitude": 34.23417540706874,
+    "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_09.23.23.gpx",
     "images": []
   },
@@ -271,6 +291,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
     "official_trail_url": null,
+    "latitude": 34.23417540706874,
+    "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_09.16.23.gpx",
     "images": []
   },
@@ -296,6 +318,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/solstice-canyon-loop-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/samo/planyourvisit/solsticecanyon.htm",
+    "latitude": 34.037826974960154,
+    "longitude": -118.74750341833813,
     "gpx_file": "Solstice_Canyon_Loop_09.11.23.gpx",
     "images": []
   },
@@ -321,6 +345,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/betty-b-dearling-trail-and-u-vanu-loop?u=i&sh=yeki4v",
     "official_trail_url": "https://www.laparks.org/park/coldwater-canyon",
+    "latitude": 34.129449569615836,
+    "longitude": -118.40610592867645,
     "gpx_file": "Betty_B._Dearling_Trail_and_U-Vanu_Loop_07.16.23.gpx",
     "images": []
   },
@@ -346,6 +372,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/trail-canyon-falls?u=i&sh=dfhsqv",
     "official_trail_url": "https://www.fs.usda.gov/r05/angeles/recreation/trail-canyon-trailhead",
+    "latitude": 34.30396228823916,
+    "longitude": -118.25823369930512,
     "gpx_file": "Trail_Canyon_Falls_07.03.23.gpx",
     "images": []
   },
@@ -371,6 +399,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/black-star-canyon-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://letsgooutside.org/explore/black-star-canyon-wilderness-park/",
+    "latitude": 33.76502057264494,
+    "longitude": -117.6778846999517,
     "gpx_file": "Black_Star_Canyon_Falls_Trail_06.25.23.gpx",
     "images": []
   },
@@ -396,6 +426,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/scout-camp-and-stough-canyon-loop?u=i&sh=yeki4v",
     "official_trail_url": "https://www.burbankca.gov/web/parks-recreation/nature-center",
+    "latitude": 34.21343823264004,
+    "longitude": -118.30699250397542,
     "gpx_file": "Scout_Camp_and_Stough_Canyon_Loop_06.21.23.gpx",
     "images": []
   },
@@ -421,6 +453,8 @@
     "trip_tag": "Luke JTree Camping Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/warren-peak-via-black-rock-trail-and-panorama-loop?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/warren-peak-trailhead.htm",
+    "latitude": 34.075295181394246,
+    "longitude": -116.38788806895477,
     "gpx_file": "Warren_Peak_via_Black_Rock_Trail_and_Panorama_Loop_05.02.23.gpx",
     "images": []
   },
@@ -446,6 +480,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/rock-pool-and-century-lake-trails?p=58249215&sh=dsrklx",
     "official_trail_url": "https://www.parks.ca.gov/?page_id=614",
+    "latitude": 34.096596097443566,
+    "longitude": -118.71649979281355,
     "gpx_file": "Rock_Pool_and_Century_Lake_Trails_04.16.23.gpx",
     "images": []
   },
@@ -471,6 +507,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/baldwin-hills-scenic-overlook--2?u=i&sh=yeki4v",
     "official_trail_url": "https://www.parks.ca.gov/?page_id=22790",
+    "latitude": 34.02047689017277,
+    "longitude": -118.38242168871253,
     "gpx_file": "Baldwin_Hills_Scenic_Overlook_and_the_Culver_City_Steps_03.18.23.gpx",
     "images": []
   },
@@ -496,6 +534,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/baldwin-hills-scenic-overlook--2?u=i&sh=yeki4v",
     "official_trail_url": "https://www.parks.ca.gov/?page_id=22790",
+    "latitude": 34.02047689017277,
+    "longitude": -118.38242168871253,
     "gpx_file": "Baldwin_Hills_Scenic_Overlook_and_the_Culver_City_Steps_02.14.23.gpx",
     "images": []
   },
@@ -521,6 +561,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/escondido-falls-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://mrca.ca.gov/parks/park-listing/escondido-canyon-park/",
+    "latitude": 34.02625764142876,
+    "longitude": -118.78017366300799,
     "gpx_file": "Escondido_Falls_Trail_01.28.23.gpx",
     "images": []
   },
@@ -546,6 +588,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/grotto-trail",
     "official_trail_url": "https://www.nps.gov/samo/planyourvisit/circlexranch.htm",
+    "latitude": 34.11009462840789,
+    "longitude": -118.93727000426983,
     "gpx_file": "Grotto_Trail_12.24.22.gpx",
     "images": []
   },
@@ -571,6 +615,8 @@
     "trip_tag": "Colm JTree Day Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hidden-valley--3?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/hidden-valley-trailhead.htm",
+    "latitude": 34.012633890065096,
+    "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_11.18.22.gpx",
     "images": []
   },
@@ -596,6 +642,8 @@
     "trip_tag": "Colm JTree Day Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/cholla-cactus-garden?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/cholla-cactus-cholla-cactus-garden.htm",
+    "latitude": 33.9258273477068,
+    "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_11.18.22.gpx",
     "images": []
   },
@@ -621,6 +669,8 @@
     "trip_tag": "Colm JTree Day Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/lost-horse-mine--2?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/jotr/learn/historyculture/lhmine.htm",
+    "latitude": 33.950692574133136,
+    "longitude": -116.15978669825171,
     "gpx_file": "Lost_Horse_Mine_11.18.22.gpx",
     "images": []
   },
@@ -646,6 +696,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/lake-hollywood-trail?u=i",
     "official_trail_url": "https://www.hmdb.org/m.asp?m=167864",
+    "latitude": 34.128891390924196,
+    "longitude": -118.33628997726692,
     "gpx_file": "Lake_Hollywood_Trail_11.13.22.gpx",
     "images": []
   },
@@ -671,6 +723,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/solstice-canyon-loop-trail?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/samo/planyourvisit/solsticecanyon.htm",
+    "latitude": 34.037826974960154,
+    "longitude": -118.74750341833813,
     "gpx_file": "Solstice_Canyon_Loop_10.02.22.gpx",
     "images": []
   },
@@ -696,6 +750,8 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hall-of-horrors?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/hall-of-horrors.htm?utm_source=chatgpt.com",
+    "latitude": 34.00055937643286,
+    "longitude": -116.14613672354659,
     "gpx_file": "Hall_of_Horrors_06.26.22.gpx",
     "images": []
   },
@@ -775,6 +831,8 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/cholla-cactus-garden?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/cholla-cactus-cholla-cactus-garden.htm",
+    "latitude": 33.9258273477068,
+    "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_06.25.22.gpx",
     "images": []
   },
@@ -800,6 +858,8 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hidden-valley--3?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/hidden-valley-trailhead.htm",
+    "latitude": 34.012633890065096,
+    "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_06.25.22.gpx",
     "images": []
   },
@@ -825,6 +885,8 @@
     "trip_tag": "22nd Bday JTree Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/barker-dam--2?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/jotr/planyourvisit/barker-dam-trail.htm",
+    "latitude": 34.02526463009302,
+    "longitude": -116.14202629941931,
     "gpx_file": "Barker_Dam_06.25.22.gpx",
     "images": []
   },
@@ -850,6 +912,8 @@
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/astral-drive?u=i&sh=yeki4v",
     "official_trail_url": "https://mrca.ca.gov/parks/park-listing/trebek-open-space/",
+    "latitude": 34.113678213852005,
+    "longitude": -118.3594430048962,
     "gpx_file": "Astral_Drive_03.19.22.gpx",
     "images": []
   },
@@ -875,6 +939,8 @@
     "trip_tag": "NY to LA Road Trip",
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hall-of-horrors?u=i&sh=yeki4v",
     "official_trail_url": "https://www.nps.gov/places/hall-of-horrors.htm?utm_source=chatgpt.com",
+    "latitude": 34.00055937643286,
+    "longitude": -116.14613672354659,
     "gpx_file": "Hall_of_Horrors_01.11.22.gpx",
     "images": []
   },

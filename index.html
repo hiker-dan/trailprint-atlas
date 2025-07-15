@@ -221,9 +221,8 @@
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25)); /* Use CSS drop-shadow for non-rectangular shapes */
         }
         .state-icon.expanded { /* Styles for the expanded state */
-            width: 260px; /* Larger size when expanded */
+            transform: translateY(-5px) scale(1.15); /* Keep it lifted and make it even larger */
             filter: drop-shadow(0 8px 10px rgba(0,0,0,0.3)); /* Stronger shadow for expanded state */
-            /* Add any other styles you want for the expanded state here */
         }
         .region-card {
             background: #fff;
@@ -246,6 +245,42 @@
         }
         .region-card-stats { display: flex; justify-content: space-between; }
         .region-card-stats .stat-item { text-align: left; }
+
+        /* --- New State Stats Panel --- */
+        .state-stats-panel {
+            background: #fff;
+            border-radius: 12px;
+            padding: 25px 40px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            margin-top: 40px; /* Space between icons and panel */
+            text-align: left;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid #e9e9e9;
+            animation: slideDownFadeIn 0.4s ease-out;
+            transition: opacity 0.4s ease-out; /* For fade-out effect */
+        }
+        .state-stats-panel h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.8em;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 15px;
+        }
+        .state-stats-panel .stats-container {
+            display: flex;
+            justify-content: space-around; /* Evenly space the stats */
+        }
+
+        @keyframes slideDownFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* --- Featured Adventure Section --- */
         .featured-adventure-section {
             display: flex;
@@ -385,6 +420,10 @@
         <div class="state-icon-grid" id="state-icon-grid">  <!-- Updated ID -->
             <!-- State icons will be injected here by JS -->  <!-- Updated comment -->
         </div>
+        <!-- New panel for displaying state stats. It's hidden by default. -->
+        <div id="state-stats-panel" class="state-stats-panel" style="display: none;">
+            <!-- Content will be injected here by our new JavaScript logic -->
+        </div>
     </div>
 
     <div class="container">
@@ -402,7 +441,7 @@
                 </div>
             </div>
             <div class="featured-adventure-content">
-                <h3 class="subtitle">Latest Adventure</h3>
+                <h3 class="subtitle">My Latest Adventure</h3>
                 <h2 class="title" id="featured-trip-title">--</h2>
                 <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
             </div>
@@ -421,7 +460,7 @@
                 </div>
             </div>
             <div class="featured-adventure-content">
-                <h3 class="subtitle">The Go-To Trail</h3>
+                <h3 class="subtitle">The Trail I Can't Get Enough Of</h3>
                 <h2 class="title" id="goto-trail-title">--</h2>
                 <p class="panel-description" id="goto-trail-description">--</p>
                 <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
@@ -665,7 +704,7 @@
                             }
 
                             states[state].uniqueTrails++;
-                            states[state].totalHikes += group.length;
+                            states[state].totalHikes += group.length;                            
                             states[state].totalMiles += representativeHike.miles || 0;
                         });
 
@@ -685,11 +724,83 @@
                                         data-state="${state}"
                                         data-unique-trails="${stats.uniqueTrails}"
                                         data-total-hikes="${stats.totalHikes}"
-                                        data-total-miles="${Math.round(stats.totalMiles)}"
+                                        data-total-miles="${stats.totalMiles < 0.1 ? '<0.1' : Math.round(stats.totalMiles)}"
                                     >
                                     </div>
                                 </div>`;
                             container.innerHTML += cardHtml; // Append the card HTML to the container
+                        });
+                    })();
+
+                    // --- NEW: State Icon Interactivity ---
+                    // This IIFE sets up the click-to-show-stats functionality.
+                    (function setupStateIconInteractivity() {
+                        const stateIconGrid = document.getElementById('state-icon-grid');
+                        const stateStatsPanel = document.getElementById('state-stats-panel');
+                        if (!stateIconGrid || !stateStatsPanel) return; // Exit if elements don't exist
+
+                        // --- State Name Mapping ---
+                        const stateNames = {
+                            "CA": "California", "AZ": "Arizona" // Add more state mappings as needed
+                        };
+
+                        const getStateName = (abbreviation) => {
+                            return stateNames[abbreviation] || abbreviation; // Return full name or abbreviation if not found
+                        };
+
+                        // --- Update Panel Title ---
+                        const updatePanelTitle = (stateAbbr) => {
+                            const stateFullName = getStateName(stateAbbr);
+                            return `${stateFullName} Hike Stats`;
+                        };
+
+                        let currentlyExpandedIcon = null; // Variable to track which icon is open
+
+                        // Use event delegation for efficiency
+                        stateIconGrid.addEventListener('click', (event) => {
+                            const clickedIcon = event.target.closest('.state-icon');
+                            if (!clickedIcon) return; // If the click wasn't on an icon, do nothing
+
+                            const wasExpanded = clickedIcon.classList.contains('expanded');
+
+                            // First, close any icon that is already open
+                            if (currentlyExpandedIcon && currentlyExpandedIcon !== clickedIcon) {
+                                currentlyExpandedIcon.classList.remove('expanded');
+                            }
+
+                            // Toggle the 'expanded' class on the clicked icon
+                            clickedIcon.classList.toggle('expanded');
+
+                            if (!wasExpanded) {
+                                // If it wasn't expanded before, we now open it.
+                                const { state, uniqueTrails, totalHikes, totalMiles } = clickedIcon.dataset;
+
+                                // Populate the panel with this state's data
+                                stateStatsPanel.innerHTML = `                                    
+                                    <h3>${state} Trailprint Stats</h3>
+                                    <div class="stats-container">
+                                        <div class="stat-item"><span class="number">${totalHikes}</span><span class="label">Total Hikes</span></div>
+                                        <div class="stat-item"><span class="number">${uniqueTrails}</span><span class="label">Unique Trails</span></div>
+                                        <div class="stat-item"><span class="number">${totalMiles}</span><span class="label">Miles Hiked</span></div>
+                                    </div>
+                                `;
+                                stateStatsPanel.querySelector('h3').innerText = updatePanelTitle(state);
+                                stateStatsPanel.style.display = 'block'; // Make the panel visible
+                                currentlyExpandedIcon = clickedIcon; // Set this as the currently open icon
+                            } else {
+                                stateStatsPanel.style.opacity = 0; // Start fade-out
+                                setTimeout(() => { stateStatsPanel.style.display = 'none'; stateStatsPanel.style.opacity = 1; }, 400); // Hide after animation
+                                currentlyExpandedIcon = null; // Clear the currently expanded icon
+                            }
+                        });
+
+                        // Add a click listener to the whole document to close the panel if the user clicks away
+                        document.addEventListener('click', (event) => {
+                            if (!stateIconGrid.contains(event.target) && !stateStatsPanel.contains(event.target) && currentlyExpandedIcon) {
+                                currentlyExpandedIcon.classList.remove('expanded');
+                                stateStatsPanel.style.display = 'none';
+                                currentlyExpandedIcon = null;
+                            }
                         });
                     })();
                 })();

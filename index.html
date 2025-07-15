@@ -201,6 +201,51 @@
             border-bottom: 1px solid #ddd;
             margin-bottom: 0; 
         }
+        /* --- Region Spotlight Section --- */
+        .state-icon-grid { /* Renamed class */
+            display: flex;
+            flex-wrap: wrap; /* Allows items to wrap onto the next line on smaller screens */
+            justify-content: center; /* This is the key: it centers the items horizontally */
+            gap: 50px;
+            margin-top: 30px;
+        }
+        
+        .state-icon { /* Style the icons directly */
+            width: 260px; /* Size */
+            height: auto;
+            display: block;            
+            transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out; /* Apply transition to filter for smooth effect */
+        }
+        .state-icon:hover {
+            transform: translateY(-5px) scale(1.1); /* Lift and slightly enlarge */
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25)); /* Use CSS drop-shadow for non-rectangular shapes */
+        }
+        .state-icon.expanded { /* Styles for the expanded state */
+            width: 260px; /* Larger size when expanded */
+            filter: drop-shadow(0 8px 10px rgba(0,0,0,0.3)); /* Stronger shadow for expanded state */
+            /* Add any other styles you want for the expanded state here */
+        }
+        .region-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
+            border: 1px solid #e9e9e9;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .region-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+        }
+        .region-card h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.4em;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .region-card-stats { display: flex; justify-content: space-between; }
+        .region-card-stats .stat-item { text-align: left; }
         /* --- Featured Adventure Section --- */
         .featured-adventure-section {
             display: flex;
@@ -332,6 +377,13 @@
                     <div id="stats-highest-summit-name" class="sub-label"></div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 class="dashboard-title">My Trailprint by State</h2>  <!-- Updated title -->
+        <div class="state-icon-grid" id="state-icon-grid">  <!-- Updated ID -->
+            <!-- State icons will be injected here by JS -->  <!-- Updated comment -->
         </div>
     </div>
 
@@ -593,6 +645,53 @@
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
+
+                    // --- Create Region Spotlight ---
+                    (function createStateIconGrid() { // Renamed for clarity
+                        const states = {};
+
+                        Object.values(trailGroups).forEach(group => {
+                            const representativeHike = group[0];
+                            // Extract the state abbreviation from the region string
+                            const state = representativeHike.region ? representativeHike.region.split(", ").pop() : "Unknown";
+
+                            if (!states[state]) {
+                                states[state] = {
+                                    uniqueTrails: 0,
+                                    totalHikes: 0,
+                                    totalMiles: 0,
+                                    iconPath: `assets/state-icons/${state}.svg` // Construct icon path
+                                };
+                            }
+
+                            states[state].uniqueTrails++;
+                            states[state].totalHikes += group.length;
+                            states[state].totalMiles += representativeHike.miles || 0;
+                        });
+
+                        const container = document.getElementById('state-icon-grid'); // New container ID
+                        if (!container) return;
+                        container.innerHTML = '';
+
+                        // Create state icon elements
+                        Object.entries(states).forEach(([state, stats]) => {
+                            const cardHtml = `
+                                <div class="state-icon-container">
+                                    <img 
+                                        src="${stats.iconPath}" 
+                                        alt="${state} icon" 
+                                        class="state-icon" 
+                                        id="state-icon-${state}"
+                                        data-state="${state}"
+                                        data-unique-trails="${stats.uniqueTrails}"
+                                        data-total-hikes="${stats.totalHikes}"
+                                        data-total-miles="${Math.round(stats.totalMiles)}"
+                                    >
+                                    </div>
+                                </div>`;
+                            container.innerHTML += cardHtml; // Append the card HTML to the container
+                        });
+                    })();
                 })();
             }).catch(error => {
                 console.error("Error loading homepage map data:", error);

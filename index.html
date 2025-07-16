@@ -334,6 +334,80 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
+        /* --- Seasonal Heatmap Styles --- */
+        .seasonal-heatmap {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 5px;
+            margin-top: 20px;
+        }
+        .heatmap-month {
+            aspect-ratio: 1 / 1.5; /* Make blocks taller than they are wide */
+            background-color: #ebedf0; /* Default color for placeholder */
+            border-radius: 4px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 5px;
+            font-size: 0.8em;
+            font-weight: bold;
+            color: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0,0,0,0.05);
+            cursor: default; /* Indicate that the blocks are interactive */
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+        .heatmap-month:hover {
+            transform: scale(1.05); /* Slightly enlarge on hover */
+        }
+
+        /* Color scale for the heatmap (to be applied by JS) */
+        .heat-level-0 { background-color: #ebedf0; color: rgba(0,0,0,0.4); }
+        .heat-level-1 { background-color: #9be9a8; color: rgba(0,0,0,0.5); }
+        .heat-level-2 { background-color: #40c463; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
+        .heat-level-3 { background-color: #30a14e; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
+        .heat-level-4 { background-color: #216e39; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
+        
+        .heatmap-legend {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* Align to the right */
+            margin-top: 10px;
+            gap: 5px;
+            font-size: 12px;
+            color: #555;
+        }
+        .legend-color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* Add style for the count display within heatmap blocks */
+        .heatmap-count {
+            font-size: 0.9em;
+            font-weight: normal;
+            color: #555;
+        }
+        /* --- Style for the count badge within heatmap blocks --- */
+        .hike-count-badge {
+            position: absolute; /* Position it within the month block */
+            top: 5px;          /* Adjust as needed */
+            right: 5px;        /* Adjust as needed */
+            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark background */
+            color: white;
+            font-size: 0.7em;
+            padding: 3px 6px;
+            border-radius: 10px; /* Rounded corners for the badge */
+            font-weight: bold;
+            z-index: 1;           /* Ensure it's above other content within the block */
+            transition: background-color 0.3s ease; /* Smooth transition for hover effect */
+        }
+
+        .heatmap-month:hover .hike-count-badge {
+            background-color: rgba(0, 0, 0, 0.8); /* Darker on hover for emphasis */
+        }
         /* --- Featured Adventure Section --- */
         .featured-adventure-section {
             display: flex;
@@ -502,6 +576,35 @@
         <!-- New panel for displaying state stats. It's hidden by default. -->
         <div id="state-stats-panel" class="state-stats-panel" style="display: none;">
             <!-- Content will be injected here by our new JavaScript logic -->
+        </div>
+    </div>
+
+    <!-- NEW: Seasonal Snapshot Section -->
+    <div class="container">
+        <h2 class="dashboard-title">Seasonal Snapshot</h2>
+        <div class="seasonal-heatmap" id="seasonal-heatmap">
+            <!-- These divs are placeholders and will be updated by JavaScript -->
+            <div class="heatmap-month">Jan</div>
+            <div class="heatmap-month">Feb</div>
+            <div class="heatmap-month">Mar</div>
+            <div class="heatmap-month">Apr</div>
+            <div class="heatmap-month">May</div>
+            <div class="heatmap-month">Jun</div>
+            <div class="heatmap-month">Jul</div>
+            <div class="heatmap-month">Aug</div>
+            <div class="heatmap-month">Sep</div>
+            <div class="heatmap-month">Oct</div>
+            <div class="heatmap-month">Nov</div>
+            <div class="heatmap-month">Dec</div>
+        </div>
+        <div class="heatmap-legend">
+            <span class="legend-label">Less</span>
+            <span class="legend-color-box heat-level-0"></span>
+            <span class="legend-color-box heat-level-1"></span>
+            <span class="legend-color-box heat-level-2"></span>
+            <span class="legend-color-box heat-level-3"></span>
+            <span class="legend-color-box heat-level-4"></span>
+            <span class="legend-label">More</span>
         </div>
     </div>
 
@@ -958,6 +1061,42 @@
                                 currentlyExpandedIcon = null;
                             }
                         });
+                    })();
+
+                    // --- NEW: Create Seasonal Heatmap ---
+                    (function createSeasonalHeatmap() {
+                        const heatmapContainer = document.getElementById('seasonal-heatmap');
+                        if (!heatmapContainer) return; // Exit if the container isn't on the page
+
+                        // 1. Tally hikes per month (0-11 index for Jan-Dec)
+                        const monthCounts = Array(12).fill(0);
+                        data.forEach(hike => {
+                            // Use getUTCMonth to avoid timezone issues with simple 'YYYY-MM-DD' dates
+                            const month = new Date(hike.date_completed).getUTCMonth();
+                            monthCounts[month]++;
+                        });
+
+                        // 2. Define a function to get the heat level based on hike count
+                        const getHeatLevel = (count) => {
+                            if (count === 0) return 0;
+                            if (count >= 10) return 4; // Heaviest
+                            if (count >= 6) return 3;
+                            if (count >= 3) return 2;
+                            return 1; // Lightest, but not zero
+                        };
+
+                        const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                        // 3. Clear placeholders and generate the HTML for each month block
+                        heatmapContainer.innerHTML = '';
+                        monthAbbreviations.forEach((abbr, index) => {
+                            const count = monthCounts[index];
+                            const heatLevel = getHeatLevel(count);
+                            const tooltipText = `${abbr}: ${count} hike${count !== 1 ? 's' : ''}`;
+                            // Display the count within a visually distinct container
+                            const displayText = `${abbr}<div class="hike-count-badge">${count} (Total)</div>`;
+                            heatmapContainer.innerHTML += `
+                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;                        });
                     })();
                 })();
             }).catch(error => {

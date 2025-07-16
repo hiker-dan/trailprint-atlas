@@ -49,6 +49,7 @@ I'll write a new function inside the main script. This function will:
 First, process the hikes.json data to create an array or object that holds the total hike count for each of the 12 months.
 It will then find the maximum value in that array to establish the top end of our color scale.
 Finally, it will loop through the 12 month divs in the HTML, calculate the appropriate heat level for each, and apply the corresponding CSS class and a title attribute for the hover tooltip.
+
 Phase 3: The "Recent Dispatches" Section
 Goal: Create a more cohesive and dynamic "live feed" at the end of the page by grouping a new "Trail Log" (your last 3 hikes) with the existing "Featured Adventure" and "Go-To Trail" sections.
 

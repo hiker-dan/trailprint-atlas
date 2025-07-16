@@ -362,14 +362,22 @@
         }
 
         /* Color scale for the heatmap (to be applied by JS) */
-        .heat-level-0 { background-color: #ebedf0; color: rgba(0,0,0,0.4); }
-        .heat-level-1 { background-color: #9be9a8; color: rgba(0,0,0,0.5); }
-        .heat-level-2 { background-color: #40c463; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
-        .heat-level-3 { background-color: #30a14e; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
-        .heat-level-4 { background-color: #216e39; color: white; text-shadow: 1px 1px 1px rgba(0,0,0,0.2);}
+        .heat-level-0 { background-color: #f0eee9; color: #5d5d5d; } /* Off-white */
+        .heat-level-1 { background-color: #e0dcd5; color: #5d5d5d; } /* Very light beige */
+        .heat-level-2 { background-color: #c1b6ab; color: #5d5d5d; } /* Light beige */
+        .heat-level-3 { background-color: #a29181; color: white; } /* Medium beige */
+        .heat-level-4 { background-color: #836c57; color: white; } /* Dark beige */
+        .heat-level-5 { background-color: #64472d; color: white; } /* Darker brown */
+        .heat-level-6 { background-color: #452203; color: white; } /* Deep brown */
         
+
+        /* You can add text-shadow to higher levels for readability if needed */
+        .heat-level-4, .heat-level-5, .heat-level-6 {
+            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+        }
+
         .heatmap-legend {
-            display: flex;
+             display: flex;
             align-items: center;
             justify-content: flex-end; /* Align to the right */
             margin-top: 10px;
@@ -605,6 +613,7 @@
             <span class="legend-color-box heat-level-3"></span>
             <span class="legend-color-box heat-level-4"></span>
             <span class="legend-label">More</span>
+        <h3>(Total Number of Hikes Per Month)</h3>
         </div>
     </div>
 
@@ -1076,30 +1085,39 @@
                             monthCounts[month]++;
                         });
 
-                        // 2. Define a function to get the heat level based on hike count
+                        // 2. Determine the min and max hike counts for dynamic scaling
+                        const maxCount = Math.max(...monthCounts);
+                        const minCount = Math.min(...monthCounts);
+
+                        // 3. Define a function to get the heat level based on hike count
                         const getHeatLevel = (count) => {
-                            if (count === 0) return 0;
-                            if (count >= 10) return 4; // Heaviest
-                            if (count >= 6) return 3;
-                            if (count >= 3) return 2;
-                            return 1; // Lightest, but not zero
+                            if (maxCount === minCount) {
+                                // Handle the case where all counts are the same
+                                return count > 0 ? 3 : 0; // Mid-level if hikes exist, otherwise zero
+                            }
+
+                            // Dynamic scaling to 7 levels
+                            const normalizedCount = (count - minCount) / (maxCount - minCount);
+                            return Math.round(normalizedCount * 6);
                         };
+
 
                         const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-                        // 3. Clear placeholders and generate the HTML for each month block
+
+                        // 4. Clear placeholders and generate the HTML for each month block
                         heatmapContainer.innerHTML = '';
                         monthAbbreviations.forEach((abbr, index) => {
                             const count = monthCounts[index];
                             const heatLevel = getHeatLevel(count);
                             const tooltipText = `${abbr}: ${count} hike${count !== 1 ? 's' : ''}`;
                             // Display the count within a visually distinct container
-                            const displayText = `${abbr}<div class="hike-count-badge">${count} (Total)</div>`;
+                            const displayText = `${abbr}<div class="hike-count-badge">${count}</div>`;
                             heatmapContainer.innerHTML += `
-                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;                        });
+                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;});
                     })();
                 })();
-            }).catch(error => {
+            }) .catch(error => {
                 console.error("Error loading homepage map data:", error);
                 homeMap.setView([39.82, -98.58], 4);
             });
@@ -1121,7 +1139,11 @@
                 }
             };
             window.requestAnimationFrame(step);
-        }
+        }        
+        // Update the legend label to indicate "Total Hikes"
+        document.querySelector('.heatmap-legend .legend-label').innerText = 'Total Hikes';
+
+
    </script>
 </body>
 </html>

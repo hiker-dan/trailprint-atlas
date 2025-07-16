@@ -126,6 +126,7 @@ External links (AllTrails + official site)
 Dashboard
 Filters: year, type, region, difficulty
 Charts: mileage over time, hikes per state
+**Note:** Donut charts for `hike_type` and `difficulty` will be implemented on the dedicated data/dashboard page, not the homepage.
 Full sortable table of hikes
 Trip Tag View
 Grouped hikes from shared trip

@@ -31,6 +31,24 @@
             text-decoration: underline;
         }
 
+        /* Style for our custom hike icons (to match the main map) */
+        .hike-icon {
+            /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%; /* This makes the background circular */
+            /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+        }
+
+        /* Style for the waypoint markers on the trail */
+        .waypoint-marker {
+            background-color: rgba(243, 156, 18, 0.9); /* A pale, but visible orange */
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 4px rgba(0,0,0,0.6);
+            cursor: pointer;
+        }
+
         /* --- Main Page Layout --- */
         .hike-detail-container {
             max-width: 1200px;
@@ -90,6 +108,82 @@
             margin-bottom: 15px;
         }
 
+        /* --- Stats Grid --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+        }
+        .stat-card {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+        .stat-card .value {
+            font-size: 1.8em;
+            font-weight: 600;
+            color: #2c3e50;
+            display: block;
+        }
+        .stat-card .label {
+            font-size: 0.9em;
+            color: #777;
+        }
+
+        /* --- Photo Gallery --- */
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+        }
+        .photo-item img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .photo-item img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        /* --- Photo Modal/Lightbox --- */
+        .photo-modal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 2000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            justify-content: center;
+            align-items: center;
+        }
+        .photo-modal.visible { display: flex; }
+        .photo-modal img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 8px;
+        }
+        .photo-modal .close-btn {
+            position: absolute;
+            top: 20px; right: 35px;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* CSS for smooth tile layer transitions */
+        .fadeable-tile-layer {
+            transition: opacity 1.5s ease-in-out !important;
+        }
+
+        #hike-description p { line-height: 1.6; }
+
         /* Responsive adjustments */
         @media (max-width: 900px) {
             .hike-layout {
@@ -119,31 +213,45 @@
             <div class="visual-column">
                 <div id="hike-map"></div>
                 <div id="photo-gallery" class="info-section">
-                    <h3>Photo Gallery</h3>
-                    <!-- Photos will be injected here -->
+                    <h3>Photos from the Trail</h3>
+                    <div class="photo-grid" id="photo-grid-container">
+                        <!-- Photo items will be injected here by JS -->
+                    </div>
                 </div>
             </div>
 
             <!-- Right Column: Information -->
             <div class="info-column">
                 <div id="hike-stats" class="info-section">
-                    <h3>Hike Stats</h3>
-                    <!-- Stats will be injected here -->
+                    <h3>By the Numbers</h3>
+                    <div class="stats-grid" id="stats-grid-container">
+                        <!-- Stat cards will be injected here by JS -->
+                    </div>
                 </div>
                 <div id="hike-description" class="info-section">
-                    <h3>Description</h3>
-                    <!-- Description will be injected here -->
+                    <h3>Trail Notes</h3>
+                    <div id="description-content">
+                        <!-- Description, flora, fauna will be injected here by JS -->
+                    </div>
                 </div>
                 <div id="hike-log" class="info-section">
-                    <h3>Hike Log</h3>
+                    <h3>Logbook</h3>
                     <!-- Multi-hike dates and notes will go here -->
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Photo Modal Structure -->
+    <div id="photo-modal" class="photo-modal">
+        <span class="close-btn" id="modal-close-btn">&times;</span>
+        <img id="modal-image" src="" alt="Full-size hike photo">
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Leaflet-GPX Plugin -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
     <!-- Our shared trail renderer -->
     <script src="scripts/trail-renderer.js"></script>
     <!-- The new script for this page -->

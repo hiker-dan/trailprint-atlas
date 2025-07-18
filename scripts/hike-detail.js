@@ -32,7 +32,89 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
                 document.getElementById('hike-title').innerText = hike.trail_name;
                 document.getElementById('hike-location').innerText = `${hike.location} • ${hike.region}`;
-                // More population logic for map, stats, etc., will be added in later steps.
+                
+                // --- Define helper function to create the correct icon ---
+                // This logic is mirrored from trail-renderer.js for consistency.
+                const getIcon = (hikeType) => {
+                    const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'hiker-icon.png';
+                    return L.icon({
+                        iconUrl: `assets/icons/${iconFilename}`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 42],
+                        popupAnchor: [0, -32],
+                        shadowUrl: null,
+                        className: 'hike-icon'
+                    });
+                };
+
+                // --- Define a custom CSS-based icon for waypoints ---
+                const waypointIcon = L.divIcon({
+                    className: 'waypoint-marker',
+                    iconSize: [8, 8],   // Reduced size for a more subtle look
+                    iconAnchor: [4, 4]  // Keep the anchor centered
+                });
+
+                // --- Determine the correct trail color based on the year ---
+                const year = new Date(hike.date_completed).getFullYear().toString();
+                const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
+
+                // --- Initialize a non-interactive, cycling map ---
+                const detailMap = L.map('hike-map', {
+                    // Disable all user interaction to make it a static visual
+                    zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+                    touchZoom: false, boxZoom: false, keyboard: false, tap: false
+                }).setView([39.82, -98.58], 4); // Default view
+
+                // Define the two base layers we want to cycle between
+                const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                    className: 'fadeable-tile-layer' // Add class for CSS transition
+                });
+
+                // The topo layer will start transparent and fade in
+                const topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+                    className: 'fadeable-tile-layer', // Add class for CSS transition
+                    opacity: 0 // Start transparent
+                });
+
+                // Add both layers to the map. Satellite is on the bottom, topo is on top (but transparent).
+                satelliteLayer.addTo(detailMap);
+                topoLayer.addTo(detailMap);
+
+                // Set up the cycling interval
+                const cycleDuration = 15000; // 15 seconds
+                setInterval(() => {
+                    // Check the current opacity of the top layer (topoLayer) and toggle it
+                    const newOpacity = topoLayer.options.opacity === 1 ? 0 : 1;
+                    topoLayer.setOpacity(newOpacity);
+                }, cycleDuration);
+
+                if (hike.gpx_file) {
+                    const gpxLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {
+                        async: true,
+                        polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
+                        marker_options: { 
+                            startIcon: getIcon(hike.hike_type), 
+                            endIconUrl: null, shadowUrl: null }
+                    }).on('addpoint', (e) => {
+                        // This event fires for each point (start, end, waypoint) the plugin finds.
+                        if (e.point_type === 'waypoint') {
+                            // Forcefully apply our custom icon to all waypoints.
+                            e.point.setIcon(waypointIcon);
+                            e.point.bindPopup(`<b>${e.point.options.title}</b>`);
+                        }
+                    }).on('loaded', (e) => {
+                        // Add padding to ensure the trail is never cut off at the edges
+                        detailMap.fitBounds(e.target.getBounds(), { padding: [50, 50] });
+                    }).addTo(detailMap);
+                } else if (hike.latitude && hike.longitude) {
+                    // For hikes without a GPX file (like viewpoints), show a marker with the correct icon
+                    L.marker([hike.latitude, hike.longitude], { 
+                        icon: getIcon(hike.hike_type) 
+                    }).addTo(detailMap);
+                    detailMap.setView([hike.latitude, hike.longitude], 13);
+                }
             } else {
                 document.getElementById('hike-title').innerText = 'Hike Not Found';
                 document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

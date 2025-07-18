@@ -130,7 +130,7 @@ function generatePopupHtml(hikesForTrail) {
             `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
         ).join('');
 
-    const viewDetailsLink = `<p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${mostRecentHike.trail_id}" target="_blank" style="font-weight: bold;">View Full Details</a></p>`;
+    const viewDetailsLink = `<p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${mostRecentHike.trail_id}" style="font-weight: bold;">View Full Details</a></p>`;
 
     if (representativeHike.hike_type === 'Viewpoint') {
         return `
@@ -170,7 +170,7 @@ function generateListDetailsHtml(hikesForTrail) {
             `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
         ).join('');
 
-    const viewDetailsLink = `<p><a href="hike.html?id=${mostRecentHike.trail_id}" target="_blank">View Full Details</a></p>`;
+    const viewDetailsLink = `<p><a href="hike.html?id=${mostRecentHike.trail_id}">View Full Details</a></p>`;
 
     if (representativeHike.hike_type === 'Viewpoint') {
         return `

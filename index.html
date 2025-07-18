@@ -177,7 +177,7 @@
         .record-card {
             background-color: #fff;
             border: 1px solid #e9e9e9;
-            border-left: 5px solid #3498db; /* A cool blue accent to make them stand out */
+            border-left: 5px solid #4a7c59; /* A natural green accent */
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             padding: 25px;
@@ -199,7 +199,7 @@
             left: 25px;
             top: 50%;
             transform: translateY(-50%);
-            color: #3498db;
+            color: #4a7c59;
             opacity: 0.7;
         }
         /* Custom icons for each record using emojis */
@@ -416,17 +416,127 @@
         .heatmap-month:hover .hike-count-badge {
             background-color: rgba(0, 0, 0, 0.8); /* Darker on hover for emphasis */
         }
+        /* --- Animated Title for "Field Notes" --- */
+        .field-notes-title {
+            /* The magic for the animated gradient text */
+            background: linear-gradient(90deg, #4a7c59, #6a994e, #4a7c59, #6a994e);
+            background-size: 200% auto;
+            color: #000;
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradient-flow 4s linear infinite;
+
+            /* Keep the bottom border, but give it more space */
+            padding-bottom: 20px;
+            margin-bottom: 25px; /* Increased margin to push the strapline down */
+        }
+        @keyframes gradient-flow {
+            to { background-position: -200% center; }
+        }
+        /* --- Unified "Field Notes" Section --- */
+        .live-journal-section {
+            background-color: #f9f9f9; /* A slightly off-white to unify the components */
+            border: 1px solid #e9e9e9;
+            padding: 40px;
+            border-radius: 12px;
+        }
+
+        /* --- Unified "From the Field" Section --- */
+        .live-journal-section {
+            background-color: #fff; /* A clean white background to unify the components */
+            border: 1px solid #e9e9e9;
+            padding: 40px;
+        }
+
+        /* --- Trail Log Section ("From the Field") --- */
+        .trail-log-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Responsive grid */
+            gap: 20px;
+            margin-top: 40px;
+            text-align: left; /* Override container's center alignment */
+        }
+
+        .section-strapline {
+            font-size: 1.1em;
+            color: #666;
+            margin-top: 0; /* Removed negative margin to create space */
+            margin-bottom: 30px;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .trail-log-card {
+            background-color: #fff;
+            border: 1px solid #e9e9e9;
+            border-top: 4px solid #4a7c59; /* Accent color on top */
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 160px; /* Ensure cards have a consistent height */
+        }
+
+        .trail-log-card::before {
+            content: none; /* Remove the large side number for a cleaner look */
+        }
+
+        .trail-log-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+        }
+        
+        .trail-log-card h4 {
+            margin: 0 0 8px 0;
+            font-size: 1.2em; /* Slightly larger title */
+            color: #2c3e50;
+            line-height: 1.3;
+        }
+
+        .trail-log-card .location-date {
+            margin: 0;
+            font-size: 0.9em;
+            color: #777;
+            margin-bottom: 15px;
+        }
+
+        .trail-log-stats {
+            display: flex;
+            gap: 25px; /* More space between stats */
+            margin-top: auto; /* Pushes stats to the bottom of the card */
+            padding-top: 15px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .trail-log-stats .stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .trail-log-stats .stat-icon {
+            font-size: 1.2em;
+            color: #4a7c59;
+        }
+
+        .trail-log-stats .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
         /* --- Featured Adventure Section --- */
         .featured-adventure-section {
             display: flex;
             gap: 30px;
             align-items: flex-start; /* Align items to the top for a cleaner look as content expands */
-            background-color: #fff;
             padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.07);
-            border: 1px solid #e9e9e9;
             margin-top: 40px;
+            border-top: 1px solid #eee; /* Use a subtle separator line */
         }
         .featured-adventure-visuals {
             flex-shrink: 0;
@@ -451,7 +561,7 @@
         .featured-adventure-content .subtitle {
             font-size: 1em;
             text-transform: uppercase;
-            color: #e67e22; /* An adventurous orange color */
+            color: #4a7c59; /* A natural green color */
             letter-spacing: 1px;
             font-weight: bold;
             margin: 0;
@@ -617,7 +727,14 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container live-journal-section" style="background-color: #f9f9f9; border: 1px solid #e9e9e9; border-radius: 12px;">
+        <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
+        <p class="section-strapline">The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.</p>
+        <h3 class="subtitle" style="text-align: left; margin-top: 40px;">Fresh Tracks</h3>
+        <div id="trail-log-section" class="trail-log-grid">
+            <!-- Recent hikes will be injected here by JS -->
+        </div>
+
         <!-- Featured Adventure Section -->
         <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
             <div class="featured-adventure-visuals">
@@ -632,7 +749,7 @@
                 </div>
             </div>
             <div class="featured-adventure-content">
-                <h3 class="subtitle">My Latest Adventure</h3>
+                <h3 class="subtitle">The Grand Traverse</h3>
                 <h2 class="title" id="featured-trip-title">--</h2>
                 <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
             </div>
@@ -651,7 +768,7 @@
                 </div>
             </div>
             <div class="featured-adventure-content">
-                <h3 class="subtitle">The Trail I Can't Get Enough Of</h3>
+                <h3 class="subtitle">The Well-Worn Path</h3>
                 <h2 class="title" id="goto-trail-title">--</h2>
                 <p class="panel-description" id="goto-trail-description">--</p>
                 <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
@@ -951,6 +1068,45 @@
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
+
+                    // --- Create Recent Hikes Trail Log ("From the Field") ---
+                    (function createTrailLog() {
+                        const trailLogContainer = document.getElementById('trail-log-section');
+                        if (!trailLogContainer) return;
+
+                        // Sort all hikes by date, most recent first, and take the top 3
+                        const recentHikes = [...data]
+                            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+                            .slice(0, 3);
+
+                        if (recentHikes.length === 0) {
+                            trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>';
+                            return;
+                        }
+
+                        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+
+                        // Generate the HTML for each card
+                        const cardsHtml = recentHikes.map(hike => `
+                            <div class="trail-log-card">
+                                <div>
+                                    <h4>${hike.trail_name}</h4>
+                                    <p class="location-date">${new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions)} &bull; ${hike.location}</p>
+                                </div>
+                                <div class="trail-log-stats">
+                                    <div class="stat">
+                                        <span class="stat-icon">📏</span>
+                                        <span class="stat-value">${hike.miles} mi</span>
+                                    </div>
+                                    <div class="stat">
+                                        <span class="stat-icon">🧗</span>
+                                        <span class="stat-value">${hike.elevation_gain.toLocaleString()} ft</span>
+                                    </div>
+                                </div>
+                            </div>`).join('');
+
+                        trailLogContainer.innerHTML = cardsHtml;
+                    })();
 
                     // --- Create Region Spotlight ---
                     (function createStateIconGrid() { // Renamed for clarity

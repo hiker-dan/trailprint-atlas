@@ -354,6 +354,7 @@
             color: rgba(0,0,0,0.4);
             border: 1px solid rgba(0,0,0,0.05);
             cursor: default; /* Indicate that the blocks are interactive */
+            position: relative; /* This is the key fix: it contains the absolutely positioned badge */
             box-sizing: border-box;
             transition: all 0.2s ease;
         }
@@ -390,6 +391,13 @@
             height: 15px;
             border-radius: 3px;
             border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* Subtitle for the heatmap legend */
+        .legend-subtitle {
+            font-style: italic;
+            font-weight: normal;
+            margin: 0; /* Reset default paragraph margins to fit in the flex container */
         }
 
         /* Add style for the count display within heatmap blocks */
@@ -442,13 +450,6 @@
             border-radius: 12px;
         }
 
-        /* --- Unified "From the Field" Section --- */
-        .live-journal-section {
-            background-color: #fff; /* A clean white background to unify the components */
-            border: 1px solid #e9e9e9;
-            padding: 40px;
-        }
-
         /* --- Trail Log Section ("From the Field") --- */
         .trail-log-grid {
             display: grid;
@@ -456,6 +457,12 @@
             gap: 20px;
             margin-top: 40px;
             text-align: left; /* Override container's center alignment */
+        }
+
+        /* Specific styling for the subtitle directly within the live journal section */
+        .live-journal-section > .subtitle {
+            text-align: left;
+            margin-top: 40px;
         }
 
         .section-strapline {
@@ -620,6 +627,7 @@
     <nav>
         <a href="index.html">Home</a>
         <a href="map.html">Interactive Map</a>
+        <a href="#" id="latest-hike-link">Latest Hike</a>
     </nav>
 
     <!-- Showcase Map Section -->
@@ -723,14 +731,14 @@
             <span class="legend-color-box heat-level-3"></span>
             <span class="legend-color-box heat-level-4"></span>
             <span class="legend-label">More</span>
-        <h3>(Total Number of Hikes Per Month)</h3>
+            <p class="legend-subtitle">(Total Number of Hikes Per Month)</p>
         </div>
     </div>
 
-    <div class="container live-journal-section" style="background-color: #f9f9f9; border: 1px solid #e9e9e9; border-radius: 12px;">
+    <div class="container live-journal-section">
         <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
         <p class="section-strapline">The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.</p>
-        <h3 class="subtitle" style="text-align: left; margin-top: 40px;">Fresh Tracks</h3>
+        <h3 class="subtitle">Fresh Tracks</h3>
         <div id="trail-log-section" class="trail-log-grid">
             <!-- Recent hikes will be injected here by JS -->
         </div>
@@ -1270,7 +1278,8 @@
                             // Display the count within a visually distinct container
                             const displayText = `${abbr}<div class="hike-count-badge">${count}</div>`;
                             heatmapContainer.innerHTML += `
-                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;});
+                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;
+                        });
                     })();
                 })();
             }) .catch(error => {
@@ -1295,11 +1304,9 @@
                 }
             };
             window.requestAnimationFrame(step);
-        }        
-        // Update the legend label to indicate "Total Hikes"
-        document.querySelector('.heatmap-legend .legend-label').innerText = 'Total Hikes';
-
-
+        }
    </script>
+   <!-- Shared script to update the 'Latest Hike' nav link -->
+   <script src="scripts/nav-updater.js"></script>
 </body>
 </html>

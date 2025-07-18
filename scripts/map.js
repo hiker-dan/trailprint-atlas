@@ -120,10 +120,17 @@ function renderTrailList(trailGroupsToRender) {
 }
 
 function generatePopupHtml(hikesForTrail) {
-    const representativeHike = hikesForTrail[0];
-    let dateList = hikesForTrail.map(h => 
-        `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-    ).join('');
+    // Sort to find the most recent hike for the link
+    const mostRecentHike = [...hikesForTrail].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+    const representativeHike = hikesForTrail[0]; // For shared info like name, miles, etc.
+
+    let dateList = hikesForTrail
+        .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)) // Also sort dates for display
+        .map(h => 
+            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
+        ).join('');
+
+    const viewDetailsLink = `<p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${mostRecentHike.trail_id}" target="_blank" style="font-weight: bold;">View Full Details</a></p>`;
 
     if (representativeHike.hike_type === 'Viewpoint') {
         return `
@@ -132,6 +139,7 @@ function generatePopupHtml(hikesForTrail) {
             <p><strong>Near:</strong> ${representativeHike.region}</p>
             <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
             <ul>${dateList}</ul>
+            ${viewDetailsLink}
         `;
     } else {
         let summitHtml = '';
@@ -147,20 +155,28 @@ function generatePopupHtml(hikesForTrail) {
             ${summitHtml}
             <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
             <ul>${dateList}</ul>
+            ${viewDetailsLink}
         `;
     }
 }
 
 function generateListDetailsHtml(hikesForTrail) {
+    const mostRecentHike = [...hikesForTrail].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
     const representativeHike = hikesForTrail[0];
-    let dateList = hikesForTrail.map(h => 
-        `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-    ).join('');
+
+    let dateList = hikesForTrail
+        .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+        .map(h => 
+            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
+        ).join('');
+
+    const viewDetailsLink = `<p><a href="hike.html?id=${mostRecentHike.trail_id}" target="_blank">View Full Details</a></p>`;
 
     if (representativeHike.hike_type === 'Viewpoint') {
         return `
             <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
             <ul>${dateList}</ul>
+            ${viewDetailsLink}
         `;
     } else {
         let summitHtml = '';
@@ -173,6 +189,7 @@ function generateListDetailsHtml(hikesForTrail) {
             ${summitHtml}
             <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
             <ul>${dateList}</ul>
+            ${viewDetailsLink}
         `;
     }
 }

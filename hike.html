@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hike Details - The Trailprint Atlas</title>
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: sans-serif; 
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        /* --- Navigation Bar (Consistent with other pages) --- */
+        nav {
+            background-color: #333;
+            padding: 10px 20px;
+            text-align: center;
+        }
+        nav a {
+            color: white;
+            margin: 0 15px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- Main Page Layout --- */
+        .hike-detail-container {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* --- Header --- */
+        #hike-header {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        #hike-title {
+            font-size: 2.8em;
+            margin: 0;
+            color: #2c3e50;
+        }
+        #hike-location {
+            font-size: 1.2em;
+            color: #777;
+            margin: 5px 0 0 0;
+        }
+
+        /* --- Two-Column Layout --- */
+        .hike-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 40px;
+        }
+
+        /* --- Visual Column (Map & Photos) --- */
+        .visual-column #hike-map {
+            height: 400px;
+            width: 100%;
+            background-color: #e9e9e9;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .visual-column #photo-gallery {
+            /* Placeholder styling */
+            min-height: 200px;
+        }
+
+        /* --- Info Column (Stats & Text) --- */
+        .info-column .info-section {
+            margin-bottom: 30px;
+        }
+        .info-column h3 {
+            font-size: 1.4em;
+            color: #4a7c59; /* Match homepage green */
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 900px) {
+            .hike-layout {
+                grid-template-columns: 1fr; /* Stack columns on smaller screens */
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="map.html">Interactive Map</a>
+        <a href="#" id="latest-hike-link">Latest Hike</a>
+    </nav>
+
+    <div class="hike-detail-container">
+        <!-- Header: Title and Location -->
+        <header id="hike-header">
+            <h1 id="hike-title">Loading...</h1>
+            <p id="hike-location"></p>
+        </header>
+
+        <!-- Main two-column layout -->
+        <div class="hike-layout">
+            <!-- Left Column: Visuals -->
+            <div class="visual-column">
+                <div id="hike-map"></div>
+                <div id="photo-gallery" class="info-section">
+                    <h3>Photo Gallery</h3>
+                    <!-- Photos will be injected here -->
+                </div>
+            </div>
+
+            <!-- Right Column: Information -->
+            <div class="info-column">
+                <div id="hike-stats" class="info-section">
+                    <h3>Hike Stats</h3>
+                    <!-- Stats will be injected here -->
+                </div>
+                <div id="hike-description" class="info-section">
+                    <h3>Description</h3>
+                    <!-- Description will be injected here -->
+                </div>
+                <div id="hike-log" class="info-section">
+                    <h3>Hike Log</h3>
+                    <!-- Multi-hike dates and notes will go here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Our shared trail renderer -->
+    <script src="scripts/trail-renderer.js"></script>
+    <!-- The new script for this page -->
+    <script src="scripts/hike-detail.js"></script>
+    <!-- Shared script to update the 'Latest Hike' nav link -->
+    <script src="scripts/nav-updater.js"></script>
+
+</body>
+</html>

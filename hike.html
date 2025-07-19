@@ -132,24 +132,79 @@
             color: #777;
         }
 
-        /* --- Photo Gallery --- */
-        .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 10px;
-        }
-        .photo-item img {
+        /* --- New Photo Gallery Styles --- */
+        .large-image-viewer {
             width: 100%;
-            height: 100px;
+            height: 400px; /* Match the map height for a consistent layout */
+            background-color: #222; /* A dark fallback for the background */
+            border-radius: 8px;
+            overflow: hidden; /* Ensure image fits within the rounded corners */
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            position: relative; /* This is key for layering the images */
+        }
+        .viewer-bg {
+            position: absolute;
+            top: -10px; left: -10px; /* Stretch outside the container to hide blurred edges */
+            width: calc(100% + 20px);
+            height: calc(100% + 20px);
             object-fit: cover;
+            filter: blur(25px) brightness(0.8); /* Heavy blur and slight dimming */
+            transform: scale(1.1); /* Ensures the blur fills the entire frame */
+        }
+        .viewer-fg {
+            position: relative; /* Bring this image to the foreground */
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* This ensures the full photo is visible */
+            cursor: pointer;
+        }
+        .thumbnail-strip {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto; /* Allow horizontal scrolling if many photos */
+            padding-bottom: 10px; /* Space for scrollbar */
+        }
+        .thumbnail-strip img {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: border-color 0.2s ease, transform 0.2s ease;
+        }
+        .thumbnail-strip img:hover {
+            transform: scale(1.05);
+        }
+        .thumbnail-strip img.active {
+            border-color: #4a7c59; /* Use the site's green accent color */
+            box-shadow: 0 0 8px rgba(74, 124, 89, 0.5);
+        }
+
+        /* --- Modal Navigation Arrows --- */
+        .modal-nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 50px;
+            font-weight: 100;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 0px 15px 5px 15px; /* Fine-tune padding for vertical centering */
             border-radius: 8px;
             cursor: pointer;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none; /* Prevent text selection on double-click */
+            transition: background-color 0.2s ease;
+            z-index: 2001; /* Ensure they are above the image */
         }
-        .photo-item img:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        .modal-nav-btn:hover {
+            background-color: rgba(0, 0, 0, 0.6);
         }
+        .modal-nav-btn.prev { left: 20px; }
+        .modal-nav-btn.next { right: 20px; }
+
 
         /* --- Photo Modal/Lightbox --- */
         .photo-modal {
@@ -214,8 +269,11 @@
                 <div id="hike-map"></div>
                 <div id="photo-gallery" class="info-section">
                     <h3>Photos from the Trail</h3>
-                    <div class="photo-grid" id="photo-grid-container">
-                        <!-- Photo items will be injected here by JS -->
+                    <div class="large-image-viewer">
+                        <img id="main-photo-bg" class="viewer-bg" src="" alt="">
+                        <img id="main-photo-display" class="viewer-fg" src="" alt="Main hike photo">                    </div>
+                    <div class="thumbnail-strip" id="thumbnail-container">
+                        <!-- Thumbnails will be injected here by JS -->
                     </div>
                 </div>
             </div>
@@ -244,8 +302,10 @@
 
     <!-- Photo Modal Structure -->
     <div id="photo-modal" class="photo-modal">
-        <span class="close-btn" id="modal-close-btn">&times;</span>
+        <span class="close-btn" id="modal-close-btn" title="Close">&times;</span>
+        <span class="modal-nav-btn prev" id="modal-prev-btn" title="Previous photo">&lsaquo;</span>
         <img id="modal-image" src="" alt="Full-size hike photo">
+        <span class="modal-nav-btn next" id="modal-next-btn" title="Next photo">&rsaquo;</span>
     </div>
 
     <!-- Leaflet JS -->

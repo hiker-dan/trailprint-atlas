@@ -115,6 +115,90 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).addTo(detailMap);
                     detailMap.setView([hike.latitude, hike.longitude], 13);
                 }
+
+                // --- Populate Photo Gallery ---
+                (function populatePhotoGallery() {
+                    const cloudName = 'dgdniwosl'; // Your specific Cloudinary cloud name.
+                    const mainPhotoBg = document.getElementById('main-photo-bg');
+                    const mainPhoto = document.getElementById('main-photo-display');
+                    const thumbnailContainer = document.getElementById('thumbnail-container');
+                    const gallerySection = document.getElementById('photo-gallery');
+
+                    // Get modal elements, including the new navigation buttons
+                    const modal = document.getElementById('photo-modal');
+                    const modalImage = document.getElementById('modal-image');
+                    const closeModalBtn = document.getElementById('modal-close-btn');
+                    const prevBtn = document.getElementById('modal-prev-btn');
+                    const nextBtn = document.getElementById('modal-next-btn');
+
+                    let currentModalIndex = 0; // To track the image shown in the modal
+                    if (!hike.images || hike.images.length === 0) {
+                        gallerySection.innerHTML = '<h3>Photos from the Trail</h3><p>No photos available for this hike yet.</p>';
+                        return;
+                    }
+
+                    thumbnailContainer.innerHTML = ''; // Clear any placeholders
+
+                    const firstImageId = hike.images[0];
+                    const firstDisplayUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${firstImageId}`;
+
+                    // Set the first image as the main display by default
+                    mainPhoto.src = firstDisplayUrl;
+                    mainPhotoBg.src = firstDisplayUrl; // Use the same image for the blurred background
+                    mainPhoto.dataset.fullsize = `https://res.cloudinary.com/${cloudName}/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${firstImageId}`;
+
+                    hike.images.forEach((publicId, index) => {
+                        const thumbnailUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_160,h_120,c_fill,q_auto,f_auto/${publicId}`;
+                        const displayUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${publicId}`;
+                        const fullSizeUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${publicId}`;
+
+                        const thumbImg = document.createElement('img');
+                        thumbImg.src = thumbnailUrl;
+                        thumbImg.alt = `Thumbnail ${index + 1} for ${hike.trail_name}`;
+                        thumbImg.dataset.displayUrl = displayUrl;
+                        thumbImg.dataset.fullsize = fullSizeUrl;
+
+                        if (index === 0) thumbImg.classList.add('active');
+
+                        thumbImg.addEventListener('click', () => {
+                            mainPhoto.src = thumbImg.dataset.displayUrl;
+                            mainPhotoBg.src = thumbImg.dataset.displayUrl; // Update the background too
+                            mainPhoto.dataset.fullsize = thumbImg.dataset.fullsize;
+                            document.querySelectorAll('.thumbnail-strip img').forEach(img => img.classList.remove('active'));
+                            thumbImg.classList.add('active');
+                        });
+                        thumbnailContainer.appendChild(thumbImg);
+                    });
+
+                    // When the main photo is clicked, open the modal to the currently active image
+                    mainPhoto.addEventListener('click', () => {
+                        const activeThumb = document.querySelector('.thumbnail-strip img.active');
+                        if (!activeThumb) return;
+
+                        // Find the index of the active thumbnail to start the modal there
+                        currentModalIndex = Array.from(thumbnailContainer.children).indexOf(activeThumb);
+                        modalImage.src = activeThumb.dataset.fullsize;
+                        modal.classList.add('visible');
+                    });
+
+                    // Function to update the modal image based on an index
+                    const updateModalImage = (newIndex) => {
+                        const allThumbs = thumbnailContainer.children;
+                        if (newIndex >= allThumbs.length) newIndex = 0; // Wrap to the start
+                        if (newIndex < 0) newIndex = allThumbs.length - 1; // Wrap to the end
+                        currentModalIndex = newIndex;
+                        modalImage.src = allThumbs[currentModalIndex].dataset.fullsize;
+                    };
+
+                    // Add event listeners for the new navigation arrows
+                    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex - 1); });
+                    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex + 1); });
+
+
+                    const closeModal = () => modal.classList.remove('visible');
+                    closeModalBtn.addEventListener('click', closeModal);
+                    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); }); // Close if clicking on the background
+                })();
             } else {
                 document.getElementById('hike-title').innerText = 'Hike Not Found';
                 document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

@@ -84,29 +84,11 @@
 
         /* --- Two-Column Layout --- */
         .hike-layout {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Two equal columns */
-            gap: 40px;
+            /* The main layout is now a simple vertical flow container */
         }
 
-        /* --- Visual Column (Map & Photos) --- */
-        .visual-column #hike-map {
-            height: 400px;
-            width: 100%;
-            background-color: #e9e9e9;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-        .visual-column #photo-gallery {
-            /* Placeholder styling */
-            min-height: 200px;
-        }
-
-        /* --- Info Column (Stats & Text) --- */
-        .info-column .info-section {
-            margin-bottom: 30px;
-        }
-        .info-column h3 {
+        /* --- Section Headers --- */
+        .info-section h3 {
             font-size: 1.4em;
             color: #4a7c59; /* Match homepage green */
             border-bottom: 2px solid #f0f0f0;
@@ -137,27 +119,6 @@
             font-size: 0.9em;
             color: #777;
             word-wrap: break-word; /* Ensure long words don't overflow */
-        }
-
-        /* --- New Expedition Summary Card --- */
-        .expedition-summary-card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .expedition-summary-card .title {
-            font-size: 1.4em;
-            font-weight: 600;
-            color: #2c3e50;
-            margin: 0 0 15px 0;
-        }
-        .expedition-summary-card .crew-details {
-            font-size: 1.1em;
-            color: #495057;
-            line-height: 1.5;
         }
 
         /* --- New Expedition Section Styles --- */
@@ -251,55 +212,117 @@
         .log-entry .meta { font-size: 0.9em; color: #777; margin: 5px 0; }
         .log-entry .notes { margin-top: 10px; line-height: 1.5; font-style: italic; }
 
-        /* --- New Photo Gallery Styles --- */
-        .large-image-viewer {
+        /* --- NEW: Top Visuals Grid --- */
+        .top-visuals-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        #hike-map {
+            height: 500px;
             width: 100%;
-            height: 400px; /* Match the map height for a consistent layout */
-            background-color: #222; /* A dark fallback for the background */
             border-radius: 8px;
-            overflow: hidden; /* Ensure image fits within the rounded corners */
-            margin-bottom: 15px;
-            border: 1px solid #eee;
-            position: relative; /* This is key for layering the images */
         }
-        .viewer-bg {
-            position: absolute;
-            top: -10px; left: -10px; /* Stretch outside the container to hide blurred edges */
-            width: calc(100% + 20px);
-            height: calc(100% + 20px);
-            object-fit: cover;
-            filter: blur(25px) brightness(0.8); /* Heavy blur and slight dimming */
-            transform: scale(1.1); /* Ensures the blur fills the entire frame */
+        #photo-gallery {
+            height: 500px; /* Match map height */
+            display: flex;
+            flex-direction: column;
         }
-        .viewer-fg {
-            position: relative; /* Bring this image to the foreground */
-            z-index: 1;
+
+        /* --- Polaroid Gallery Styles --- */
+        .polaroid-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            border-radius: 4px;
+            transform: rotate(2deg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .polaroid-card:hover {
+            transform: rotate(0deg) scale(1.03);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+        }
+        .polaroid-image-container {
+            background-color: #333;
+            overflow: hidden;
+            cursor: pointer;
+            flex-grow: 1; /* Allow image to take up space */
+            position: relative; /* Crucial for positioning the thumbnail strip inside */
+        }
+        .polaroid-image {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* This ensures the full photo is visible */
-            cursor: pointer;
+            object-fit: cover; /* Cover the container */
+            display: block;
+            filter: grayscale(1) sepia(0.3); /* Vintage filter */
+            transition: filter 0.4s ease, transform 0.4s ease;
         }
-        .thumbnail-strip {
+        .polaroid-card:hover .polaroid-image {
+            filter: none; /* Remove filter on hover */
+            transform: scale(1.05);
+        }
+        .polaroid-text {
+            font-family: 'Georgia', serif; /* A more classic, poetic font */
+            text-align: left;
+            flex-shrink: 0; /* Prevent text from shrinking */
+            padding-top: 15px;
+        }
+        .polaroid-text .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+            margin: 0 0 5px 0;
+        }
+        .polaroid-text .crew-details {
+            font-size: 1em;
+            color: #555;
+            line-height: 1.4;
+            font-style: italic; /* Make all crew details italic for a consistent feel */
+        }
+        .polaroid-text .solo-journey {
+            color: #666;
+        }
+        .polaroid-thumbnail-strip {
+            flex-shrink: 0; /* Prevent the strip from shrinking */
             display: flex;
             gap: 10px;
             overflow-x: auto; /* Allow horizontal scrolling if many photos */
-            padding-bottom: 10px; /* Space for scrollbar */
+            padding: 10px;
+            /* New positioning styles for the overlay effect */
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
+            transform: translateY(100%); /* Start hidden below the container */
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
         }
-        .thumbnail-strip img {
-            width: 80px;
+        .polaroid-thumbnail-strip img {
+            width: 60px;
             height: 60px;
             object-fit: cover;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            border: 2px solid transparent;
-            transition: border-color 0.2s ease, transform 0.2s ease;
+            border: 2px solid #eee;
+            opacity: 0.7;
+            transition: all 0.2s ease;
         }
-        .thumbnail-strip img:hover {
-            transform: scale(1.05);
+        .polaroid-thumbnail-strip img:hover,
+        .polaroid-thumbnail-strip img.active {
+            opacity: 1;
+            border-color: #4a7c59;
         }
-        .thumbnail-strip img.active {
-            border-color: #4a7c59; /* Use the site's green accent color */
-            box-shadow: 0 0 8px rgba(74, 124, 89, 0.5);
+        /* The magic reveal on hover */
+        .polaroid-image-container:hover .polaroid-thumbnail-strip {
+            transform: translateY(0);
+            opacity: 1;
         }
 
         /* --- Modal Navigation Arrows --- */
@@ -384,49 +407,26 @@
 
         <!-- Main two-column layout -->
         <div class="hike-layout">
-            <!-- Left Column: Visuals -->
-            <div class="visual-column">
+            <div class="top-visuals-grid">
                 <div id="hike-map"></div>
-                <div id="photo-gallery" class="info-section">
-                    <h3>Photos from the Trail</h3>
-                    <div class="large-image-viewer">
-                        <img id="main-photo-bg" class="viewer-bg" src="" alt="">
-                        <img id="main-photo-display" class="viewer-fg" src="" alt="Main hike photo">                    </div>
-                    <div class="thumbnail-strip" id="thumbnail-container">
-                        <!-- Thumbnails will be injected here by JS -->
-                    </div>
+                <div id="photo-gallery">
+                    <!-- Photo viewer will be built here by JS -->
                 </div>
             </div>
 
-            <!-- Right Column: Information -->
-            <div class="info-column">
-                <div id="hike-stats" class="info-section">
-                    <h3>By the Numbers</h3>
-                    <div class="stats-grid" id="stats-grid-container">
-                        <!-- Stat cards will be injected here by JS -->
-                    </div>
-                </div>
-                <div id="hike-description" class="info-section">
-                    <h3>Trail Notes</h3>
-                    <div id="description-content-container">
-                        <!-- Description, flora, fauna will be injected here by JS -->
-                    </div>
-                    <div id="external-links-container" class="external-links">
-                        <!-- External link buttons will be injected here -->
-                    </div>
-                </div>
-                <div id="expedition-details" class="info-section" style="display: none;">
-                    <h3>The Expedition</h3>
-                    <div id="expedition-content-container">
-                        <!-- Hike company and journal notes will go here -->
-                    </div>
-                </div>
-                <div id="hike-log" class="info-section" style="display: none;">
-                    <h3>Logbook</h3>
-                    <div id="logbook-container">
-                        <!-- Multi-hike dates and notes will go here -->
-                    </div>
-                </div>
+            <!-- The rest of the info flows below in a single column -->
+            <div id="hike-stats" class="info-section">
+                <h3>By the Numbers</h3>
+                <div class="stats-grid" id="stats-grid-container"></div>
+            </div>
+            <div id="hike-description" class="info-section">
+                <h3>Trail Notes</h3>
+                <div id="description-content-container"></div>
+                <div id="external-links-container" class="external-links"></div>
+            </div>
+            <div id="hike-log" class="info-section" style="display: none;">
+                <h3>Logbook</h3>
+                <div id="logbook-container"></div>
             </div>
         </div>
     </div>

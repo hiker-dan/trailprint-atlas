@@ -4,7 +4,26 @@
  * and dynamically populates the page content.
  */
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Get the hike ID from the URL query parameter (e.g., ?id=tta_35)
+    // --- Modal Setup ---
+    // Get modal elements once and set up their core functionality.
+    // This is done outside the fetch so we don't re-add listeners.
+    const modal = document.getElementById('photo-modal');
+    const modalImage = document.getElementById('modal-image');
+    const closeModalBtn = document.getElementById('modal-close-btn');
+    const prevBtn = document.getElementById('modal-prev-btn');
+    const nextBtn = document.getElementById('modal-next-btn');
+    let currentModalIndex = 0;
+    let currentImageSet = []; // Will hold the public IDs for the currently viewed hike
+
+    const updateModalImage = (newIndex) => {
+        if (currentImageSet.length === 0) return;
+        if (newIndex >= currentImageSet.length) newIndex = 0; // Wrap to the start
+        if (newIndex < 0) newIndex = currentImageSet.length - 1; // Wrap to the end
+        currentModalIndex = newIndex;
+        const publicId = currentImageSet[currentModalIndex];
+        modalImage.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${publicId}`;
+    };
+
     const urlParams = new URLSearchParams(window.location.search);
     const hikeId = urlParams.get('id');
 
@@ -14,6 +33,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('hike-location').innerText = 'Please select a hike from the map to view its details.';
         return;
     }
+
+    // --- Setup Modal Listeners ---
+    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex - 1); });
+    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex + 1); });
+    const closeModal = () => modal.classList.remove('visible');
+    closeModalBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     // 2. Fetch the main data file
     fetch('data/hikes.json')
@@ -33,7 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('hike-title').innerText = hike.trail_name;
                 const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
                 const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
-                document.getElementById('hike-date').innerText = `Hiked on ${formattedDate}`;
+                const datePrefix = hike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
+                document.getElementById('hike-date').innerText = `${datePrefix} ${formattedDate}`;
                 document.getElementById('hike-location').innerText = `${hike.location} • ${hike.region}`;
                 
                 // --- Define helper function to create the correct icon ---
@@ -158,37 +185,83 @@ document.addEventListener('DOMContentLoaded', () => {
                         linksContainer.innerHTML += `<a href="${hike.official_trail_url}" class="link-btn" target="_blank" rel="noopener noreferrer">Official Trail Site</a>`;
                     }
 
-                    // 4. Populate "The Expedition" details
-                    const expeditionSection = document.getElementById('expedition-details');
-                    const expeditionContainer = document.getElementById('expedition-content-container');
-                    let expeditionHtml = '';
-
-                    // Build the new "Expedition Summary Card"
+                    // 4. Populate the Photo Gallery with the Polaroid Card
+                    const galleryContainer = document.getElementById('photo-gallery');
                     let crewHtml = '';
-                    if (hike.hiked_with && hike.hiked_with.length > 0) {
-                        crewHtml = `A <strong>${hike.hike_size}</strong> hike with <strong>${hike.hiked_with.join(', ')}</strong>.`;
-                    } else {
-                        crewHtml = `A <strong>${hike.hike_size}</strong> journey.`; // Handles "Solo" gracefully
+                    if (hike.hike_size === 'Solo') {
+                        crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
+                    } else if (hike.hiked_with && hike.hiked_with.length > 0) {
+                        crewHtml = `<div class="crew-details">With <strong>${hike.hiked_with.join(', ')}</strong>.</div>`;
                     }
 
-                    expeditionHtml += `
-                        <div class="expedition-summary-card">
-                            <div class="title">A ${hike.difficulty} ${hike.hike_type}</div>
-                            <div class="crew-details">${crewHtml}</div>
-                        </div>
-                    `;
+                    if (hike.images && hike.images.length > 0) {
+                        // --- Build the Polaroid Card if images exist ---
+                        currentImageSet = hike.images; // Load the images for the modal
+
+                        galleryContainer.innerHTML = `
+                            <div class="polaroid-card" id="polaroid-card">
+                                <div class="polaroid-image-container">
+                                    <img id="polaroid-main-image" class="polaroid-image" src="" alt="Expedition photo">
+                                    <div class="polaroid-thumbnail-strip" id="polaroid-thumbnail-container"></div>
+                                </div>
+                                <div class="polaroid-text">
+                                    <div class="title">${hike.difficulty} ${hike.hike_type}</div>
+                                    ${crewHtml}
+                                </div>
+                            </div>
+                        `;
+
+                        const mainPolaroidImage = document.getElementById('polaroid-main-image');
+                        const thumbnailContainer = document.getElementById('polaroid-thumbnail-container');
+
+                        const cloudName = 'dgdniwosl';
+
+                        // Set the initial image for the Polaroid viewer
+                        mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${hike.images[0]}`;
+
+                        hike.images.forEach((publicId, index) => {
+                            const thumb = document.createElement('img');
+                            thumb.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_120,h_120,c_fill,q_auto,f_auto/${publicId}`;
+                            thumb.dataset.publicId = publicId;
+                            if (index === 0) { thumb.classList.add('active'); }
+                            thumb.addEventListener('click', () => {
+                                mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${publicId}`;
+                                document.querySelectorAll('.polaroid-thumbnail-strip img').forEach(i => i.classList.remove('active'));
+                                thumb.classList.add('active');
+                            });
+                            thumbnailContainer.appendChild(thumb);
+                        });
+
+                        mainPolaroidImage.addEventListener('click', () => {
+                            const activeThumb = document.querySelector('.polaroid-thumbnail-strip img.active');
+                            currentModalIndex = hike.images.indexOf(activeThumb.dataset.publicId);
+                            updateModalImage(currentModalIndex);
+                            modal.classList.add('visible');
+                        });
+
+                    } else {
+                        // Fallback message if no images
+                        galleryContainer.innerHTML = `
+                            <div class="polaroid-card" style="transform:none;">
+                                <div class="polaroid-image-container" style="display:flex; align-items:center; justify-content:center; background-color:#f0f0f0;">
+                                    <p style="padding: 20px; text-align:center; color:#888;">No photos available for this hike yet.</p>
+                                </div>
+                                <div class="polaroid-text">
+                                    <div class="title">${hike.difficulty} ${hike.hike_type}</div>
+                                    ${crewHtml}
+                                </div>
+                            </div>
+                        `;
+                    }
 
                     // Add journal entry if it exists
                     if (hike.notes) {
-                        expeditionHtml += `
+                        descriptionContainer.innerHTML += `
                             <div class="journal-entry">
                                 <p>${hike.notes.replace(/\n/g, '<br>')}</p>
                             </div>
                         `;
                     }
-
-                    expeditionSection.style.display = 'block';
-                    expeditionContainer.innerHTML = expeditionHtml;
 
                     // 5. Populate "Logbook" Section if hiked more than once
                     if (hikeGroup.length > 1) {
@@ -225,89 +298,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 })();
 
-                // --- Populate Photo Gallery ---
-                (function populatePhotoGallery() {
-                    const cloudName = 'dgdniwosl'; // Your specific Cloudinary cloud name.
-                    const mainPhotoBg = document.getElementById('main-photo-bg');
-                    const mainPhoto = document.getElementById('main-photo-display');
-                    const thumbnailContainer = document.getElementById('thumbnail-container');
-                    const gallerySection = document.getElementById('photo-gallery');
-
-                    // Get modal elements, including the new navigation buttons
-                    const modal = document.getElementById('photo-modal');
-                    const modalImage = document.getElementById('modal-image');
-                    const closeModalBtn = document.getElementById('modal-close-btn');
-                    const prevBtn = document.getElementById('modal-prev-btn');
-                    const nextBtn = document.getElementById('modal-next-btn');
-
-                    let currentModalIndex = 0; // To track the image shown in the modal
-                    if (!hike.images || hike.images.length === 0) {
-                        gallerySection.innerHTML = '<h3>Photos from the Trail</h3><p>No photos available for this hike yet.</p>';
-                        return;
-                    }
-
-                    thumbnailContainer.innerHTML = ''; // Clear any placeholders
-
-                    const firstImageId = hike.images[0];
-                    const firstDisplayUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${firstImageId}`;
-
-                    // Set the first image as the main display by default
-                    mainPhoto.src = firstDisplayUrl;
-                    mainPhotoBg.src = firstDisplayUrl; // Use the same image for the blurred background
-                    mainPhoto.dataset.fullsize = `https://res.cloudinary.com/${cloudName}/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${firstImageId}`;
-
-                    hike.images.forEach((publicId, index) => {
-                        const thumbnailUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_160,h_120,c_fill,q_auto,f_auto/${publicId}`;
-                        const displayUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${publicId}`;
-                        const fullSizeUrl = `https://res.cloudinary.com/${cloudName}/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${publicId}`;
-
-                        const thumbImg = document.createElement('img');
-                        thumbImg.src = thumbnailUrl;
-                        thumbImg.alt = `Thumbnail ${index + 1} for ${hike.trail_name}`;
-                        thumbImg.dataset.displayUrl = displayUrl;
-                        thumbImg.dataset.fullsize = fullSizeUrl;
-
-                        if (index === 0) thumbImg.classList.add('active');
-
-                        thumbImg.addEventListener('click', () => {
-                            mainPhoto.src = thumbImg.dataset.displayUrl;
-                            mainPhotoBg.src = thumbImg.dataset.displayUrl; // Update the background too
-                            mainPhoto.dataset.fullsize = thumbImg.dataset.fullsize;
-                            document.querySelectorAll('.thumbnail-strip img').forEach(img => img.classList.remove('active'));
-                            thumbImg.classList.add('active');
-                        });
-                        thumbnailContainer.appendChild(thumbImg);
-                    });
-
-                    // When the main photo is clicked, open the modal to the currently active image
-                    mainPhoto.addEventListener('click', () => {
-                        const activeThumb = document.querySelector('.thumbnail-strip img.active');
-                        if (!activeThumb) return;
-
-                        // Find the index of the active thumbnail to start the modal there
-                        currentModalIndex = Array.from(thumbnailContainer.children).indexOf(activeThumb);
-                        modalImage.src = activeThumb.dataset.fullsize;
-                        modal.classList.add('visible');
-                    });
-
-                    // Function to update the modal image based on an index
-                    const updateModalImage = (newIndex) => {
-                        const allThumbs = thumbnailContainer.children;
-                        if (newIndex >= allThumbs.length) newIndex = 0; // Wrap to the start
-                        if (newIndex < 0) newIndex = allThumbs.length - 1; // Wrap to the end
-                        currentModalIndex = newIndex;
-                        modalImage.src = allThumbs[currentModalIndex].dataset.fullsize;
-                    };
-
-                    // Add event listeners for the new navigation arrows
-                    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex - 1); });
-                    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex + 1); });
-
-
-                    const closeModal = () => modal.classList.remove('visible');
-                    closeModalBtn.addEventListener('click', closeModal);
-                    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); }); // Close if clicking on the background
-                })();
             } else {
                 document.getElementById('hike-title').innerText = 'Hike Not Found';
                 document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

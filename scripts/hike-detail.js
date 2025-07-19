@@ -31,6 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 4. Populate the page with the hike's data
                 document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
                 document.getElementById('hike-title').innerText = hike.trail_name;
+                const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
+                const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
+                document.getElementById('hike-date').innerText = `Hiked on ${formattedDate}`;
                 document.getElementById('hike-location').innerText = `${hike.location} • ${hike.region}`;
                 
                 // --- Define helper function to create the correct icon ---
@@ -115,6 +118,112 @@ document.addEventListener('DOMContentLoaded', () => {
                     }).addTo(detailMap);
                     detailMap.setView([hike.latitude, hike.longitude], 13);
                 }
+
+                // --- Find all hikes that share the same trail name for the logbook ---
+                const hikeGroup = hikes.filter(h => h.trail_name === hike.trail_name);
+
+                // --- Populate Right Column ---
+                (function populateInfoColumn() {
+                    // 1. Populate "By the Numbers" Stats Grid
+                    const statsContainer = document.getElementById('stats-grid-container');
+                    statsContainer.innerHTML = `
+                        <div class="stat-card"><span class="value">${hike.miles.toLocaleString()}</span><span class="label">Miles</span></div>
+                        <div class="stat-card"><span class="value">${hike.elevation_gain.toLocaleString()}</span><span class="label">Elevation (ft)</span></div>
+                    `;
+                    if (hike.summit_trail && hike.summit_elevation) {
+                        statsContainer.innerHTML += `<div class="stat-card"><span class="value">${hike.summit_elevation.toLocaleString()}</span><span class="label">Summit (ft)</span></div>`;
+                    }
+
+                    // 2. Populate "Trail Notes" Section
+                    const descriptionContainer = document.getElementById('description-content-container');
+                    let descriptionHtml = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`; // Replace newlines with <br>
+
+                    if (hike.primary_geography) {
+                        descriptionHtml += `<div class="eco-note"><strong>Primary Geography:</strong> <em>${hike.primary_geography}</em></div>`;
+                    }
+                    if (hike.flora) {
+                        descriptionHtml += `<div class="eco-note"><strong>Flora Spotlight:</strong> <em>${hike.flora}</em></div>`;
+                    }
+                    if (hike.fauna) {
+                        descriptionHtml += `<div class="eco-note"><strong>Fauna Spotlight:</strong> <em>${hike.fauna}</em></div>`;
+                    }
+                    descriptionContainer.innerHTML = descriptionHtml;
+
+                    // 3. Populate External Links
+                    const linksContainer = document.getElementById('external-links-container');
+                    if (hike.all_trails_url) {
+                        linksContainer.innerHTML += `<a href="${hike.all_trails_url}" class="link-btn" target="_blank" rel="noopener noreferrer">View on AllTrails</a>`;
+                    }
+                    if (hike.official_trail_url) {
+                        linksContainer.innerHTML += `<a href="${hike.official_trail_url}" class="link-btn" target="_blank" rel="noopener noreferrer">Official Trail Site</a>`;
+                    }
+
+                    // 4. Populate "The Expedition" details
+                    const expeditionSection = document.getElementById('expedition-details');
+                    const expeditionContainer = document.getElementById('expedition-content-container');
+                    let expeditionHtml = '';
+
+                    // Build the new "Expedition Summary Card"
+                    let crewHtml = '';
+                    if (hike.hiked_with && hike.hiked_with.length > 0) {
+                        crewHtml = `A <strong>${hike.hike_size}</strong> hike with <strong>${hike.hiked_with.join(', ')}</strong>.`;
+                    } else {
+                        crewHtml = `A <strong>${hike.hike_size}</strong> journey.`; // Handles "Solo" gracefully
+                    }
+
+                    expeditionHtml += `
+                        <div class="expedition-summary-card">
+                            <div class="title">A ${hike.difficulty} ${hike.hike_type}</div>
+                            <div class="crew-details">${crewHtml}</div>
+                        </div>
+                    `;
+
+                    // Add journal entry if it exists
+                    if (hike.notes) {
+                        expeditionHtml += `
+                            <div class="journal-entry">
+                                <p>${hike.notes.replace(/\n/g, '<br>')}</p>
+                            </div>
+                        `;
+                    }
+
+                    expeditionSection.style.display = 'block';
+                    expeditionContainer.innerHTML = expeditionHtml;
+
+                    // 5. Populate "Logbook" Section if hiked more than once
+                    if (hikeGroup.length > 1) {
+                        const logbookSection = document.getElementById('hike-log');
+                        logbookSection.style.display = 'block'; // Show the section
+                        const logbookContainer = logbookSection.querySelector('#logbook-container');
+                        
+                        // Sort hikes by date, most recent first
+                        hikeGroup.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
+
+                        logbookContainer.innerHTML = hikeGroup.map(log => {
+                            const isCurrent = log.trail_id === hikeId ? 'current-hike' : '';
+                            const dateStr = new Date(log.date_completed).toLocaleDateString('en-US', dateOptions);
+                            
+                            let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
+                            if (log.hiked_with && log.hiked_with.length > 0) {
+                                metaHtml += ` with ${log.hiked_with.join(', ')}`;
+                            }
+                            metaHtml += `</p>`;
+
+                            let notesHtml = '';
+                            if (log.notes) {
+                                notesHtml = `<div class="notes">${log.notes}</div>`;
+                            }
+
+                            return `
+                                <div class="log-entry ${isCurrent}">
+                                    <div class="date">${dateStr}</div>
+                                    ${metaHtml}
+                                    ${notesHtml}
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                })();
 
                 // --- Populate Photo Gallery ---
                 (function populatePhotoGallery() {

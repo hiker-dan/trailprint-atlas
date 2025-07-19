@@ -75,6 +75,12 @@
             color: #777;
             margin: 5px 0 0 0;
         }
+        #hike-date {
+            font-size: 1em;
+            color: #888;
+            font-style: italic;
+            margin-top: 10px;
+        }
 
         /* --- Two-Column Layout --- */
         .hike-layout {
@@ -111,7 +117,7 @@
         /* --- Stats Grid --- */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); /* Widen to prevent word cutoff */
             gap: 15px;
         }
         .stat-card {
@@ -130,7 +136,120 @@
         .stat-card .label {
             font-size: 0.9em;
             color: #777;
+            word-wrap: break-word; /* Ensure long words don't overflow */
         }
+
+        /* --- New Expedition Summary Card --- */
+        .expedition-summary-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .expedition-summary-card .title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0 0 15px 0;
+        }
+        .expedition-summary-card .crew-details {
+            font-size: 1.1em;
+            color: #495057;
+            line-height: 1.5;
+        }
+
+        /* --- New Expedition Section Styles --- */
+        .expedition-meta {
+            background-color: #fdfdfd;
+            border: 1px solid #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 1em;
+            color: #555;
+        }
+        .journal-entry {
+            background-color: #fefcf5; /* A warm, parchment-like color */
+            border-left: 4px solid #e67e22; /* A warm accent color */
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+        .journal-entry p {
+            margin: 0;
+            font-family: 'Georgia', serif; /* A classic, readable serif font */
+            font-size: 1.1em;
+            line-height: 1.7;
+            color: #444;
+        }
+        .journal-entry p::before {
+            content: '“';
+            font-size: 2.5em;
+            color: #e67e22;
+            float: left;
+            margin-right: 10px;
+            line-height: 0.8;
+        }
+
+        /* --- Trail Notes & Eco Section --- */
+        #description-content-container p {
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+        .eco-note {
+            background-color: #f8f9fa;
+            border-left: 4px solid #6a994e; /* A slightly different green */
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 0 4px 4px 0;
+        }
+        .eco-note strong {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+        }
+        .eco-note em {
+            font-style: italic;
+            color: #555;
+        }
+
+        /* --- External Links --- */
+        .external-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .link-btn {
+            flex-grow: 1;
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: bold;
+            color: #fff;
+            background-color: #4a7c59;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+        }
+        .link-btn:hover {
+            background-color: #3b6347;
+            transform: translateY(-2px);
+        }
+
+        /* --- Logbook Section --- */
+        .log-entry {
+            background-color: #fff;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .log-entry.current-hike { border-left: 4px solid #f1c40f; }
+        .log-entry .date { font-weight: bold; color: #2c3e50; }
+        .log-entry .meta { font-size: 0.9em; color: #777; margin: 5px 0; }
+        .log-entry .notes { margin-top: 10px; line-height: 1.5; font-style: italic; }
 
         /* --- New Photo Gallery Styles --- */
         .large-image-viewer {
@@ -260,6 +379,7 @@
         <header id="hike-header">
             <h1 id="hike-title">Loading...</h1>
             <p id="hike-location"></p>
+            <p id="hike-date"></p>
         </header>
 
         <!-- Main two-column layout -->
@@ -288,13 +408,24 @@
                 </div>
                 <div id="hike-description" class="info-section">
                     <h3>Trail Notes</h3>
-                    <div id="description-content">
+                    <div id="description-content-container">
                         <!-- Description, flora, fauna will be injected here by JS -->
                     </div>
+                    <div id="external-links-container" class="external-links">
+                        <!-- External link buttons will be injected here -->
+                    </div>
                 </div>
-                <div id="hike-log" class="info-section">
+                <div id="expedition-details" class="info-section" style="display: none;">
+                    <h3>The Expedition</h3>
+                    <div id="expedition-content-container">
+                        <!-- Hike company and journal notes will go here -->
+                    </div>
+                </div>
+                <div id="hike-log" class="info-section" style="display: none;">
                     <h3>Logbook</h3>
-                    <!-- Multi-hike dates and notes will go here -->
+                    <div id="logbook-container">
+                        <!-- Multi-hike dates and notes will go here -->
+                    </div>
                 </div>
             </div>
         </div>

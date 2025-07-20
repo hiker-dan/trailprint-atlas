@@ -55,7 +55,11 @@
     "latitude": 34.239310727162916,
     "longitude": -118.09347021921532,
     "gpx_file": "Mount_Lowe_Trail_Camp_Inspiration_Point_and_Muir_Peak_via_Mount_Lowe_Motorway_12.15.23.gpx",
-    "images": []
+    "images": [
+      "tta_36-mount-lowe-trail-camp-01",
+      "tta_36-mount-lowe-trail-camp-02",
+      "tta_36-mount-lowe-trail-camp-03"
+    ]
   },
   {
     "trail_id": "tta_35",
@@ -82,7 +86,10 @@
     "latitude": 34.23417540706874,
     "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_12.04.23.gpx",
-    "images": []
+    "images": [
+      "tta_35-tee-pee-trail-01",
+      "tta_35-tee-pee-trail-02"
+    ]
   },
   {
     "trail_id": "tta_34",
@@ -109,7 +116,12 @@
     "latitude": 34.00370930975995,
     "longitude": -116.1360257526086,
     "gpx_file": "Ryan_Mountain_Trail_11.25.23.gpx",
-    "images": []
+    "images": [
+      "tta_34-ryan-mountain-01",
+      "tta_34-ryan-mountain-02",
+      "tta_34-ryan-mountain-03",
+      "tta_34-ryan-mountain-04"
+    ]
   },
   {
     "trail_id": "tta_33",
@@ -136,7 +148,9 @@
     "latitude": 34.012633890065096,
     "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_11.25.23.gpx",
-    "images": []
+    "images": [
+      "tta_33-hidden-valley-01"
+    ]
   },
   {
     "trail_id": "tta_32",
@@ -163,7 +177,10 @@
     "latitude": 33.9258273477068,
     "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_11.25.23.gpx",
-    "images": []
+    "images": [
+      "tta_32-cholla-cactus-garden-01",
+      "tta_32-cholla-cactus-garden-02"
+    ]
   },
   {
     "trail_id": "tta_31",
@@ -190,7 +207,11 @@
     "latitude": 34.178852664142134,
     "longitude": -118.09661203066445,
     "gpx_file": "Eaton_Canyon_Trail_11.13.23.gpx",
-    "images": []
+    "images": [
+      "tta_31-eaton-canyon-trail-01",
+      "tta_31-eaton-canyon-trail-02",
+      "tta_31-eaton-canyon-trail-03"
+    ]
   },
   {
     "trail_id": "tta_30",
@@ -217,7 +238,10 @@
     "latitude": 34.23417540706874,
     "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_11.12.23.gpx",
-    "images": []
+    "images": [
+      "tta_30-tee-pee-trail-01",
+      "tta_30-tee-pee-trail-02"
+    ]
   },
   {
     "trail_id": "tta_29",
@@ -244,7 +268,9 @@
     "latitude": 32.820197509382304,
     "longitude": -117.05571479499046,
     "gpx_file": "Father_Junipero_Serra_Loop_10.06.23.gpx",
-    "images": []
+    "images": [
+      "tta_29-father-junipero-serra-loop-01"
+    ]
   },
   {
     "trail_id": "tta_28",
@@ -298,7 +324,10 @@
     "latitude": 34.23417540706874,
     "longitude": -118.1836936828346,
     "gpx_file": "Tee_Pee_Trail_09.16.23.gpx",
-    "images": []
+    "images": [
+      "tta_27-tee-pee-trail-01",
+      "tta_27-tee-pee-trail-02"
+    ]
   },
   {
     "trail_id": "tta_26",
@@ -379,7 +408,9 @@
     "latitude": 34.30396228823916,
     "longitude": -118.25823369930512,
     "gpx_file": "Trail_Canyon_Falls_07.03.23.gpx",
-    "images": []
+    "images": [
+      "tta_24-trail-canyon falls-01"
+    ]
   },
   {
     "trail_id": "tta_23",
@@ -406,7 +437,10 @@
     "latitude": 33.76502057264494,
     "longitude": -117.6778846999517,
     "gpx_file": "Black_Star_Canyon_Falls_Trail_06.25.23.gpx",
-    "images": []
+    "images": [
+      "tta_23-black-star-canyon-falls-trail-01",
+      "tta_23-black-star-canyon-falls-trail-02"
+    ]
   },
   {
     "trail_id": "tta_22",

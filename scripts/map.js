@@ -120,26 +120,36 @@ function renderTrailList(trailGroupsToRender) {
 }
 
 function generatePopupHtml(hikesForTrail) {
-    // Sort to find the most recent hike for the link
-    const mostRecentHike = [...hikesForTrail].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
     const representativeHike = hikesForTrail[0]; // For shared info like name, miles, etc.
 
-    let dateList = hikesForTrail
-        .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)) // Also sort dates for display
-        .map(h => 
-            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-        ).join('');
-
-    const viewDetailsLink = `<p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${mostRecentHike.trail_id}" style="font-weight: bold;">View Full Details</a></p>`;
+    let datesSectionHtml = '';
+    if (hikesForTrail.length > 1) {
+        // If hiked more than once, make each date a link
+        const dateList = hikesForTrail
+            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+            .map(h => {
+                const dateStr = new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+                return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
+            }).join('');
+        const verb = representativeHike.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
+        datesSectionHtml = `<p><strong>${verb} ${hikesForTrail.length} times (click date for details):</strong></p><ul>${dateList}</ul>`;
+    } else {
+        // If hiked only once, use the single "View Full Details" link
+        const singleHike = hikesForTrail[0];
+        const dateStr = new Date(singleHike.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        const verb = singleHike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
+        datesSectionHtml = `
+            <p><strong>${verb}:</strong> ${dateStr}</p>
+            <p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${singleHike.trail_id}" style="font-weight: bold;">View Full Details</a></p>
+        `;
+    }
 
     if (representativeHike.hike_type === 'Viewpoint') {
         return `
             <h3>${representativeHike.trail_name}</h3>
             <p><strong>Recreation or Natural Area:</strong> ${representativeHike.location}</p>
             <p><strong>Near:</strong> ${representativeHike.region}</p>
-            <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
-            <ul>${dateList}</ul>
-            ${viewDetailsLink}
+            ${datesSectionHtml}
         `;
     } else {
         let summitHtml = '';
@@ -153,31 +163,38 @@ function generatePopupHtml(hikesForTrail) {
             <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
             <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain.toLocaleString()} ft</p>
             ${summitHtml}
-            <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
-            <ul>${dateList}</ul>
-            ${viewDetailsLink}
+            ${datesSectionHtml}
         `;
     }
 }
 
 function generateListDetailsHtml(hikesForTrail) {
-    const mostRecentHike = [...hikesForTrail].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
     const representativeHike = hikesForTrail[0];
 
-    let dateList = hikesForTrail
-        .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
-        .map(h => 
-            `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`
-        ).join('');
-
-    const viewDetailsLink = `<p><a href="hike.html?id=${mostRecentHike.trail_id}">View Full Details</a></p>`;
+    let datesSectionHtml = '';
+    if (hikesForTrail.length > 1) {
+        // If hiked more than once, make each date a link
+        const dateList = hikesForTrail
+            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+            .map(h => {
+                const dateStr = new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+                return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
+            }).join('');
+        const verb = representativeHike.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
+        datesSectionHtml = `<p><strong>${verb} ${hikesForTrail.length} times (click date for details):</strong></p><ul>${dateList}</ul>`;
+    } else {
+        // If hiked only once, use the single "View Full Details" link
+        const singleHike = hikesForTrail[0];
+        const dateStr = new Date(singleHike.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        const verb = singleHike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
+        datesSectionHtml = `
+            <p><strong>${verb}:</strong> ${dateStr}</p>
+            <p><a href="hike.html?id=${singleHike.trail_id}">View Full Details</a></p>
+        `;
+    }
 
     if (representativeHike.hike_type === 'Viewpoint') {
-        return `
-            <p><strong>Visited ${hikesForTrail.length} time(s):</strong></p>
-            <ul>${dateList}</ul>
-            ${viewDetailsLink}
-        `;
+        return datesSectionHtml; // For viewpoints, the dates section is all we need.
     } else {
         let summitHtml = '';
         if (representativeHike.summit_trail && representativeHike.summit_elevation) {
@@ -187,9 +204,7 @@ function generateListDetailsHtml(hikesForTrail) {
             <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
             <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain.toLocaleString()} ft</p>
             ${summitHtml}
-            <p><strong>Hiked ${hikesForTrail.length} time(s):</strong></p>
-            <ul>${dateList}</ul>
-            ${viewDetailsLink}
+            ${datesSectionHtml}
         `;
     }
 }

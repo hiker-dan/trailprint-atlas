@@ -212,6 +212,19 @@
         .log-entry .meta { font-size: 0.9em; color: #777; margin: 5px 0; }
         .log-entry .notes { margin-top: 10px; line-height: 1.5; font-style: italic; }
 
+        /* --- Clickable Logbook Entries --- */
+        a.log-entry {
+            display: block;
+            text-decoration: none;
+            color: inherit; /* Inherit text color from body */
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
+        }
+        a.log-entry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-left: 4px solid #4a7c59; /* Add a hover accent color */
+        }
+
         /* --- NEW: Top Visuals Grid --- */
         .top-visuals-grid {
             display: grid;

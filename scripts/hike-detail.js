@@ -241,17 +241,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     } else {
                         // Fallback message if no images
-                        galleryContainer.innerHTML = `
-                            <div class="polaroid-card" style="transform:none;">
-                                <div class="polaroid-image-container" style="display:flex; align-items:center; justify-content:center; background-color:#f0f0f0;">
-                                    <p style="padding: 20px; text-align:center; color:#888;">No photos available for this hike yet.</p>
-                                </div>
-                                <div class="polaroid-text">
-                                    <div class="title">${hike.difficulty} ${hike.hike_type}</div>
-                                    ${crewHtml}
-                                </div>
-                            </div>
+                        // If there are no photos, we'll hide the photo gallery and make the map full-width.
+                        // We'll then create a new "Expedition Details" section to display the info
+                        // that would have been in the polaroid card.
+                        const topVisualsGrid = galleryContainer.parentElement;
+                        galleryContainer.style.display = 'none';
+                        topVisualsGrid.style.gridTemplateColumns = '1fr';
+
+                        // Tell Leaflet to re-check its container size.
+                        // We use a short timeout to ensure the browser has finished
+                        // the CSS reflow before Leaflet tries to resize the map.
+                        setTimeout(() => {
+                            detailMap.invalidateSize(true); // 'true' animates the transition smoothly
+                        }, 10); // A tiny delay is often sufficient
+
+                        // Create the new section to hold the details
+                        const statsSection = document.getElementById('hike-stats');
+                        const expeditionDetailsSection = document.createElement('div');
+                        expeditionDetailsSection.className = 'info-section';
+
+                        let detailsContent = `<strong>${hike.difficulty} ${hike.hike_type}</strong>`;
+                        if (hike.hike_size === 'Solo') {
+                            detailsContent += `<br>A Solo Journey.`;
+                        } else if (hike.hiked_with && hike.hiked_with.length > 0) {
+                            detailsContent += `<br>With <strong>${hike.hiked_with.join(', ')}</strong>.`;
+                        }
+
+                        expeditionDetailsSection.innerHTML = `
+                            <h3>Expedition Details</h3>
+                            <div class="expedition-meta">${detailsContent}</div>
                         `;
+                        // Insert the new section right after the "By the Numbers" stats grid
+                        statsSection.after(expeditionDetailsSection);
                     }
 
                     // Add journal entry if it exists
@@ -273,27 +294,31 @@ document.addEventListener('DOMContentLoaded', () => {
                         hikeGroup.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
 
                         logbookContainer.innerHTML = hikeGroup.map(log => {
-                            const isCurrent = log.trail_id === hikeId ? 'current-hike' : '';
+                            const isCurrent = log.trail_id === hikeId;
                             const dateStr = new Date(log.date_completed).toLocaleDateString('en-US', dateOptions);
-                            
+
                             let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
                             if (log.hiked_with && log.hiked_with.length > 0) {
                                 metaHtml += ` with ${log.hiked_with.join(', ')}`;
                             }
                             metaHtml += `</p>`;
-
+ 
                             let notesHtml = '';
                             if (log.notes) {
                                 notesHtml = `<div class="notes">${log.notes}</div>`;
                             }
 
-                            return `
-                                <div class="log-entry ${isCurrent}">
-                                    <div class="date">${dateStr}</div>
-                                    ${metaHtml}
-                                    ${notesHtml}
-                                </div>
+                            const innerContent = `
+                                <div class="date">${dateStr}</div>
+                                ${metaHtml}
+                                ${notesHtml}
                             `;
+
+                            if (isCurrent) {
+                                return `<div class="log-entry current-hike">${innerContent}</div>`;
+                            } else {
+                                return `<a href="hike.html?id=${log.trail_id}" class="log-entry">${innerContent}</a>`;
+                            }
                         }).join('');
                     }
                 })();

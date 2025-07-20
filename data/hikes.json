@@ -467,7 +467,10 @@
     "latitude": 34.21343823264004,
     "longitude": -118.30699250397542,
     "gpx_file": "Scout_Camp_and_Stough_Canyon_Loop_06.21.23.gpx",
-    "images": []
+    "images": [
+      "tta_22-scout-camp-and-stough-canyon-loop-01",
+      "tta_22-scout-camp-and-stough-canyon-loop-02"
+    ]
   },
   {
     "trail_id": "tta_21",
@@ -494,7 +497,10 @@
     "latitude": 34.075295181394246,
     "longitude": -116.38788806895477,
     "gpx_file": "Warren_Peak_via_Black_Rock_Trail_and_Panorama_Loop_05.02.23.gpx",
-    "images": []
+    "images": [
+      "tta_21-warren-peak-01",
+      "tta_21-warren-peak-02"
+    ]
   },
   {
     "trail_id": "tta_20",
@@ -521,7 +527,10 @@
     "latitude": 34.096596097443566,
     "longitude": -118.71649979281355,
     "gpx_file": "Rock_Pool_and_Century_Lake_Trails_04.16.23.gpx",
-    "images": []
+    "images": [
+      "tta_20-rock-pool-and-century-lake-trails-01",
+      "tta_20-rock-pool-and-century-lake-trails-02"
+    ]
   },
   {
     "trail_id": "tta_19",
@@ -602,7 +611,10 @@
     "latitude": 34.02625764142876,
     "longitude": -118.78017366300799,
     "gpx_file": "Escondido_Falls_Trail_01.28.23.gpx",
-    "images": []
+    "images": [
+      "tta_17-escondido-falls-trail-01",
+      "tta_17-escondido-falls-trail-02"
+    ]
   },
   {
     "trail_id": "tta_16",
@@ -629,7 +641,10 @@
     "latitude": 34.11009462840789,
     "longitude": -118.93727000426983,
     "gpx_file": "Grotto_Trail_12.24.22.gpx",
-    "images": []
+    "images": [
+      "tta_16-grotto-trail-01",
+      "tta_16-grotto-trail-02"
+    ]
   },
   {
     "trail_id": "tta_15",
@@ -656,7 +671,10 @@
     "latitude": 34.012633890065096,
     "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_11.18.22.gpx",
-    "images": []
+    "images": [
+      "tta_15-hidden-valley-01",
+      "tta_15-hidden-valley-02"
+    ]
   },
   {
     "trail_id": "tta_14",
@@ -683,7 +701,9 @@
     "latitude": 33.9258273477068,
     "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_11.18.22.gpx",
-    "images": []
+    "images": [
+      "tta_14-cholla-cactus-garden-01"
+    ]
   },
   {
     "trail_id": "tta_13",
@@ -764,7 +784,9 @@
     "latitude": 34.037826974960154,
     "longitude": -118.74750341833813,
     "gpx_file": "Solstice_Canyon_Loop_10.02.22.gpx",
-    "images": []
+    "images": [
+      "tta_11-solstice-canyon-loop-01"
+    ]
   },
   {
     "trail_id": "tta_10",
@@ -791,7 +813,11 @@
     "latitude": 34.00055937643286,
     "longitude": -116.14613672354659,
     "gpx_file": "Hall_of_Horrors_06.26.22.gpx",
-    "images": []
+    "images": [
+      "tta_10-hall-of-horrors-01",
+      "tta_10-hall-of-horrors-02",
+      "tta_10-hall-of-horrors-03"
+    ]
   },
   {
     "trail_id": "tta_09",
@@ -818,7 +844,10 @@
     "gpx_file": null,
     "latitude": 34.01517385300547,
     "longitude": -116.16281572707169,
-    "images": []
+    "images": [
+      "tta_09-intersection-rock-01",
+      "tta_09-intersection-rock-02"
+    ]
   },
   {
     "trail_id": "tta_08",
@@ -845,7 +874,10 @@
     "gpx_file": null,
     "latitude": 33.92774505810837,
     "longitude": -116.18737331860687,
-    "images": []
+    "images": [
+      "tta_08-keys-view-01",
+      "tta_08-keys-view-02"
+    ]
   },
   {
     "trail_id": "tta_07",
@@ -872,7 +904,10 @@
     "latitude": 33.9258273477068,
     "longitude": -115.92893270809672,
     "gpx_file": "Cholla_Cactus_Garden_06.25.22.gpx",
-    "images": []
+    "images": [
+      "tta_07-cholla-cactus-garden-01",
+      "tta_07-cholla-cactus-garden-02"
+    ]
   },
   {
     "trail_id": "tta_06",
@@ -899,7 +934,11 @@
     "latitude": 34.012633890065096,
     "longitude": -116.16805255057076,
     "gpx_file": "Hidden_Valley_06.25.22.gpx",
-    "images": []
+    "images": [
+      "tta_06-hidden-valley-01",
+      "tta_06-hidden-valley-02",
+      "tta_06-hidden-valley-03"
+    ]
   },
   {
     "trail_id": "tta_05",
@@ -980,7 +1019,10 @@
     "latitude": 34.00055937643286,
     "longitude": -116.14613672354659,
     "gpx_file": "Hall_of_Horrors_01.11.22.gpx",
-    "images": []
+    "images": [
+      "tta_03-hall-of-horrors-01",
+      "tta_03-hall-of-horrors-02"
+    ]
   },
   {
     "trail_id": "tta_02",
@@ -1007,7 +1049,9 @@
     "gpx_file": null,
     "latitude": 34.85593790506682,
     "longitude": -111.77944309745108,
-    "images": []
+    "images": [
+      "tta_02-airport-mesa-viewpoint-01"
+    ]
   },
   {
     "trail_id": "tta_01",
@@ -1034,6 +1078,9 @@
     "gpx_file": null,
     "latitude": 36.06479699639211,
     "longitude": -112.1203647002704,
-    "images": []
+    "images": [
+      "tta_01-grandeur-point-01",
+      "tta_01-grandeur-point-02"
+    ]
   }
 ]

@@ -47,17 +47,6 @@
             border-bottom: 1px solid #f0f0f0; /* Separator line */
         }
 
-        /* The new container for just the sticky title */
-        .sticky-title-container {
-            padding: 20px;
-            padding-top: 15px;
-        }
-        .sticky-title-container #hike-title {
-            font-size: 1.8em; /* Make the sticky title a bit smaller */
-            margin: 0;
-            color: #2c3e50;
-        }
-
         #timeline-viewport {
             width: 100%;
             height: 100%;
@@ -145,25 +134,54 @@
             box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.3); /* Add a subtle glow */
         }
 
-        .timeline-tooltip {
+        /* --- NEW: Trip Bar Styles --- */
+        .timeline-trip-bar {
             position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(12px);
-            background-color: #333;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 16px; /* Make it more substantial */
+            background-color: #2980b9; /* A distinct, sophisticated blue */
+            border-radius: 8px; /* Pill shape */
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            z-index: 1002;
+            display: flex; /* For centering the label */
+            justify-content: center;
+            align-items: center;
+        }
+        .trip-bar-label {
             color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            transition: opacity 0.2s ease-in-out;
             white-space: nowrap;
+            pointer-events: none; /* So it doesn't interfere with hover */
+        }
+        /* The dots inside a trip bar are hidden by default */
+        .timeline-trip-bar .timeline-dot {
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.2s ease, transform 0.2s ease;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out, left 0.3s ease-in-out;
         }
-        .timeline-dot:hover .timeline-tooltip {
+        /* --- NEW: Class-based hover state for JS control --- */
+        .trip-bar-hover {
+            z-index: 1004;
+            height: 20px; /* Slightly taller on hover */
+            background-color: #3498db; /* A slightly brighter blue on hover */
+        }
+        .trip-bar-hover .trip-bar-label {
+            opacity: 0; /* Hide the label when dots are expanded */
+        }
+        .trip-bar-hover .timeline-dot {
             opacity: 1;
-            transform: translateX(-50%) translateY(18px); /* Move it down slightly on hover */
+            pointer-events: all;
+            transform: translate(-50%, -50%) scale(1.4);
         }
+        .trip-bar-hover .timeline-dot:hover {
+            transform: translate(-50%, -50%) scale(1.8); /* Enlarge even more on individual dot hover */
+        }
+
         /* Style for our custom hike icons (to match the main map) */
         .hike-icon {
             /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
@@ -171,6 +189,35 @@
             border-radius: 50%; /* This makes the background circular */
             /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
             box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+        }
+
+        /* --- NEW: Global Floating Tooltip --- */
+        #timeline-global-tooltip {
+            position: fixed; /* Use fixed positioning to float above everything */
+            background-color: rgba(44, 62, 80, 0.95); /* Dark, slightly transparent background */
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.4;
+            max-width: 250px; /* Allow text to wrap */
+            text-align: center;
+            z-index: 1005; /* Highest z-index to ensure visibility */
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+            transform: translate(-50%, 20px); /* Start a bit lower for animation */
+        }
+        #timeline-global-tooltip.visible {
+            opacity: 1;
+            transform: translate(-50%, 0); /* Default centered position */
+        }
+        /* --- NEW: Edge alignment classes --- */
+        #timeline-global-tooltip.edge-left {
+            transform: translate(0, 20px);
+        }
+        #timeline-global-tooltip.edge-left.visible {
+            transform: translate(0, 0);
         }
 
         /* Style for the waypoint markers on the trail */
@@ -193,6 +240,13 @@
         }
 
         /* --- Header --- */
+        #hike-header #hike-title {
+            font-size: 2.5em;
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+            line-height: 1.2;
+        }
+
         #hike-location {
             font-size: 1.2em;
             color: #777;
@@ -591,15 +645,15 @@
                 </div>
             </div>
         </div>
-        <!-- Sticky Title -->
-        <div class="sticky-title-container">
-            <h1 id="hike-title">Loading...</h1>
-        </div>
     </div>
+
+    <!-- The new global tooltip lives outside the main flow -->
+    <div id="timeline-global-tooltip"></div>
 
     <div class="hike-detail-container">
         <!-- Non-sticky header info -->
         <header id="hike-header">
+            <h1 id="hike-title">Loading...</h1>
             <p id="hike-location"></p>
             <p id="hike-date"></p>
         </header>

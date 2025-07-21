@@ -93,7 +93,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         const activeDot = document.querySelector(`.timeline-dot[data-hike-id="${hikeId}"]`);
         if (!viewport || !activeDot) return;
 
-        const scrollTarget = activeDot.offsetLeft - (viewport.clientWidth / 2);
+        let scrollTarget;
+        const tripBar = activeDot.closest('.timeline-trip-bar');
+
+        if (tripBar) {
+            // For dots inside a trip, their offsetLeft is relative to the bar.
+            // We calculate the absolute position on the track by adding the bar's offset.
+            scrollTarget = (tripBar.offsetLeft + activeDot.offsetLeft) - (viewport.clientWidth / 2);
+        } else {
+            // For solo dots, offsetLeft is already relative to the track.
+            scrollTarget = activeDot.offsetLeft - (viewport.clientWidth / 2);
+        }
+
         viewport.scrollTo({
             left: scrollTarget,
             behavior: behavior
@@ -121,26 +132,84 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalTimeSpan = lastHikeTime - firstHikeTime;
 
         // 3. Build the timeline HTML
-        let dotsHtml = '';
-        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+        let timelineHtml = '';
+
+        // --- NEW: Group hikes by trip_tag ---
+        const trips = new Map();
+        const soloHikes = [];
 
         sortedHikes.forEach(hike => {
-            const hikeTime = new Date(hike.date_completed).getTime();
-            // Calculate position based on time, spread across the available track width (minus padding)
-            const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) : 0.5;
-            const dotPosition = (positionPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
-            
-            const isActive = hike.trail_id === currentHikeId ? 'active' : '';
-            const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
-
-            dotsHtml += `
-                <div class="timeline-dot ${isActive}" style="left: ${dotPosition}px;" data-hike-id="${hike.trail_id}">
-                    <div class="timeline-tooltip">${hike.trail_name}<br><small>${formattedDate}</small></div>
-                </div>
-            `;
+            if (hike.trip_tag) {
+                if (!trips.has(hike.trip_tag)) {
+                    trips.set(hike.trip_tag, []);
+                }
+                trips.get(hike.trip_tag).push(hike);
+            } else {
+                soloHikes.push(hike);
+            }
         });
 
-        track.innerHTML = dotsHtml;
+        // --- Render Solo Hikes (as individual dots) ---
+        soloHikes.forEach(hike => {
+            const hikeTime = new Date(hike.date_completed).getTime();
+            const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) : 0.5;
+            const finalDotPosition = (positionPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
+            const isActive = hike.trail_id === currentHikeId ? 'active' : '';
+            timelineHtml += `<div class="timeline-dot ${isActive}" style="left: ${finalDotPosition}px;" data-hike-id="${hike.trail_id}"></div>`;
+        });
+
+        // --- Render Trips (as bars containing dots) ---
+        trips.forEach(hikesInTrip => {
+            // Find the start and end time for this trip
+            const tripTimes = hikesInTrip.map(h => new Date(h.date_completed).getTime());
+            const tripStartTime = Math.min(...tripTimes);
+            const tripEndTime = Math.max(...tripTimes);
+
+            // Calculate the bar's position and width
+            const startPercent = (tripStartTime - firstHikeTime) / totalTimeSpan;
+            const endPercent = (tripEndTime - firstHikeTime) / totalTimeSpan;
+            const barLeft = (startPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
+            const barRight = (endPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
+            const barWidth = Math.max(50, barRight - barLeft); // Enforce a wider minimum width for the capsule
+
+            // Generate the dots that will live *inside* the bar
+            let tripDotsHtml = '';
+            const hikesByDate = new Map();
+            hikesInTrip.forEach(h => {
+                const dateKey = h.date_completed;
+                if (!hikesByDate.has(dateKey)) hikesByDate.set(dateKey, []);
+                hikesByDate.get(dateKey).push(h);
+            });
+
+            hikesInTrip.forEach(hike => {
+                const hikeTime = new Date(hike.date_completed).getTime();
+                // Position dot relative to the trip bar's start
+                const dotPositionPercent = (tripEndTime - tripStartTime > 0) ? (hikeTime - tripStartTime) / (tripEndTime - tripStartTime) : 0.5;
+                const dotPosition = dotPositionPercent * barWidth;
+
+                const dayGroup = hikesByDate.get(hike.date_completed);
+                let offset = 0;
+                if (dayGroup.length > 1) {
+                    const SPREAD_FACTOR_PX = 18;
+                    const hikeIndexInGroup = dayGroup.findIndex(h_in_group => h_in_group.trail_id === hike.trail_id);
+                    const centerIndex = (dayGroup.length - 1) / 2;
+                    offset = (hikeIndexInGroup - centerIndex) * SPREAD_FACTOR_PX;
+                }
+                const finalDotPosition = dotPosition + offset;
+                const isActive = hike.trail_id === currentHikeId ? 'active' : '';
+                tripDotsHtml += `<div class="timeline-dot ${isActive}" style="left: ${finalDotPosition}px;" data-hike-id="${hike.trail_id}" data-date="${hike.date_completed}"></div>`;
+            });
+
+            // NEW: Add the label inside the capsule
+            const labelText = 'Trip';
+            timelineHtml += `
+                <div class="timeline-trip-bar" style="left: ${barLeft}px; width: ${barWidth}px;">
+                    <span class="trip-bar-label">${labelText}</span>
+                    ${tripDotsHtml}
+                </div>`;
+        });
+
+        track.innerHTML = timelineHtml;
 
         // 4. Add click listeners to the newly created dots
         track.querySelectorAll('.timeline-dot').forEach(dot => {
@@ -157,6 +226,61 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         });
+
+        // --- NEW: "Hover Priority" Logic for Trip Bars ---
+        // This system uses a delayed collapse to create an "invisible bridge"
+        // for the mouse, and gives the hovered bar priority with z-index.
+        const expandTripBar = (bar) => {
+            // If a collapse is scheduled, cancel it. This is the "bridge".
+            if (bar.dataset.collapseTimeoutId) {
+                clearTimeout(bar.dataset.collapseTimeoutId);
+                bar.dataset.collapseTimeoutId = null;
+            }
+            // Don't re-run if already expanded.
+            if (bar.classList.contains('trip-bar-hover')) return;
+
+            bar.classList.add('trip-bar-hover');
+
+            const dotsInBar = Array.from(bar.querySelectorAll('.timeline-dot'));
+            dotsInBar.forEach(dot => {
+                if (!dot.dataset.originalLeft) dot.dataset.originalLeft = dot.style.left;
+            });
+
+            const numDots = dotsInBar.length;
+            if (numDots > 1) {
+                const GUARANTEED_SPACING_PX = 40;
+                const requiredWidth = (numDots - 1) * GUARANTEED_SPACING_PX;
+                const barWidth = bar.offsetWidth;
+                const clusterStartPosition = (barWidth / 2) - (requiredWidth / 2);
+                // Sort dots by their date attribute to ensure chronological order.
+                const sortedDots = dotsInBar.sort((a, b) => new Date(a.dataset.date) - new Date(b.dataset.date));
+                sortedDots.forEach((dot, index) => {
+                    const newPosition = clusterStartPosition + (index * GUARANTEED_SPACING_PX);
+                    dot.style.left = `${newPosition}px`;
+                });
+            }
+        };
+
+        const collapseTripBar = (bar) => {
+            const timeoutId = setTimeout(() => {
+                bar.classList.remove('trip-bar-hover');
+                const dotsInBar = bar.querySelectorAll('.timeline-dot');
+                dotsInBar.forEach(dot => {
+                    if (dot.dataset.originalLeft) dot.style.left = dot.dataset.originalLeft;
+                });
+            }, 200); // 200ms grace period before collapsing.
+            bar.dataset.collapseTimeoutId = timeoutId;
+        };
+
+        track.addEventListener('mouseover', (e) => {
+            const bar = e.target.closest('.timeline-trip-bar');
+            if (bar) expandTripBar(bar);
+        });
+
+        track.addEventListener('mouseout', (e) => {
+            const bar = e.target.closest('.timeline-trip-bar');
+            if (bar) collapseTripBar(bar);
+        });
     }
 
     /**
@@ -166,10 +290,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         const viewport = document.getElementById('timeline-viewport');
         const track = document.getElementById('timeline-track');
         const yearDisplay = document.getElementById('timeline-year-display');
-        if (!viewport || !track || !yearDisplay) return;
+        const globalTooltip = document.getElementById('timeline-global-tooltip');
+        if (!viewport || !track || !yearDisplay || !globalTooltip) return;
 
         const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
         const PADDING_PX = viewport.clientWidth;
+
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+
+        const updateYearDisplay = () => {
+            const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
+            const scrollPercent = (scrollCenter - PADDING_PX / 2) / (track.clientWidth - PADDING_PX);
+            const hikeIndex = Math.floor(scrollPercent * sortedHikes.length);
+            const currentHike = sortedHikes[Math.max(0, Math.min(hikeIndex, sortedHikes.length - 1))];
+            
+            if (currentHike) {
+                yearDisplay.innerText = new Date(currentHike.date_completed).getUTCFullYear();
+            }
+        };
 
         // --- Drag-to-scroll functionality ---
         let isDown = false;
@@ -200,17 +338,62 @@ document.addEventListener('DOMContentLoaded', async () => {
             viewport.scrollLeft += e.deltaY;
         }, { passive: false }); // We must set passive: false to be able to preventDefault()
 
-        // --- Update year display on scroll ---
-        viewport.addEventListener('scroll', () => {
-            const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
-            const scrollPercent = (scrollCenter - PADDING_PX / 2) / (track.clientWidth - PADDING_PX);
-            const hikeIndex = Math.floor(scrollPercent * sortedHikes.length);
-            const currentHike = sortedHikes[Math.max(0, Math.min(hikeIndex, sortedHikes.length - 1))];
-            
-            if (currentHike) {
-                yearDisplay.innerText = new Date(currentHike.date_completed).getUTCFullYear();
+        // --- NEW: Global Tooltip Hover Logic ---
+        track.addEventListener('mouseover', (e) => {
+            if (e.target.classList.contains('timeline-dot')) {
+                const dot = e.target;
+                const hikeId = dot.dataset.hikeId;
+                const hike = allHikes.find(h => h.trail_id === hikeId);
+
+                if (hike) {
+                    const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
+                    globalTooltip.innerHTML = `${hike.trail_name}<br><small>${formattedDate}</small>`;
+                    
+                    // To calculate the correct position, we need the tooltip's width.
+                    // We make it visible but transparent to measure it without a flicker.
+                    globalTooltip.style.opacity = '0';
+                    globalTooltip.classList.add('visible'); // Temporarily add to measure
+                    const tooltipWidth = globalTooltip.offsetWidth;
+                    globalTooltip.classList.remove('visible'); // Remove before animation
+                    globalTooltip.style.opacity = ''; // Reset opacity
+                    
+                    const dotRect = dot.getBoundingClientRect();
+                    const PADDING = 15; // 15px padding from the window edges
+
+                    // Reset alignment classes
+                    globalTooltip.classList.remove('edge-left');
+
+                    const idealCenter = dotRect.left + (dotRect.width / 2);
+                    const idealLeft = idealCenter - (tooltipWidth / 2);
+
+                    // Check for edge collisions and apply the correct class and position
+                    if (idealLeft < PADDING) {
+                        globalTooltip.classList.add('edge-left');
+                        globalTooltip.style.left = `${PADDING}px`;
+                    } else if (idealCenter + (tooltipWidth / 2) > window.innerWidth - PADDING) {
+                        globalTooltip.classList.add('edge-left'); // Use the same alignment style
+                        // But calculate the left position to align the *right* edge of the tooltip
+                        globalTooltip.style.left = `${window.innerWidth - PADDING - tooltipWidth}px`;
+                    } else {
+                        // Default centered case
+                        globalTooltip.style.left = `${idealCenter}px`;
+                    }
+
+                    const tooltipTop = dotRect.bottom + 10; // 10px below the dot
+                    globalTooltip.style.top = `${tooltipTop}px`;
+                    globalTooltip.classList.add('visible'); // Trigger the animation
+                }
             }
         });
+
+        track.addEventListener('mouseout', () => {
+            globalTooltip.classList.remove('visible'); // Hide by removing the class
+        });
+
+        // --- Update year display on scroll ---
+        viewport.addEventListener('scroll', updateYearDisplay);
+
+        return { updateYearDisplay };
     }
 
     /**
@@ -256,7 +439,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     detailMap.remove();
                 }
                 detailMap = L.map('hike-map', {
-                    // Disable all user interaction to make it a static visual.
+                     // Disable all user interaction to make it a static visual.
                     zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
                     touchZoom: false, boxZoom: false, keyboard: false, tap: false
                 }).setView([39.82, -98.58], 4); // Default view
@@ -621,10 +804,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (hikeToDisplay) {
             // 4. Build and set up the timeline, then display the hike
             buildTimeline(allHikes, hikeId);
-            setupTimelineScrolling(allHikes);
+            const timelineControls = setupTimelineScrolling(allHikes);
             displayHike(hikeToDisplay, allHikes);
             // Finally, center the timeline on the initial hike without animation
             centerTimelineOn(hikeId, 'auto');
+            // Use a timeout to ensure the initial year is displayed after the scroll position is set.
+            // This is a robust way to handle the event loop.
+            setTimeout(() => timelineControls.updateYearDisplay(), 0);
         } else {
             document.getElementById('hike-title').innerText = 'Hike Not Found';
             document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

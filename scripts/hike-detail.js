@@ -1,13 +1,14 @@
 /**
  * This script powers the individual hike detail page (hike.html).
- * It reads a hike ID from the URL, fetches the corresponding data from hikes.json,
- * and dynamically populates the page content.
+ * It fetches all hike data, builds a dynamic navigation timeline,
+ * and displays the content for a specific hike based on the URL or user interaction.
  */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // --- Modal Setup ---
     // Get modal elements once and set up their core functionality.
     // This is done outside the fetch so we don't re-add listeners.
     const modal = document.getElementById('photo-modal');
+    // ... (modal variables remain the same)
     const modalImage = document.getElementById('modal-image');
     const modalVideoContainer = document.getElementById('modal-video-container');
     const closeModalBtn = document.getElementById('modal-close-btn');
@@ -16,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBtn = document.getElementById('modal-next-btn');
     let currentModalIndex = 0;
     let currentMediaSetInModal = []; // Will hold the media items for the modal
+
+    // --- Global State ---
+    let detailMap; // To hold the Leaflet map instance
 
     // Helper function to extract video ID from various YouTube URL formats
     const getYoutubeId = (url) => {
@@ -68,16 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const hikeId = urlParams.get('id');
-
-    // If no ID is provided in the URL, we can't show a hike.
-    if (!hikeId) {
-        document.getElementById('hike-title').innerText = 'Hike Not Found';
-        document.getElementById('hike-location').innerText = 'Please select a hike from the map to view its details.';
-        return;
-    }
-
     // --- Setup Modal Listeners ---
     prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex - 1); });
     nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex + 1); });
@@ -89,20 +83,73 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModalBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    // 2. Fetch the main data file
-    fetch('data/hikes.json')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Network response was not ok: ${response.statusText}`);
-            }
-            return response.json();
-        })
-        .then(hikes => {
-            // 3. Find the specific hike that matches the ID from the URL
-            const hike = hikes.find(h => h.trail_id === hikeId);
+    /**
+     * Builds the interactive timeline navigation bar.
+     */
+    function buildTimeline(allHikes, currentHikeId) {
+        const timelineContainer = document.getElementById('timeline-nav-container');
+        if (!timelineContainer) return;
 
-            if (hike) {
-                // 4. Populate the page with the hike's data
+        // 1. Sort all hikes by date to establish the timeline order
+        const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+        
+        // 2. Calculate the total time span for positioning
+        const firstHikeTime = new Date(sortedHikes[0].date_completed).getTime();
+        const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed).getTime();
+        const totalTimeSpan = lastHikeTime - firstHikeTime;
+
+        // 3. Build the timeline HTML
+        let dotsHtml = '';
+        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
+
+        sortedHikes.forEach(hike => {
+            const hikeTime = new Date(hike.date_completed).getTime();
+            // Calculate the dot's position as a percentage from the left
+            const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) * 100 : 50;
+
+            // Add a class for dots near the edges to prevent tooltips from being cut off
+            let edgeClass = '';
+            if (positionPercent < 10) {
+                edgeClass = 'edge-left';
+            } else if (positionPercent > 90) {
+                edgeClass = 'edge-right';
+            }
+            
+            const isActive = hike.trail_id === currentHikeId ? 'active' : '';
+            const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
+
+            dotsHtml += `
+                <div class="timeline-dot ${isActive} ${edgeClass}" style="left: ${positionPercent}%;" data-hike-id="${hike.trail_id}">
+                    <div class="timeline-tooltip">${hike.trail_name}<br><small>${formattedDate}</small></div>
+                </div>
+            `;
+        });
+
+        timelineContainer.innerHTML = `<div class="timeline-track">${dotsHtml}</div>`;
+
+        // 4. Add click listeners to the newly created dots
+        timelineContainer.querySelectorAll('.timeline-dot').forEach(dot => {
+            dot.addEventListener('click', () => {
+                const newHikeId = dot.dataset.hikeId;
+                const hikeToDisplay = allHikes.find(h => h.trail_id === newHikeId);
+
+                if (hikeToDisplay) {
+                    // Update the page content
+                    displayHike(hikeToDisplay, allHikes);
+                    // Update the URL without a full reload
+                    history.pushState({ hikeId: newHikeId }, '', `hike.html?id=${newHikeId}`);
+                    // Update the active state on the timeline
+                    timelineContainer.querySelector('.timeline-dot.active')?.classList.remove('active');
+                    dot.classList.add('active');
+                }
+            });
+        });
+    }
+
+    /**
+     * Main function to clear and populate the page with a specific hike's details.
+     */
+    function displayHike(hike, allHikes) {
                 document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
                 document.getElementById('hike-title').innerText = hike.trail_name;
                 const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
@@ -137,8 +184,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
 
                 // --- Initialize a non-interactive, cycling map ---
-                const detailMap = L.map('hike-map', {
-                    // Disable all user interaction to make it a static visual
+                // If a map instance already exists, remove it to prevent errors.
+                if (detailMap) {
+                    detailMap.remove();
+                }
+                detailMap = L.map('hike-map', {
+                    // Disable all user interaction to make it a static visual.
                     zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
                     touchZoom: false, boxZoom: false, keyboard: false, tap: false
                 }).setView([39.82, -98.58], 4); // Default view
@@ -195,11 +246,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // --- Find all hikes that share the same trail name for the logbook ---
-                const hikeGroup = hikes.filter(h => h.trail_name === hike.trail_name);
+                const hikeGroup = allHikes.filter(h => h.trail_name === hike.trail_name);
 
                 // --- Populate Right Column ---
                 (function populateInfoColumn() {
                     // 1. Populate "By the Numbers" Stats Grid
+                    // Clear existing stats before adding new ones
+                    document.getElementById('stats-grid-container').innerHTML = '';
                     const statsContainer = document.getElementById('stats-grid-container');
                     statsContainer.innerHTML = `
                         <div class="stat-card"><span class="value">${hike.miles.toLocaleString()}</span><span class="label">Miles</span></div>
@@ -210,6 +263,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // 2. Populate "Trail Notes" Section
+                    // Clear existing description before adding new ones
+                    document.getElementById('description-content-container').innerHTML = '';
                     const descriptionContainer = document.getElementById('description-content-container');
                     let descriptionHtml = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`; // Replace newlines with <br>
 
@@ -225,6 +280,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     descriptionContainer.innerHTML = descriptionHtml;
 
                     // 3. Populate External Links
+                    // Clear existing links before adding new ones
+                    document.getElementById('external-links-container').innerHTML = '';
                     const linksContainer = document.getElementById('external-links-container');
                     if (hike.all_trails_url) {
                         linksContainer.innerHTML += `<a href="${hike.all_trails_url}" class="link-btn" target="_blank" rel="noopener noreferrer">View on AllTrails</a>`;
@@ -234,17 +291,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // 4. Populate the Photo Gallery with the Polaroid Card
+                    // Clear existing gallery content before adding new
+                    document.getElementById('photo-gallery').innerHTML = '';
                     const galleryContainer = document.getElementById('photo-gallery');
                     let crewHtml = '';
                     if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
                         crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
                     } else if (hike.hiked_with && hike.hiked_with.length > 0) {
                         crewHtml = `<div class="crew-details">With <strong>${hike.hiked_with.join(', ')}</strong>.</div>`;
-                    }
-
-                    if (hike.images && hike.images.length > 0) {
-                        // --- Build the Polaroid Card if images exist ---
-                        currentImageSet = hike.images; // Load the images for the modal                        
                     }
 
                     // --- UNIFIED MEDIA GALLERY LOGIC ---
@@ -397,6 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // Add journal entry if it exists
+                    const existingJournal = document.querySelector('.journal-entry');
+                    if (existingJournal) existingJournal.remove();
                     if (hike.notes) {
                         descriptionContainer.innerHTML += `
                             <div class="journal-entry">
@@ -406,8 +462,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     // 5. Populate "Logbook" Section if hiked more than once
+                    const logbookSection = document.getElementById('hike-log');
+                    logbookSection.style.display = 'none'; // Hide by default
                     if (hikeGroup.length > 1) {
-                        const logbookSection = document.getElementById('hike-log');
                         logbookSection.style.display = 'block'; // Show the section
                         const logbookContainer = logbookSection.querySelector('#logbook-container');
                         
@@ -415,7 +472,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         hikeGroup.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
 
                         logbookContainer.innerHTML = hikeGroup.map(log => {
-                            const isCurrent = log.trail_id === hikeId;
+                            const isCurrent = log.trail_id === hike.trail_id;
                             const dateStr = new Date(log.date_completed).toLocaleDateString('en-US', dateOptions);
 
                             let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
@@ -443,15 +500,63 @@ document.addEventListener('DOMContentLoaded', () => {
                         }).join('');
                     }
                 })();
+    }
 
-            } else {
-                document.getElementById('hike-title').innerText = 'Hike Not Found';
-                document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching hike data:', error);
-            document.getElementById('hike-title').innerText = 'Error Loading Data';
-            document.getElementById('hike-location').innerText = 'Could not load hike details. Please check the console.';
-        });
+    // Listen for the browser's back/forward buttons
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.hikeId) {
+            // We need the full `allHikes` array to be available here.
+            // We'll fetch it again or ideally have it stored globally.
+            fetch('data/hikes.json').then(res => res.json()).then(allHikes => {
+                const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
+                if (hikeToDisplay) {
+                    displayHike(hikeToDisplay, allHikes);
+                    // Also update the active dot on the timeline
+                    document.querySelector('#timeline-nav-container .timeline-dot.active')?.classList.remove('active');
+                    document.querySelector(`#timeline-nav-container .timeline-dot[data-hike-id="${event.state.hikeId}"]`)?.classList.add('active');
+                }
+            });
+        }
+    });
+
+    /**
+     * The main execution block that runs on page load.
+     */
+    try {
+        // 1. Fetch all hike data
+        const response = await fetch('data/hikes.json');
+        if (!response.ok) {
+            throw new Error(`Network response was not ok: ${response.statusText}`);
+        }
+        const allHikes = await response.json();
+
+        // 2. Get the hike ID from the URL to display the initial hike
+        const urlParams = new URLSearchParams(window.location.search);
+        const hikeId = urlParams.get('id');
+
+        // Set the initial state for the history API, now that we have the hikeId
+        history.replaceState({ hikeId: hikeId }, '');
+
+        if (!hikeId) {
+            document.getElementById('hike-title').innerText = 'Hike Not Found';
+            document.getElementById('hike-location').innerText = 'Please select a hike from the map or timeline.';
+            return;
+        }
+
+        // 3. Find the specific hike to display
+        const hikeToDisplay = allHikes.find(h => h.trail_id === hikeId);
+
+        if (hikeToDisplay) {
+            // 4. Build the timeline and display the initial hike
+            buildTimeline(allHikes, hikeId);
+            displayHike(hikeToDisplay, allHikes);
+        } else {
+            document.getElementById('hike-title').innerText = 'Hike Not Found';
+            document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;
+        }
+    } catch (error) {
+        console.error('Error initializing hike detail page:', error);
+        document.getElementById('hike-title').innerText = 'Error Loading Data';
+        document.getElementById('hike-location').innerText = 'Could not load hike details. Please check the console.';
+    }
 });

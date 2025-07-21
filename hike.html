@@ -31,37 +31,110 @@
             text-decoration: underline;
         }
 
-        /* --- NEW: Visual Trip Timeline --- */
-        #timeline-nav-container {
+        /* --- NEW: Sticky Header --- */
+        #sticky-header-wrapper {
             position: sticky;
             top: 0;
-            z-index: 1001; /* Above page content, below modal */
+            z-index: 1001;
             background-color: #ffffff;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        #timeline-nav-container {
+            position: relative; /* This is the key fix for the year indicator */
             height: 55px;
-            padding: 0 40px;
+            box-sizing: border-box;
+            border-bottom: 1px solid #f0f0f0; /* Separator line */
+        }
+
+        /* The new container for just the sticky title */
+        .sticky-title-container {
+            padding: 20px;
+            padding-top: 15px;
+        }
+        .sticky-title-container #hike-title {
+            font-size: 1.8em; /* Make the sticky title a bit smaller */
+            margin: 0;
+            color: #2c3e50;
+        }
+
+        #timeline-viewport {
+            width: 100%;
+            height: 100%;
+            overflow-x: scroll;
+            overflow-y: hidden;
+            cursor: grab;
+            /* Hide the scrollbar for a cleaner look */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        #timeline-viewport::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, and Opera */
+        }
+        #timeline-viewport:active {
+            cursor: grabbing;
+        }
+
+        #timeline-track {
+            position: relative;
+            /* A very wide track to allow for scrolling. JS will set this dynamically later. */
+            width: 4000px; 
+            height: 100%;
+            /* This will contain the thin gray line */
             display: flex;
             align-items: center;
-            box-sizing: border-box;
         }
-        .timeline-track {
-            position: relative;
-            width: 100%;
+
+        /* The thin gray line that runs the length of the track */
+        #timeline-track::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
             height: 3px;
             background-color: #e0e0e0;
-            border-radius: 2px;
+            transform: translateY(-50%);
         }
+
+        #timeline-year-indicator {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 100%;
+            background-color: #c0392b; /* A strong red for visibility */
+            z-index: 1002; /* Above the track, below dots if they are active */
+            pointer-events: none; /* So it doesn't interfere with scrolling */
+            box-shadow: 0 0 10px rgba(192, 57, 43, 0.5);
+        }
+
+        #timeline-year-display {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(5px);
+            background-color: #c0392b;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
         .timeline-dot {
             position: absolute;
             top: 50%;
-            transform: translate(-50%, -50%); /* Center the dot on its percentage position */
+            transform: translate(-50%, -50%);
             width: 12px;
             height: 12px;
             background-color: #a0a0a0;
             border-radius: 50%;
             cursor: pointer;
             transition: all 0.2s ease-in-out;
-            border: 2px solid #fff; /* White border to help it stand out */
+            border: 2px solid #fff;
+            z-index: 1003; /* Ensure dots are on top of the year indicator */
         }
         .timeline-dot:hover {
             transform: translate(-50%, -50%) scale(1.6);
@@ -71,11 +144,12 @@
             transform: translate(-50%, -50%) scale(1.8);
             box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.3); /* Add a subtle glow */
         }
+
         .timeline-tooltip {
             position: absolute;
             top: 100%;
             left: 50%;
-            transform: translateX(-50%) translateY(12px); /* Position below the dot */
+            transform: translateX(-50%) translateY(12px);
             background-color: #333;
             color: white;
             padding: 5px 10px;
@@ -90,21 +164,6 @@
             opacity: 1;
             transform: translateX(-50%) translateY(18px); /* Move it down slightly on hover */
         }
-
-        /* --- NEW: Edge detection for tooltips --- */
-        .timeline-dot.edge-left .timeline-tooltip {
-            left: 0;
-            transform: translateX(0) translateY(12px);
-        }
-        .timeline-dot.edge-right .timeline-tooltip {
-            left: 100%;
-            transform: translateX(-100%) translateY(12px);
-        }
-        /* Adjust hover transform for edge cases */
-        .timeline-dot.edge-left:hover .timeline-tooltip { transform: translateX(0) translateY(18px); }
-        .timeline-dot.edge-right:hover .timeline-tooltip { transform: translateX(-100%) translateY(18px); }
-
-
         /* Style for our custom hike icons (to match the main map) */
         .hike-icon {
             /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
@@ -134,16 +193,6 @@
         }
 
         /* --- Header --- */
-        #hike-header {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        #hike-title {
-            font-size: 2.8em;
-            margin: 0;
-            color: #2c3e50;
-        }
         #hike-location {
             font-size: 1.2em;
             color: #777;
@@ -527,17 +576,33 @@
         <a href="#" id="latest-hike-link">Latest Hike</a>
     </nav>
 
-    <!-- NEW: Timeline Navigation Container -->
-    <div id="timeline-nav-container"></div>
+    <!-- NEW: Sticky Header Wrapper - Now holds timeline and title -->
+    <div id="sticky-header-wrapper">
+        <!-- Scrollable Expedition Log -->
+        <div id="timeline-nav-container">
+            <div id="timeline-viewport">
+                <div id="timeline-track">
+                    <!-- Dots will be injected here by JS -->
+                </div>
+            </div>
+            <div id="timeline-year-indicator">
+                <div id="timeline-year-display">
+                    <!-- Year will be injected here by JS -->
+                </div>
+            </div>
+        </div>
+        <!-- Sticky Title -->
+        <div class="sticky-title-container">
+            <h1 id="hike-title">Loading...</h1>
+        </div>
+    </div>
 
     <div class="hike-detail-container">
-        <!-- Header: Title and Location -->
+        <!-- Non-sticky header info -->
         <header id="hike-header">
-            <h1 id="hike-title">Loading...</h1>
             <p id="hike-location"></p>
             <p id="hike-date"></p>
         </header>
-
         <!-- Main two-column layout -->
         <div class="hike-layout">
             <div class="top-visuals-grid">

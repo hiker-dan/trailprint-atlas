@@ -84,16 +84,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
     /**
+     * Centers the timeline viewport on a specific hike dot.
+     * @param {string} hikeId - The ID of the hike to center on.
+     * @param {string} behavior - 'smooth' or 'auto' for scroll behavior.
+     */
+    function centerTimelineOn(hikeId, behavior = 'smooth') {
+        const viewport = document.getElementById('timeline-viewport');
+        const activeDot = document.querySelector(`.timeline-dot[data-hike-id="${hikeId}"]`);
+        if (!viewport || !activeDot) return;
+
+        const scrollTarget = activeDot.offsetLeft - (viewport.clientWidth / 2);
+        viewport.scrollTo({
+            left: scrollTarget,
+            behavior: behavior
+        });
+    }
+
+    /**
      * Builds the interactive timeline navigation bar.
      */
     function buildTimeline(allHikes, currentHikeId) {
-        const timelineContainer = document.getElementById('timeline-nav-container');
-        if (!timelineContainer) return;
+        const track = document.getElementById('timeline-track');
+        const viewport = document.getElementById('timeline-viewport');
+        if (!track || !viewport) return;
 
-        // 1. Sort all hikes by date to establish the timeline order
+        // 1. Define spacing and calculate total track width
+        const DOT_SPACING_PX = 150; // More space between dots
+        const PADDING_PX = viewport.clientWidth; // Add padding equal to the viewport width
+        const totalWidth = (allHikes.length * DOT_SPACING_PX) + PADDING_PX;
+        track.style.width = `${totalWidth}px`;
+
+        // 2. Sort hikes and get time range
         const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
-        
-        // 2. Calculate the total time span for positioning
         const firstHikeTime = new Date(sortedHikes[0].date_completed).getTime();
         const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed).getTime();
         const totalTimeSpan = lastHikeTime - firstHikeTime;
@@ -104,45 +126,90 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         sortedHikes.forEach(hike => {
             const hikeTime = new Date(hike.date_completed).getTime();
-            // Calculate the dot's position as a percentage from the left
-            const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) * 100 : 50;
-
-            // Add a class for dots near the edges to prevent tooltips from being cut off
-            let edgeClass = '';
-            if (positionPercent < 10) {
-                edgeClass = 'edge-left';
-            } else if (positionPercent > 90) {
-                edgeClass = 'edge-right';
-            }
+            // Calculate position based on time, spread across the available track width (minus padding)
+            const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) : 0.5;
+            const dotPosition = (positionPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
             
             const isActive = hike.trail_id === currentHikeId ? 'active' : '';
             const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
 
             dotsHtml += `
-                <div class="timeline-dot ${isActive} ${edgeClass}" style="left: ${positionPercent}%;" data-hike-id="${hike.trail_id}">
+                <div class="timeline-dot ${isActive}" style="left: ${dotPosition}px;" data-hike-id="${hike.trail_id}">
                     <div class="timeline-tooltip">${hike.trail_name}<br><small>${formattedDate}</small></div>
                 </div>
             `;
         });
 
-        timelineContainer.innerHTML = `<div class="timeline-track">${dotsHtml}</div>`;
+        track.innerHTML = dotsHtml;
 
         // 4. Add click listeners to the newly created dots
-        timelineContainer.querySelectorAll('.timeline-dot').forEach(dot => {
+        track.querySelectorAll('.timeline-dot').forEach(dot => {
             dot.addEventListener('click', () => {
                 const newHikeId = dot.dataset.hikeId;
                 const hikeToDisplay = allHikes.find(h => h.trail_id === newHikeId);
 
                 if (hikeToDisplay) {
-                    // Update the page content
                     displayHike(hikeToDisplay, allHikes);
-                    // Update the URL without a full reload
                     history.pushState({ hikeId: newHikeId }, '', `hike.html?id=${newHikeId}`);
-                    // Update the active state on the timeline
-                    timelineContainer.querySelector('.timeline-dot.active')?.classList.remove('active');
+                    track.querySelector('.timeline-dot.active')?.classList.remove('active');
                     dot.classList.add('active');
+                    centerTimelineOn(newHikeId);
                 }
             });
+        });
+    }
+
+    /**
+     * Sets up scrolling functionality for the timeline.
+     */
+    function setupTimelineScrolling(allHikes) {
+        const viewport = document.getElementById('timeline-viewport');
+        const track = document.getElementById('timeline-track');
+        const yearDisplay = document.getElementById('timeline-year-display');
+        if (!viewport || !track || !yearDisplay) return;
+
+        const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+        const PADDING_PX = viewport.clientWidth;
+
+        // --- Drag-to-scroll functionality ---
+        let isDown = false;
+        let startX;
+        let scrollLeft;
+
+        viewport.addEventListener('mousedown', (e) => {
+            isDown = true;
+            viewport.classList.add('active');
+            startX = e.pageX - viewport.offsetLeft;
+            scrollLeft = viewport.scrollLeft;
+        });
+        viewport.addEventListener('mouseleave', () => { isDown = false; viewport.classList.remove('active'); });
+        viewport.addEventListener('mouseup', () => { isDown = false; viewport.classList.remove('active'); });
+        viewport.addEventListener('mousemove', (e) => {
+            if (!isDown) return;
+            e.preventDefault();
+            const x = e.pageX - viewport.offsetLeft;
+            const walk = (x - startX) * 2; // The '2' is a scroll multiplier
+            viewport.scrollLeft = scrollLeft - walk;
+        });
+
+        // --- Scroll with mouse wheel ---
+        viewport.addEventListener('wheel', (e) => {
+            // Prevent the page from scrolling vertically
+            e.preventDefault();
+            // Add the vertical scroll amount to the horizontal scroll position
+            viewport.scrollLeft += e.deltaY;
+        }, { passive: false }); // We must set passive: false to be able to preventDefault()
+
+        // --- Update year display on scroll ---
+        viewport.addEventListener('scroll', () => {
+            const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
+            const scrollPercent = (scrollCenter - PADDING_PX / 2) / (track.clientWidth - PADDING_PX);
+            const hikeIndex = Math.floor(scrollPercent * sortedHikes.length);
+            const currentHike = sortedHikes[Math.max(0, Math.min(hikeIndex, sortedHikes.length - 1))];
+            
+            if (currentHike) {
+                yearDisplay.innerText = new Date(currentHike.date_completed).getUTCFullYear();
+            }
         });
     }
 
@@ -510,10 +577,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             fetch('data/hikes.json').then(res => res.json()).then(allHikes => {
                 const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
                 if (hikeToDisplay) {
+                    // Update the main page content
                     displayHike(hikeToDisplay, allHikes);
-                    // Also update the active dot on the timeline
+                    // Update the active dot on the timeline
                     document.querySelector('#timeline-nav-container .timeline-dot.active')?.classList.remove('active');
-                    document.querySelector(`#timeline-nav-container .timeline-dot[data-hike-id="${event.state.hikeId}"]`)?.classList.add('active');
+                    const newActiveDot = document.querySelector(`#timeline-track .timeline-dot[data-hike-id="${event.state.hikeId}"]`);
+                    if (newActiveDot) {
+                        newActiveDot.classList.add('active');
+                        centerTimelineOn(event.state.hikeId);
+                    }
                 }
             });
         }
@@ -547,9 +619,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         const hikeToDisplay = allHikes.find(h => h.trail_id === hikeId);
 
         if (hikeToDisplay) {
-            // 4. Build the timeline and display the initial hike
+            // 4. Build and set up the timeline, then display the hike
             buildTimeline(allHikes, hikeId);
+            setupTimelineScrolling(allHikes);
             displayHike(hikeToDisplay, allHikes);
+            // Finally, center the timeline on the initial hike without animation
+            centerTimelineOn(hikeId, 'auto');
         } else {
             document.getElementById('hike-title').innerText = 'Hike Not Found';
             document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

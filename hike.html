@@ -42,9 +42,70 @@
 
         #timeline-nav-container {
             position: relative; /* This is the key fix for the year indicator */
-            height: 55px;
+            height: 85px; /* Increase height for the new design */
             box-sizing: border-box;
             border-bottom: 1px solid #f0f0f0; /* Separator line */
+            overflow: hidden; /* Hide overflowing mountains */
+            transition: background-color 1.5s ease-in-out; /* For seasonal color shifts */
+        }
+
+        /* --- NEW: Floating Date Display --- */
+        #timeline-floating-year, #timeline-floating-month {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            color: #2c3e50;
+            opacity: 0; /* Hidden by default, JS will fade it in */
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(255,255,255,0.7);
+        }
+        #timeline-floating-year {
+            top: 10px;
+            font-size: 1.5em;
+        }
+        #timeline-floating-month {
+            bottom: 10px;
+            font-size: 1.1em;
+            font-weight: normal;
+            color: #555;
+        }
+
+        /* --- NEW: Mountainscape Background --- */
+        #timeline-mountainscape {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 300%; /* Very wide to allow for scrolling animation */
+            height: 100%;
+            z-index: 0;
+            /* NEW: Use a repeating background for a seamless, infinite landscape */
+            background-image: url('assets/landscapes/timeline-landscape-fall.svg');
+            background-repeat: repeat-x;
+            background-position: bottom left;
+            background-size: auto 100%; /* Fill height, width adjusts automatically */
+
+            /* NEW: Make it monochrome and subtle for color overlays later */
+            filter: grayscale(1) brightness(1.3) opacity(0.7);
+            transition: filter 1.5s ease-in-out; /* For seasonal color shifts later */
+            /* NEW: This is the key to tinting the landscape with the background color */
+            mix-blend-mode: multiply;
+            pointer-events: none; /* Ensure it doesn't interfere with timeline interaction */
+        }
+
+        /* --- NEW: Seasonal Background Colors --- */
+        #timeline-nav-container.season-winter {
+            background-color: #e4f1fe; /* Pale, cool blue */
+        }
+        #timeline-nav-container.season-spring {
+            background-color: #e9f5e9; /* Light, fresh green */
+        }
+        #timeline-nav-container.season-summer {
+            background-color: #fff8e1; /* Warm, light gold */
+        }
+        #timeline-nav-container.season-autumn {
+            background-color: #fbeee4; /* Soft, warm orange */
         }
 
         #timeline-viewport {
@@ -72,6 +133,7 @@
             /* This will contain the thin gray line */
             display: flex;
             align-items: center;
+            z-index: 1; /* Ensure track is above the mountainscape */
         }
 
         /* The thin gray line that runs the length of the track */
@@ -86,7 +148,7 @@
             transform: translateY(-50%);
         }
 
-        #timeline-year-indicator {
+        #timeline-center-indicator {
             position: absolute;
             top: 0;
             left: 50%;
@@ -94,22 +156,9 @@
             width: 2px;
             height: 100%;
             background-color: #c0392b; /* A strong red for visibility */
-            z-index: 1002; /* Above the track, below dots if they are active */
+            z-index: 1002;
             pointer-events: none; /* So it doesn't interfere with scrolling */
             box-shadow: 0 0 10px rgba(192, 57, 43, 0.5);
-        }
-
-        #timeline-year-display {
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            transform: translateX(-50%) translateY(5px);
-            background-color: #c0392b;
-            color: white;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: bold;
         }
 
         .timeline-dot {
@@ -634,16 +683,17 @@
     <div id="sticky-header-wrapper">
         <!-- Scrollable Expedition Log -->
         <div id="timeline-nav-container">
+            <div id="timeline-mountainscape">
+                <!-- This div is now the canvas for our repeating background -->
+            </div>
             <div id="timeline-viewport">
                 <div id="timeline-track">
                     <!-- Dots will be injected here by JS -->
                 </div>
             </div>
-            <div id="timeline-year-indicator">
-                <div id="timeline-year-display">
-                    <!-- Year will be injected here by JS -->
-                </div>
-            </div>
+            <div id="timeline-center-indicator"></div>
+            <div id="timeline-floating-year"></div>
+            <div id="timeline-floating-month"></div>
         </div>
     </div>
 

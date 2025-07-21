@@ -119,19 +119,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         const viewport = document.getElementById('timeline-viewport');
         if (!track || !viewport) return;
 
-        // 1. Define spacing and calculate total track width
-        const DOT_SPACING_PX = 150; // More space between dots
-        const PADDING_PX = viewport.clientWidth; // Add padding equal to the viewport width
-        const totalWidth = (allHikes.length * DOT_SPACING_PX) + PADDING_PX;
-        track.style.width = `${totalWidth}px`;
-
-        // 2. Sort hikes and get time range
+        // 1. Sort hikes and get the full time range of all adventures
         const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
-        const firstHikeTime = new Date(sortedHikes[0].date_completed).getTime();
-        const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed).getTime();
+        const firstHikeTime = new Date(sortedHikes[0].date_completed + 'T00:00:00Z').getTime();
+        const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed + 'T00:00:00Z').getTime();
         const totalTimeSpan = lastHikeTime - firstHikeTime;
 
-        // 3. Build the timeline HTML
+        // 2. Define a density constant and calculate total track width based on TIME, not number of hikes.
+        // This is the key to making the timeline an accurate representation of time.
+        const PIXELS_PER_DAY = 5; // Adjust this to make the timeline more or less dense.
+        const PADDING_PX = viewport.clientWidth;
+        const totalWidth = (totalTimeSpan / (1000 * 60 * 60 * 24)) * PIXELS_PER_DAY + PADDING_PX;
+        track.style.width = `${totalWidth}px`;
+
+        // 3. Build the timeline HTML (This logic remains largely the same, but now works with the time-based width)
         let timelineHtml = '';
 
         // --- NEW: Group hikes by trip_tag ---
@@ -151,7 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // --- Render Solo Hikes (as individual dots) ---
         soloHikes.forEach(hike => {
-            const hikeTime = new Date(hike.date_completed).getTime();
+            const hikeTime = new Date(hike.date_completed + 'T00:00:00Z').getTime();
             const positionPercent = totalTimeSpan > 0 ? ((hikeTime - firstHikeTime) / totalTimeSpan) : 0.5;
             const finalDotPosition = (positionPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
             const isActive = hike.trail_id === currentHikeId ? 'active' : '';
@@ -161,7 +162,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // --- Render Trips (as bars containing dots) ---
         trips.forEach(hikesInTrip => {
             // Find the start and end time for this trip
-            const tripTimes = hikesInTrip.map(h => new Date(h.date_completed).getTime());
+            const tripTimes = hikesInTrip.map(h => new Date(h.date_completed + 'T00:00:00Z').getTime());
             const tripStartTime = Math.min(...tripTimes);
             const tripEndTime = Math.max(...tripTimes);
 
@@ -182,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             hikesInTrip.forEach(hike => {
-                const hikeTime = new Date(hike.date_completed).getTime();
+                const hikeTime = new Date(hike.date_completed + 'T00:00:00Z').getTime();
                 // Position dot relative to the trip bar's start
                 const dotPositionPercent = (tripEndTime - tripStartTime > 0) ? (hikeTime - tripStartTime) / (tripEndTime - tripStartTime) : 0.5;
                 const dotPosition = dotPositionPercent * barWidth;
@@ -253,7 +254,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const barWidth = bar.offsetWidth;
                 const clusterStartPosition = (barWidth / 2) - (requiredWidth / 2);
                 // Sort dots by their date attribute to ensure chronological order.
-                const sortedDots = dotsInBar.sort((a, b) => new Date(a.dataset.date) - new Date(b.dataset.date));
+                const sortedDots = dotsInBar.sort((a, b) => new Date(a.dataset.date + 'T00:00:00Z') - new Date(b.dataset.date + 'T00:00:00Z'));
                 sortedDots.forEach((dot, index) => {
                     const newPosition = clusterStartPosition + (index * GUARANTEED_SPACING_PX);
                     dot.style.left = `${newPosition}px`;
@@ -289,23 +290,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     function setupTimelineScrolling(allHikes) {
         const viewport = document.getElementById('timeline-viewport');
         const track = document.getElementById('timeline-track');
-        const yearDisplay = document.getElementById('timeline-year-display');
+        const floatingYear = document.getElementById('timeline-floating-year');
+        const floatingMonth = document.getElementById('timeline-floating-month');
+        const timelineNavContainer = document.getElementById('timeline-nav-container');
+        const landscapeContainer = document.getElementById('timeline-mountainscape');
         const globalTooltip = document.getElementById('timeline-global-tooltip');
-        if (!viewport || !track || !yearDisplay || !globalTooltip) return;
+        if (!viewport || !track || !floatingYear || !floatingMonth || !globalTooltip || !landscapeContainer || !timelineNavContainer) return;
 
         const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+        const firstHikeTime = new Date(sortedHikes[0].date_completed + 'T00:00:00Z').getTime();
+        const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed + 'T00:00:00Z').getTime();
+        const totalTimeSpan = lastHikeTime - firstHikeTime;
         const PADDING_PX = viewport.clientWidth;
 
         const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
 
-        const updateYearDisplay = () => {
+        const updateTimelineDisplay = () => {
             const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
-            const scrollPercent = (scrollCenter - PADDING_PX / 2) / (track.clientWidth - PADDING_PX);
-            const hikeIndex = Math.floor(scrollPercent * sortedHikes.length);
-            const currentHike = sortedHikes[Math.max(0, Math.min(hikeIndex, sortedHikes.length - 1))];
+            const trackWidth = track.clientWidth - PADDING_PX;
+            const scrollPercent = trackWidth > 0 ? (scrollCenter - PADDING_PX / 2) / trackWidth : 0;
             
-            if (currentHike) {
-                yearDisplay.innerText = new Date(currentHike.date_completed).getUTCFullYear();
+            // This check is important to prevent errors if the timeline is empty or has one hike
+            if (totalTimeSpan >= 0) {
+                // Calculate the current time based on the scroll percentage of the time-based track
+                const currentTime = firstHikeTime + (scrollPercent * totalTimeSpan);
+                const date = new Date(currentTime);
+
+                const year = date.getUTCFullYear();
+                const monthIndex = date.getUTCMonth(); // 0-11
+                const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+
+                // Update floating text and make it visible
+                floatingYear.innerText = year;
+                floatingMonth.innerText = monthName;
+                // Only show the text if it's not already visible, to prevent flickering
+                if (floatingYear.style.opacity !== '1') {
+                    floatingYear.style.opacity = '1';
+                    floatingMonth.style.opacity = '1';
+                }
+
+                // NEW: Determine current season and update the background color
+                let currentSeason = 'winter'; // Default for Dec, Jan, Feb
+                if ([2, 3, 4].includes(monthIndex)) currentSeason = 'spring';      // Mar, Apr, May
+                else if ([5, 6, 7].includes(monthIndex)) currentSeason = 'summer'; // Jun, Jul, Aug
+                else if ([8, 9, 10].includes(monthIndex)) currentSeason = 'autumn';// Sep, Oct, Nov
+
+                const seasonClass = `season-${currentSeason}`;
+                // Only update the DOM if the season has actually changed
+                if (!timelineNavContainer.classList.contains(seasonClass)) {
+                    timelineNavContainer.classList.remove('season-winter', 'season-spring', 'season-summer', 'season-autumn');
+                    timelineNavContainer.classList.add(seasonClass);
+                }
+
+                // NEW: Parallax scrolling for the landscape.
+                // We move the landscape at a fraction of the speed of the main scroll for a depth effect.
+                const parallaxFactor = 0.2;
+                landscapeContainer.style.transform = `translateX(-${viewport.scrollLeft * parallaxFactor}px)`;
             }
         };
 
@@ -391,9 +431,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // --- Update year display on scroll ---
-        viewport.addEventListener('scroll', updateYearDisplay);
+        viewport.addEventListener('scroll', updateTimelineDisplay);
 
-        return { updateYearDisplay };
+        return { updateTimelineDisplay };
     }
 
     /**
@@ -403,7 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
                 document.getElementById('hike-title').innerText = hike.trail_name;
                 const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
-                const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
+                const formattedDate = new Date(hike.date_completed + 'T00:00:00Z').toLocaleDateString('en-US', dateOptions);
                 const datePrefix = hike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
                 document.getElementById('hike-date').innerText = `${datePrefix} ${formattedDate}`;
                 document.getElementById('hike-location').innerText = `${hike.location} • ${hike.region}`;
@@ -430,7 +470,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 // --- Determine the correct trail color based on the year ---
-                const year = new Date(hike.date_completed).getFullYear().toString();
+                const year = new Date(hike.date_completed + 'T00:00:00Z').getFullYear().toString();
                 const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
 
                 // --- Initialize a non-interactive, cycling map ---
@@ -719,11 +759,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const logbookContainer = logbookSection.querySelector('#logbook-container');
                         
                         // Sort hikes by date, most recent first
-                        hikeGroup.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
+                        hikeGroup.sort((a, b) => new Date(b.date_completed + 'T00:00:00Z') - new Date(a.date_completed + 'T00:00:00Z'));
 
                         logbookContainer.innerHTML = hikeGroup.map(log => {
                             const isCurrent = log.trail_id === hike.trail_id;
-                            const dateStr = new Date(log.date_completed).toLocaleDateString('en-US', dateOptions);
+                            const dateStr = new Date(log.date_completed + 'T00:00:00Z').toLocaleDateString('en-US', dateOptions);
 
                             let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
                             if (log.hiked_with && log.hiked_with.length > 0) {
@@ -810,7 +850,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             centerTimelineOn(hikeId, 'auto');
             // Use a timeout to ensure the initial year is displayed after the scroll position is set.
             // This is a robust way to handle the event loop.
-            setTimeout(() => timelineControls.updateYearDisplay(), 0);
+            setTimeout(() => timelineControls.updateTimelineDisplay(), 0);
         } else {
             document.getElementById('hike-title').innerText = 'Hike Not Found';
             document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;

@@ -290,12 +290,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     function setupTimelineScrolling(allHikes) {
         const viewport = document.getElementById('timeline-viewport');
         const track = document.getElementById('timeline-track');
-        const floatingYear = document.getElementById('timeline-floating-year');
+        const dateDisplay = document.getElementById('timeline-date-display');
         const floatingMonth = document.getElementById('timeline-floating-month');
+        const floatingYear = document.getElementById('timeline-floating-year');
         const timelineNavContainer = document.getElementById('timeline-nav-container');
         const landscapeContainer = document.getElementById('timeline-mountainscape');
         const globalTooltip = document.getElementById('timeline-global-tooltip');
-        if (!viewport || !track || !floatingYear || !floatingMonth || !globalTooltip || !landscapeContainer || !timelineNavContainer) return;
+        if (!viewport || !track || !dateDisplay || !floatingMonth || !floatingYear || !globalTooltip || !landscapeContainer || !timelineNavContainer) return;
 
         const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
         const firstHikeTime = new Date(sortedHikes[0].date_completed + 'T00:00:00Z').getTime();
@@ -306,6 +307,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
 
         const updateTimelineDisplay = () => {
+            // This function handles background seasons, parallax, and the central date display.
             const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
             const trackWidth = track.clientWidth - PADDING_PX;
             const scrollPercent = trackWidth > 0 ? (scrollCenter - PADDING_PX / 2) / trackWidth : 0;
@@ -320,15 +322,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const monthIndex = date.getUTCMonth(); // 0-11
                 const monthName = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
 
-                // Update floating text and make it visible
+                // Update floating text and make the container visible
                 floatingYear.innerText = year;
-                floatingMonth.innerText = monthName;
-                // Only show the text if it's not already visible, to prevent flickering
-                if (floatingYear.style.opacity !== '1') {
-                    floatingYear.style.opacity = '1';
-                    floatingMonth.style.opacity = '1';
+                floatingMonth.innerText = monthName.toUpperCase();
+                if (dateDisplay.style.opacity !== '1') {
+                    dateDisplay.style.opacity = '1';
                 }
-
                 // NEW: Determine current season and update the background color
                 let currentSeason = 'winter'; // Default for Dec, Jan, Feb
                 if ([2, 3, 4].includes(monthIndex)) currentSeason = 'spring';      // Mar, Apr, May
@@ -366,7 +365,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!isDown) return;
             e.preventDefault();
             const x = e.pageX - viewport.offsetLeft;
-            const walk = (x - startX) * 2; // The '2' is a scroll multiplier
+            const walk = (x - startX) * 3; // This multiplier controls scroll sensitivity.
             viewport.scrollLeft = scrollLeft - walk;
         });
 

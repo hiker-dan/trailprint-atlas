@@ -59,7 +59,8 @@
       "tta_36-mount-lowe-trail-camp-01",
       "tta_36-mount-lowe-trail-camp-02",
       "tta_36-mount-lowe-trail-camp-03"
-    ]
+    ],
+    "videos": [ "https://youtu.be/5wW18KasrWI" ]
   },
   {
     "trail_id": "tta_35",
@@ -354,7 +355,8 @@
     "latitude": 34.037826974960154,
     "longitude": -118.74750341833813,
     "gpx_file": "Solstice_Canyon_Loop_09.11.23.gpx",
-    "images": []
+    "images": [],
+    "videos": [ "https://youtu.be/n85ZDWd0UTg" ]
   },
   {
     "trail_id": "tta_25",
@@ -584,7 +586,8 @@
     "latitude": 34.02047689017277,
     "longitude": -118.38242168871253,
     "gpx_file": "Baldwin_Hills_Scenic_Overlook_and_the_Culver_City_Steps_02.14.23.gpx",
-    "images": []
+    "images": [],
+    "videos": [ "https://youtube.com/shorts/ejOAT55YyIg" ]
   },
   {
     "trail_id": "tta_17",

@@ -9,19 +9,63 @@ document.addEventListener('DOMContentLoaded', () => {
     // This is done outside the fetch so we don't re-add listeners.
     const modal = document.getElementById('photo-modal');
     const modalImage = document.getElementById('modal-image');
+    const modalVideoContainer = document.getElementById('modal-video-container');
     const closeModalBtn = document.getElementById('modal-close-btn');
     const prevBtn = document.getElementById('modal-prev-btn');
+    const modalDotsContainer = document.getElementById('modal-dots-container');
     const nextBtn = document.getElementById('modal-next-btn');
     let currentModalIndex = 0;
-    let currentImageSet = []; // Will hold the public IDs for the currently viewed hike
+    let currentMediaSetInModal = []; // Will hold the media items for the modal
 
-    const updateModalImage = (newIndex) => {
-        if (currentImageSet.length === 0) return;
-        if (newIndex >= currentImageSet.length) newIndex = 0; // Wrap to the start
-        if (newIndex < 0) newIndex = currentImageSet.length - 1; // Wrap to the end
+    // Helper function to extract video ID from various YouTube URL formats
+    const getYoutubeId = (url) => {
+        // This regex handles standard, short, and other YouTube URL variations.
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    };
+
+    const updateModalMedia = (newIndex) => {
+        if (currentMediaSetInModal.length === 0) return;
+
+        // Show or hide navigation arrows based on the number of media items.
+        const showNav = currentMediaSetInModal.length > 1;
+        prevBtn.style.display = showNav ? 'block' : 'none';
+        nextBtn.style.display = showNav ? 'block' : 'none';
+
+        if (newIndex >= currentMediaSetInModal.length) newIndex = 0; // Wrap to the start
+        if (newIndex < 0) newIndex = currentMediaSetInModal.length - 1; // Wrap to the end
         currentModalIndex = newIndex;
-        const publicId = currentImageSet[currentModalIndex];
-        modalImage.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${publicId}`;
+        const item = currentMediaSetInModal[currentModalIndex];
+
+        // Hide both containers and stop any playing video
+        modalImage.style.display = 'none';
+        modalVideoContainer.style.display = 'none';
+        modalVideoContainer.innerHTML = '';
+
+        if (item.type === 'photo') {
+            modalImage.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${item.id}`;
+            modalImage.style.display = 'block';
+        } else if (item.type === 'video') {
+            const videoId = getYoutubeId(item.url);
+            if (videoId) {
+                modalVideoContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                modalVideoContainer.style.display = 'flex';
+            }
+        }
+
+        // --- Populate modal dots ---
+        modalDotsContainer.innerHTML = ''; // Clear existing dots
+        if (currentMediaSetInModal.length > 1) {
+            currentMediaSetInModal.forEach((media, index) => {
+                const dot = document.createElement('div');
+                dot.className = 'media-dot';
+                if (media.type === 'video') dot.classList.add('video');
+                if (index === currentModalIndex) dot.classList.add('active');
+                dot.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(index); });
+                modalDotsContainer.appendChild(dot);
+            });
+        }
     };
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -35,9 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Setup Modal Listeners ---
-    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex - 1); });
-    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalImage(currentModalIndex + 1); });
-    const closeModal = () => modal.classList.remove('visible');
+    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex - 1); });
+    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex + 1); });
+    const closeModal = () => {
+        modal.classList.remove('visible');
+        // Crucially, stop any video that might be playing when the modal is closed.
+        modalVideoContainer.innerHTML = '';
+    };
     closeModalBtn.addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
@@ -188,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 4. Populate the Photo Gallery with the Polaroid Card
                     const galleryContainer = document.getElementById('photo-gallery');
                     let crewHtml = '';
-                    if (hike.hike_size === 'Solo') {
+                    if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
                         crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
                     } else if (hike.hiked_with && hike.hiked_with.length > 0) {
                         crewHtml = `<div class="crew-details">With <strong>${hike.hiked_with.join(', ')}</strong>.</div>`;
@@ -196,49 +244,122 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (hike.images && hike.images.length > 0) {
                         // --- Build the Polaroid Card if images exist ---
-                        currentImageSet = hike.images; // Load the images for the modal
+                        currentImageSet = hike.images; // Load the images for the modal                        
+                    }
+
+                    // --- UNIFIED MEDIA GALLERY LOGIC ---
+                    const hasImages = hike.images && hike.images.length > 0;
+                    const hasVideos = hike.videos && hike.videos.length > 0;
+
+                    if (hasImages || hasVideos) {
+                        // 1. Combine photos and videos into a single media array
+                        const mediaItems = [];
+                        if (hasImages) {
+                            hike.images.forEach(id => mediaItems.push({ type: 'photo', id }));
+                        }
+                        if (hasVideos) {
+                            // Now we iterate over a simple array of URL strings
+                            hike.videos.forEach(url => mediaItems.push({ type: 'video', url: url }));
+                        }
 
                         galleryContainer.innerHTML = `
                             <div class="polaroid-card" id="polaroid-card">
                                 <div class="polaroid-image-container">
-                                    <img id="polaroid-main-image" class="polaroid-image" src="" alt="Expedition photo">
-                                    <div class="polaroid-thumbnail-strip" id="polaroid-thumbnail-container"></div>
+                                    <img id="polaroid-main-image" class="polaroid-image" src="" alt="Expedition media" style="display: none;">
+                                    <div id="youtube-player-container" style="display: none;"></div>
                                 </div>
                                 <div class="polaroid-text">
-                                    <div class="title">${hike.difficulty} ${hike.hike_type}</div>
-                                    ${crewHtml}
+                                    <div class="media-context-title">${hike.difficulty} ${hike.hike_type}</div>
+                                    <div class="media-context-details">${crewHtml}</div>
                                 </div>
                             </div>
                         `;
 
+                        const imageContainer = document.querySelector('.polaroid-image-container');
                         const mainPolaroidImage = document.getElementById('polaroid-main-image');
-                        const thumbnailContainer = document.getElementById('polaroid-thumbnail-container');
+                        const youtubePlayerContainer = document.getElementById('youtube-player-container');
 
                         const cloudName = 'dgdniwosl';
 
-                        // Set the initial image for the Polaroid viewer
-                        mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${hike.images[0]}`;
+                        let currentMediaIndex = 0;
 
-                        hike.images.forEach((publicId, index) => {
-                            const thumb = document.createElement('img');
-                            thumb.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_120,h_120,c_fill,q_auto,f_auto/${publicId}`;
-                            thumb.dataset.publicId = publicId;
-                            if (index === 0) { thumb.classList.add('active'); }
-                            thumb.addEventListener('click', () => {
-                                mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${publicId}`;
-                                document.querySelectorAll('.polaroid-thumbnail-strip img').forEach(i => i.classList.remove('active'));
-                                thumb.classList.add('active');
+                        const showMedia = (newIndex) => {
+                            if (newIndex >= mediaItems.length) newIndex = 0;
+                            if (newIndex < 0) newIndex = mediaItems.length - 1;
+                            currentMediaIndex = newIndex;
+                            const item = mediaItems[currentMediaIndex];
+
+                            // Hide everything first
+                            mainPolaroidImage.style.display = 'none';
+                            youtubePlayerContainer.style.display = 'none';
+                            youtubePlayerContainer.innerHTML = ''; // Stop video when switching
+
+                            if (item.type === 'photo') {
+                                mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${item.id}`;
+                                mainPolaroidImage.style.display = 'block';
+                            } else if (item.type === 'video') {
+                                const videoId = getYoutubeId(item.url);
+                                if (videoId) {
+                                    youtubePlayerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                                    youtubePlayerContainer.style.display = 'block';
+                                }
+                            }
+
+                            // Update active dot
+                            document.querySelectorAll('.media-dot').forEach((dot, index) => {
+                                dot.classList.toggle('active', index === currentMediaIndex);
                             });
-                            thumbnailContainer.appendChild(thumb);
-                        });
+                        };
 
-                        mainPolaroidImage.addEventListener('click', () => {
-                            const activeThumb = document.querySelector('.polaroid-thumbnail-strip img.active');
-                            currentModalIndex = hike.images.indexOf(activeThumb.dataset.publicId);
-                            updateModalImage(currentModalIndex);
+                        // Only create navigation elements if there's more than one item
+                        if (mediaItems.length > 1) {
+                            // Create nav arrows
+                            const prevArrow = document.createElement('span');
+                            prevArrow.className = 'media-nav-arrow prev';
+                            prevArrow.innerHTML = '&lsaquo;';
+                            prevArrow.addEventListener('click', (e) => { e.stopPropagation(); showMedia(currentMediaIndex - 1); });
+
+                            const nextArrow = document.createElement('span');
+                            nextArrow.className = 'media-nav-arrow next';
+                            nextArrow.innerHTML = '&rsaquo;';
+                            nextArrow.addEventListener('click', (e) => { e.stopPropagation(); showMedia(currentMediaIndex + 1); });
+
+                            imageContainer.appendChild(prevArrow);
+                            imageContainer.appendChild(nextArrow);
+
+                            // Create dots
+                            const dotsContainer = document.createElement('div');
+                            dotsContainer.className = 'media-dots-container';
+                            mediaItems.forEach((item, index) => {
+                                const dot = document.createElement('div');
+                                dot.className = 'media-dot';
+                                if (item.type === 'video') {
+                                    const videoId = getYoutubeId(item.url);
+                                    if (videoId) {
+                                        dot.classList.add('video');
+                                    } else {
+                                        return; // Don't create a dot for an invalid video URL
+                                    }
+                                }
+                                dot.addEventListener('click', (e) => { e.stopPropagation(); showMedia(index); });
+                                dotsContainer.appendChild(dot);
+                            });
+                            imageContainer.appendChild(dotsContainer);
+                        }
+
+                        // Set initial media item
+                        showMedia(0);
+
+                        // Update modal click listener to open any media type
+                        document.getElementById('polaroid-card').addEventListener('click', (e) => {
+                            // Prevent modal from opening if a nav arrow/dot was clicked
+                            if (e.target.classList.contains('media-nav-arrow') || e.target.classList.contains('media-dot')) {
+                                return;
+                            }
+                            currentMediaSetInModal = mediaItems;
+                            updateModalMedia(currentMediaIndex);
                             modal.classList.add('visible');
                         });
-
                     } else {
                         // Fallback message if no images
                         // If there are no photos, we'll hide the photo gallery and make the map full-width.

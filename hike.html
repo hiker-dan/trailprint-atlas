@@ -357,6 +357,50 @@
             word-wrap: break-word; /* Ensure long words don't overflow */
         }
 
+        /* --- NEW: Time Snapshot Section --- */
+        .snapshot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Widen cards */
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .snapshot-card {
+            background-color: #f9f9f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            text-align: center; /* Center all content within the card */
+        }
+        .snapshot-header {
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Center the header content */
+            gap: 10px;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .snapshot-header .snapshot-icon {
+            font-size: 1.8em;
+        }
+        .snapshot-header h4 {
+            margin: 0;
+            font-size: 1.2em;
+            color: #2c3e50;
+        }
+        .snapshot-body {
+            /* No longer needs to be a flex container */
+        }
+        .snapshot-main-value {
+            font-size: 2em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .snapshot-description {
+            font-size: 1em;
+            color: #777;
+            margin-top: 5px;
+        }
         /* --- New Expedition Section Styles --- */
         .expedition-meta {
             background-color: #fdfdfd;
@@ -732,6 +776,44 @@
                 <h3>By the Numbers</h3>
                 <div class="stats-grid" id="stats-grid-container"></div>
             </div>
+
+            <!-- NEW: Trail in Time Snapshot -->
+            <div id="almanac-section" class="info-section" style="display: none;">
+                <h3>Hike Almanac</h3>
+                <div class="snapshot-grid">
+                    <div class="snapshot-card">
+                        <div class="snapshot-header">
+                            <span class="snapshot-icon">🌅</span>
+                            <h4>Sunrise</h4>
+                        </div>
+                        <div class="snapshot-body">
+                            <div class="snapshot-main-value" id="sunrise-time">--</div>
+                            <div class="snapshot-description" id="sunrise-weather-desc">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="snapshot-card">
+                        <div class="snapshot-header">
+                            <span class="snapshot-icon">☀️</span>
+                            <h4>Day's Apex</h4>
+                        </div>
+                        <div class="snapshot-body">
+                            <div class="snapshot-main-value" id="peak-weather-temp">--</div>
+                            <div class="snapshot-description" id="peak-weather-desc">Loading...</div>
+                        </div>
+                    </div>
+                    <div class="snapshot-card">
+                        <div class="snapshot-header">
+                            <span class="snapshot-icon">🌌</span>
+                            <h4>Sunset</h4>
+                        </div>
+                        <div class="snapshot-body">
+                            <div class="snapshot-main-value" id="sunset-time">--</div>
+                            <div class="snapshot-description" id="sunset-weather-desc">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="hike-description" class="info-section">
                 <h3>Trail Notes</h3>
                 <div id="description-content-container"></div>

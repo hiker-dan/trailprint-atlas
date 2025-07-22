@@ -452,9 +452,128 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
+     * Translates WMO weather codes into human-readable descriptions and emojis.
+     * @param {number} code - The WMO weather code from the Open-Meteo API.
+     * @returns {object} An object with 'description' and 'icon' properties.
+     */
+    function getWeatherInfo(code) {
+        const weatherMap = {
+            0: { description: 'Clear sky', icon: '☀️' },
+            1: { description: 'Mainly clear', icon: '🌤️' },
+            2: { description: 'Partly cloudy', icon: '⛅' },
+            3: { description: 'Overcast', icon: '☁️' },
+            45: { description: 'Fog', icon: '🌫️' },
+            48: { description: 'Depositing rime fog', icon: '🌫️' },
+            51: { description: 'Light drizzle', icon: '🌦️' },
+            53: { description: 'Moderate drizzle', icon: '🌦️' },
+            55: { description: 'Dense drizzle', icon: '🌧️' },
+            56: { description: 'Light freezing drizzle', icon: '🌨️' },
+            57: { description: 'Dense freezing drizzle', icon: '🌨️' },
+            61: { description: 'Slight rain', icon: '🌦️' },
+            63: { description: 'Moderate rain', icon: '🌧️' },
+            65: { description: 'Heavy rain', icon: '🌧️' },
+            66: { description: 'Light freezing rain', icon: '🌨️' },
+            67: { description: 'Heavy freezing rain', icon: '🌨️' },
+            71: { description: 'Slight snow fall', icon: '🌨️' },
+            73: { description: 'Moderate snow fall', icon: '🌨️' },
+            75: { description: 'Heavy snow fall', icon: '❄️' },
+            77: { description: 'Snow grains', icon: '❄️' },
+            80: { description: 'Slight rain showers', icon: '🌦️' },
+            81: { description: 'Moderate rain showers', icon: '🌧️' },
+            82: { description: 'Violent rain showers', icon: '🌧️' },
+            85: { description: 'Slight snow showers', icon: '🌨️' },
+            86: { description: 'Heavy snow showers', icon: '❄️' },
+            95: { description: 'Thunderstorm', icon: '⛈️' },
+            96: { description: 'Thunderstorm with slight hail', icon: '⛈️' },
+            99: { description: 'Thunderstorm with heavy hail', icon: '⛈️' },
+        };
+        return weatherMap[code] || { description: 'Weather data unavailable', icon: '🤷' };
+    }
+
+    /**
+     * Fetches and displays historical weather, sun data, and "On This Day" echoes for the hike.
+     * @param {object} hike - The hike data object.
+     * @param {Array} allHikes - The array of all hike objects.
+     */
+    async function fetchAndDisplayTimeSnapshot(hike, allHikes) {
+        const almanacSection = document.getElementById('almanac-section');
+        // Reset and hide section before fetching
+        almanacSection.style.display = 'none';
+        document.getElementById('sunrise-time').innerText = '--';
+        document.getElementById('sunrise-weather-desc').innerText = 'Loading...';
+        document.getElementById('sunset-time').innerText = '--';
+        document.getElementById('sunset-weather-desc').innerText = 'Loading...';
+        document.getElementById('peak-weather-desc').innerText = 'Loading...';
+        document.getElementById('peak-weather-temp').innerText = '--';
+
+        if (hike.latitude && hike.longitude && hike.date_completed) {
+            const date = hike.date_completed;
+            const lat = hike.latitude;
+            const lon = hike.longitude;
+            // Fetch daily max temp, sunrise/sunset, and hourly data for weather conditions.
+            const apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,sunrise,sunset&hourly=weathercode,temperature_2m&temperature_unit=fahrenheit&timezone=auto`;
+
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
+                const data = await response.json();
+
+                if (data.daily && data.hourly && data.daily.time.length > 0) {
+                    const dailyData = data.daily;
+                    const hourlyData = data.hourly;
+
+                    const sunriseISO = dailyData.sunrise[0];
+                    const sunsetISO = dailyData.sunset[0];
+
+                    const sunriseDate = new Date(sunriseISO);
+                    const sunsetDate = new Date(sunsetISO);
+
+                    // Get the hour index for sunrise and sunset to look up in the hourly arrays.
+                    const sunriseHourIndex = sunriseDate.getHours();
+                    const sunsetHourIndex = sunsetDate.getHours();
+
+                    // Extract sunrise weather data
+                    const sunriseWeatherCode = hourlyData.weathercode[sunriseHourIndex];
+                    const sunriseTemp = Math.round(hourlyData.temperature_2m[sunriseHourIndex]);
+                    const sunriseWeatherInfo = getWeatherInfo(sunriseWeatherCode);
+
+                    // Extract sunset weather data
+                    const sunsetWeatherCode = hourlyData.weathercode[sunsetHourIndex];
+                    const sunsetTemp = Math.round(hourlyData.temperature_2m[sunsetHourIndex]);
+                    const sunsetWeatherInfo = getWeatherInfo(sunsetWeatherCode);
+
+                    // Extract peak conditions data
+                    const peakTemp = Math.round(dailyData.temperature_2m_max[0]);
+                    // Use weather at 1 PM (13:00) for midday conditions
+                    const peakWeatherCode = hourlyData.weathercode[13];
+                    const peakWeatherInfo = getWeatherInfo(peakWeatherCode);
+
+
+                    // Format and display data
+                    const timeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+                    document.getElementById('sunrise-time').innerText = sunriseDate.toLocaleTimeString('en-US', timeFormatOptions);
+                    document.getElementById('sunrise-weather-desc').innerText = `${sunriseWeatherInfo.icon} ${sunriseTemp}°F & ${sunriseWeatherInfo.description}`;
+
+                    document.getElementById('sunset-time').innerText = sunsetDate.toLocaleTimeString('en-US', timeFormatOptions);
+                    document.getElementById('sunset-weather-desc').innerText = `${sunsetWeatherInfo.icon} ${sunsetTemp}°F & ${sunsetWeatherInfo.description}`;
+
+                    document.getElementById('peak-weather-desc').innerText = `${peakWeatherInfo.icon} ${peakWeatherInfo.description}`;
+                    document.getElementById('peak-weather-temp').innerText = `${peakTemp}°F`;
+
+                    almanacSection.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error fetching time snapshot data:', error);
+                almanacSection.style.display = 'none';
+            }
+        }
+    }
+
+    /**
      * Main function to clear and populate the page with a specific hike's details.
      */
     function displayHike(hike, allHikes) {
+
                 document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
                 document.getElementById('hike-title').innerText = hike.trail_name;
                 const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
@@ -555,8 +674,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // --- Populate Right Column ---
                 (function populateInfoColumn() {
+                    // --- BUGFIX: Cleanup from previous renders ---
+                    // Remove any dynamically created expedition details section to prevent duplication.
+                    const existingExpeditionSection = document.querySelector('.expedition-details-section');
+                    if (existingExpeditionSection) {
+                        existingExpeditionSection.remove();
+                    }
+
+                    // Reset the layout to its default state in case the previous hike had no media.
+                    const galleryContainer = document.getElementById('photo-gallery');
+                    const topVisualsGrid = galleryContainer.parentElement;
+                    galleryContainer.style.display = 'flex'; // Default is flex, making it visible.
+                    topVisualsGrid.style.gridTemplateColumns = '1fr 1fr'; // Default is two columns.
+
                     // 1. Populate "By the Numbers" Stats Grid
-                    // Clear existing stats before adding new ones
                     document.getElementById('stats-grid-container').innerHTML = '';
                     const statsContainer = document.getElementById('stats-grid-container');
                     statsContainer.innerHTML = `
@@ -568,7 +699,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // 2. Populate "Trail Notes" Section
-                    // Clear existing description before adding new ones
                     document.getElementById('description-content-container').innerHTML = '';
                     const descriptionContainer = document.getElementById('description-content-container');
                     let descriptionHtml = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`; // Replace newlines with <br>
@@ -585,7 +715,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     descriptionContainer.innerHTML = descriptionHtml;
 
                     // 3. Populate External Links
-                    // Clear existing links before adding new ones
                     document.getElementById('external-links-container').innerHTML = '';
                     const linksContainer = document.getElementById('external-links-container');
                     if (hike.all_trails_url) {
@@ -596,9 +725,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
 
                     // 4. Populate the Photo Gallery with the Polaroid Card
-                    // Clear existing gallery content before adding new
                     document.getElementById('photo-gallery').innerHTML = '';
-                    const galleryContainer = document.getElementById('photo-gallery');
                     let crewHtml = '';
                     if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
                         crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
@@ -738,7 +865,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Create the new section to hold the details
                         const statsSection = document.getElementById('hike-stats');
                         const expeditionDetailsSection = document.createElement('div');
-                        expeditionDetailsSection.className = 'info-section';
+                        expeditionDetailsSection.className = 'info-section expedition-details-section'; // Add class for cleanup
 
                         let detailsContent = `<strong>${hike.difficulty} ${hike.hike_type}</strong>`;
                         if (hike.hike_size === 'Solo') {
@@ -805,6 +932,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }).join('');
                     }
                 })();
+
+                // --- NEW: Fetch and display the "Trail in Time" data ---
+                fetchAndDisplayTimeSnapshot(hike, allHikes);
     }
 
     // Listen for the browser's back/forward buttons

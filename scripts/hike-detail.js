@@ -552,10 +552,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Format and display data
                     const timeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
                     document.getElementById('sunrise-time').innerText = sunriseDate.toLocaleTimeString('en-US', timeFormatOptions);
-                    document.getElementById('sunrise-weather-desc').innerText = `${sunriseWeatherInfo.icon} ${sunriseTemp}°F & ${sunriseWeatherInfo.description}`;
+                    document.getElementById('sunrise-weather-desc').innerHTML = `${sunriseWeatherInfo.icon} ${sunriseTemp}°F &bull; ${sunriseWeatherInfo.description}`;
 
                     document.getElementById('sunset-time').innerText = sunsetDate.toLocaleTimeString('en-US', timeFormatOptions);
-                    document.getElementById('sunset-weather-desc').innerText = `${sunsetWeatherInfo.icon} ${sunsetTemp}°F & ${sunsetWeatherInfo.description}`;
+                    document.getElementById('sunset-weather-desc').innerHTML = `${sunsetWeatherInfo.icon} ${sunsetTemp}°F &bull; ${sunsetWeatherInfo.description}`;
 
                     document.getElementById('peak-weather-desc').innerText = `${peakWeatherInfo.icon} ${peakWeatherInfo.description}`;
                     document.getElementById('peak-weather-temp').innerText = `${peakTemp}°F`;
@@ -570,17 +570,68 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
+     * Generates a context-aware, natural-language title for an expedition.
+     * @param {object} hike - The hike data object.
+     * @returns {string} A formatted, human-readable title for the expedition.
+     */
+    function getExpeditionTitle(hike) {
+        const { difficulty, hike_type } = hike;
+        if (!difficulty || !hike_type) return 'Expedition Details'; // Fallback
+
+        switch (hike_type) {
+            case 'Day Hike':
+                return `${difficulty} Day Hike`;
+            case 'Viewpoint':
+                return 'A Scenic Viewpoint';
+            case 'Backpacking':
+                return `${difficulty} Backpacking Trip`;
+            case 'Day Trip':
+            case 'Overnight Trip':
+                return `${difficulty} ${hike_type} Hike`;
+            case 'Car Camping':
+                return `${difficulty} Camping Hike`;
+            default:
+                return `${difficulty} ${hike_type}`; // Fallback for any other types
+        }
+    }
+
+    // --- NEW: Thematic color mapping for hero headers ---
+    const GEOGRAPHY_COLORS = {
+        'Desert': '#b88a5b', // Sandy brown
+        'Riparian Canyon': '#4a7c59', // Deep green
+        'Chaparral': '#8a8174', // Dusty sage
+        'Urban Edge': '#495057', // Slate gray
+        'Default': '#2c3e50' // Default dark blue-gray
+    };
+
+    /**
      * Main function to clear and populate the page with a specific hike's details.
      */
     function displayHike(hike, allHikes) {
 
-                document.title = `${hike.trail_name} - The Trailprint Atlas`; // Update the browser tab title
-                document.getElementById('hike-title').innerText = hike.trail_name;
+                // --- Cleanup from previous render ---
+                document.getElementById('expedition-subtitle-container').innerHTML = '';
+
+                // --- NEW: Populate Hero Header ---
+                const hero = document.getElementById('hike-hero');
+                const heroTitle = hero.querySelector('#hike-title');
+                const heroLocation = hero.querySelector('#hike-location');
+                const heroDate = hero.querySelector('#hike-date');
+
+                document.title = `${hike.trail_name} - The Trailprint Atlas`;
+                heroTitle.innerText = hike.trail_name;
+                heroLocation.innerText = `${hike.location} • ${hike.region}`;
                 const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
                 const formattedDate = new Date(hike.date_completed + 'T00:00:00Z').toLocaleDateString('en-US', dateOptions);
                 const datePrefix = hike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
-                document.getElementById('hike-date').innerText = `${datePrefix} ${formattedDate}`;
-                document.getElementById('hike-location').innerText = `${hike.location} • ${hike.region}`;
+                heroDate.innerText = `${datePrefix} ${formattedDate}`;
+
+                // --- NEW: Set hero background color based on geography ---
+                const geoType = hike.primary_geography || 'Default';
+                const heroColor = GEOGRAPHY_COLORS[geoType] || GEOGRAPHY_COLORS['Default'];
+                hero.style.backgroundColor = heroColor;
+                // Remove any background image styling from previous renders
+                hero.style.backgroundImage = 'none';
                 
                 // --- Define helper function to create the correct icon ---
                 // This logic is mirrored from trail-renderer.js for consistency.
@@ -687,15 +738,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                     galleryContainer.style.display = 'flex'; // Default is flex, making it visible.
                     topVisualsGrid.style.gridTemplateColumns = '1fr 1fr'; // Default is two columns.
 
-                    // 1. Populate "By the Numbers" Stats Grid
-                    document.getElementById('stats-grid-container').innerHTML = '';
-                    const statsContainer = document.getElementById('stats-grid-container');
-                    statsContainer.innerHTML = `
-                        <div class="stat-card"><span class="value">${hike.miles.toLocaleString()}</span><span class="label">Miles</span></div>
-                        <div class="stat-card"><span class="value">${hike.elevation_gain.toLocaleString()}</span><span class="label">Elevation (ft)</span></div>
-                    `;
+                    // 1. Populate "Trail Vitals" with new card design
+                    const vitalsContainer = document.getElementById('trail-vitals-container');
+                    vitalsContainer.innerHTML = ''; // Clear previous
+
+                    const displayMiles = hike.miles === 0 ? '&lt;0.1' : hike.miles.toLocaleString();
+                    const displayElevation = hike.elevation_gain === 0 ? '&lt;0.1' : hike.elevation_gain.toLocaleString();
+
+                    // Miles Card
+                    vitalsContainer.innerHTML += `
+                        <div class="vital-card">
+                            <div class="vital-icon-wrapper">
+                                <img src="assets/icons/numbers-miles-icon.png" alt="Miles">
+                            </div>
+                            <div class="vital-text">
+                                <span class="value">${displayMiles}</span>
+                                <span class="label">Miles</span>
+                            </div>
+                        </div>`;
+
+                    // Elevation Card
+                    vitalsContainer.innerHTML += `
+                        <div class="vital-card">
+                            <div class="vital-icon-wrapper">
+                                <img src="assets/icons/numbers-elevation-icon.png" alt="Elevation">
+                            </div>
+                            <div class="vital-text">
+                                <span class="value">${displayElevation}</span>
+                                <span class="label">Elevation (ft)</span>
+                            </div>
+                        </div>`;
+
                     if (hike.summit_trail && hike.summit_elevation) {
-                        statsContainer.innerHTML += `<div class="stat-card"><span class="value">${hike.summit_elevation.toLocaleString()}</span><span class="label">Summit (ft)</span></div>`;
+                        // Summit Card
+                        vitalsContainer.innerHTML += `
+                            <div class="vital-card">
+                                <div class="vital-icon-wrapper">
+                                    <img src="assets/icons/numbers-summit-icon.png" alt="Summit">
+                                </div>
+                                <div class="vital-text">
+                                    <span class="value">${hike.summit_elevation.toLocaleString()}</span>
+                                    <span class="label">Summit (ft)</span>
+                                </div>
+                            </div>`;
                     }
 
                     // 2. Populate "Trail Notes" Section
@@ -738,6 +823,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const hasVideos = hike.videos && hike.videos.length > 0;
 
                     if (hasImages || hasVideos) {
+                        const expeditionTitle = getExpeditionTitle(hike);
                         // 1. Combine photos and videos into a single media array
                         const mediaItems = [];
                         if (hasImages) {
@@ -755,7 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <div id="youtube-player-container" style="display: none;"></div>
                                 </div>
                                 <div class="polaroid-text">
-                                    <div class="media-context-title">${hike.difficulty} ${hike.hike_type}</div>
+                                    <div class="media-context-title">${expeditionTitle}</div>
                                     <div class="media-context-details">${crewHtml}</div>
                                 </div>
                             </div>
@@ -847,39 +933,29 @@ document.addEventListener('DOMContentLoaded', async () => {
                             modal.classList.add('visible');
                         });
                     } else {
-                        // Fallback message if no images
-                        // If there are no photos, we'll hide the photo gallery and make the map full-width.
-                        // We'll then create a new "Expedition Details" section to display the info
-                        // that would have been in the polaroid card.
+                        // If there's no media, hide the gallery, make the map full-width,
+                        // and display the expedition details as a subtitle under the main hike title.
                         const topVisualsGrid = galleryContainer.parentElement;
                         galleryContainer.style.display = 'none';
                         topVisualsGrid.style.gridTemplateColumns = '1fr';
 
-                        // Tell Leaflet to re-check its container size.
-                        // We use a short timeout to ensure the browser has finished
-                        // the CSS reflow before Leaflet tries to resize the map.
-                        setTimeout(() => {
-                            detailMap.invalidateSize(true); // 'true' animates the transition smoothly
-                        }, 10); // A tiny delay is often sufficient
+                        // Tell Leaflet to re-check its container size after a brief delay.
+                        setTimeout(() => detailMap.invalidateSize(true), 10);
 
-                        // Create the new section to hold the details
-                        const statsSection = document.getElementById('hike-stats');
-                        const expeditionDetailsSection = document.createElement('div');
-                        expeditionDetailsSection.className = 'info-section expedition-details-section'; // Add class for cleanup
-
-                        let detailsContent = `<strong>${hike.difficulty} ${hike.hike_type}</strong>`;
-                        if (hike.hike_size === 'Solo') {
-                            detailsContent += `<br>A Solo Journey.`;
+                        // Generate the subtitle content
+                        const expeditionTitle = getExpeditionTitle(hike);
+                        let crewDetailsText = '';
+                        if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
+                            crewDetailsText = 'A Solo Journey';
                         } else if (hike.hiked_with && hike.hiked_with.length > 0) {
-                            detailsContent += `<br>With <strong>${hike.hiked_with.join(', ')}</strong>.`;
+                            crewDetailsText = `With ${hike.hiked_with.join(', ')}`;
                         }
 
-                        expeditionDetailsSection.innerHTML = `
-                            <h3>Expedition Details</h3>
-                            <div class="expedition-meta">${detailsContent}</div>
-                        `;
-                        // Insert the new section right after the "By the Numbers" stats grid
-                        statsSection.after(expeditionDetailsSection);
+                        // Combine title and details, using a separator if both exist.
+                        const subtitleText = [expeditionTitle, crewDetailsText].filter(Boolean).join(' &bull; ');
+
+                        // Populate the subtitle container
+                        document.getElementById('expedition-subtitle-container').innerHTML = subtitleText;
                     }
 
                     // Add journal entry if it exists

@@ -550,16 +550,27 @@
             width: 40%;
         }
         .featured-adventure-image-container {
+            position: relative; /* Crucial for layering the slideshow images */
             height: 300px; /* Fixed height for consistency */
             overflow: hidden;
             border-radius: 8px;
             border: 1px solid #eee;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            background-color: #e9e9e9; /* A neutral background color */
         }
-        .featured-adventure-image-container img {
+        /* NEW: Styles for the slideshow images */
+        .featured-adventure-image-container .slideshow-image {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
             object-fit: cover; /* Ensures image covers the container without distortion */
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out; /* A slow, graceful fade */
+        }
+        .featured-adventure-image-container .slideshow-image.active {
+            opacity: 1;
         }
         .featured-adventure-content {
             flex-grow: 1;
@@ -747,8 +758,7 @@
         <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
             <div class="featured-adventure-visuals">
                 <div class="featured-adventure-image-container">
-                    <!-- Image will be set by JS -->
-                    <img id="featured-trip-image" src="" alt="Photo from the latest adventure">
+                    <!-- Slideshow images will be injected here by JS -->
                 </div>
                 <div class="featured-adventure-stats">
                     <div class="stat-item" id="featured-trip-days-stat"></div>
@@ -767,7 +777,7 @@
         <div class="featured-adventure-section" id="goto-trail-section" style="display: none;">
             <div class="featured-adventure-visuals">
                 <div class="featured-adventure-image-container">
-                    <img id="goto-trail-image" src="" alt="Photo from the go-to trail">
+                    <!-- Slideshow images will be injected here by JS -->
                 </div>
                 <div class="featured-adventure-stats">
                     <div class="stat-item" id="goto-trail-times-hiked-stat"></div>
@@ -1033,8 +1043,13 @@
                         document.getElementById('featured-trip-miles-stat').innerHTML = `<span class="number">${Math.round(tripMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('featured-trip-elevation-stat').innerHTML = `<span class="number">${tripElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
 
-                        // TODO: Add an image path to your hikes.json for this to work! e.g., "images": ["path/to/image.jpg"]
-                        // document.getElementById('featured-trip-image').src = latestHikeInTrip.images[0] || 'path/to/default-image.jpg';
+                        // --- NEW: Start the slideshow for the featured adventure ---
+                        const featuredImageIds = adventureHikes
+                            .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
+                            .filter(Boolean); // Filter out any nulls if a hike has no image
+
+                        startSlideshow('#featured-adventure .featured-adventure-image-container', featuredImageIds);
+
                         document.getElementById('featured-adventure').style.display = 'flex';
                     }
 
@@ -1074,6 +1089,13 @@
                         document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
                         document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
+
+                        // --- NEW: Start the slideshow for the go-to trail ---
+                        const gotoImageIds = mostHikedHikes
+                            .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
+                            .filter(Boolean);
+                        
+                        startSlideshow('#goto-trail-section .featured-adventure-image-container', gotoImageIds);
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
 
@@ -1304,6 +1326,45 @@
                 }
             };
             window.requestAnimationFrame(step);
+        }
+   </script>
+   <script>
+        // --- NEW: Reusable Slideshow Function ---
+        function startSlideshow(containerSelector, imageIds, interval = 10000) {
+            const container = document.querySelector(containerSelector);
+            // Use a more robust fallback image path
+            const fallbackImage = 'assets/landscapes/fallback-hero.jpg';
+
+            if (!container || imageIds.length === 0) {
+                if (container) {
+                    container.innerHTML = `<img src="${fallbackImage}" alt="Trail photo" class="slideshow-image active">`;
+                }
+                return;
+            }
+
+            container.innerHTML = ''; // Clear existing content
+            const imageElements = [];
+
+            imageIds.forEach((id, index) => {
+                const img = document.createElement('img');
+                img.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_800,h_600,c_fill,q_auto,f_auto/${id}`;
+                img.alt = "A photo from the trail";
+                img.className = 'slideshow-image';
+                if (index === 0) {
+                    img.classList.add('active');
+                }
+                container.appendChild(img);
+                imageElements.push(img);
+            });
+
+            if (imageElements.length <= 1) return; // No need for a slideshow with one image
+
+            let currentIndex = 0;
+            setInterval(() => {
+                imageElements[currentIndex].classList.remove('active');
+                currentIndex = (currentIndex + 1) % imageElements.length;
+                imageElements[currentIndex].classList.add('active');
+            }, interval);
         }
    </script>
    <!-- Shared script to update the 'Latest Hike' nav link -->

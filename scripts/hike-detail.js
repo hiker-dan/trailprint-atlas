@@ -785,19 +785,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // 2. Populate "Trail Notes" Section
                     document.getElementById('description-content-container').innerHTML = '';
-                    const descriptionContainer = document.getElementById('description-content-container');
-                    let descriptionHtml = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`; // Replace newlines with <br>
+                    const floraAnnotation = document.getElementById('flora-annotation');
+                    const faunaAnnotation = document.getElementById('fauna-annotation');
+                    floraAnnotation.style.display = 'none';
+                    faunaAnnotation.style.display = 'none';
+                    floraAnnotation.innerHTML = '';
+                    faunaAnnotation.innerHTML = '';
 
-                    if (hike.primary_geography) {
-                        descriptionHtml += `<div class="eco-note"><strong>Primary Geography:</strong> <em>${hike.primary_geography}</em></div>`;
-                    }
+                    const descriptionContainer = document.getElementById('description-content-container');
+                    descriptionContainer.innerHTML = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`;
+
                     if (hike.flora) {
-                        descriptionHtml += `<div class="eco-note"><strong>Flora Spotlight:</strong> <em>${hike.flora}</em></div>`;
+                        floraAnnotation.innerHTML = `
+                            <div class="annotation-header">
+                                <img src="assets/icons/flora-icon.png" alt="Flora" class="annotation-icon">
+                                <span class="annotation-title">Flora Spotlight</span>
+                            </div>
+                            <div class="annotation-body">${hike.flora}</div>`;
+                        floraAnnotation.style.display = 'block';
                     }
                     if (hike.fauna) {
-                        descriptionHtml += `<div class="eco-note"><strong>Fauna Spotlight:</strong> <em>${hike.fauna}</em></div>`;
+                        faunaAnnotation.innerHTML = `
+                            <div class="annotation-header">
+                                <img src="assets/icons/fauna-icon.png" alt="Fauna" class="annotation-icon">
+                                <span class="annotation-title">Fauna Spotlight</span>
+                            </div>
+                            <div class="annotation-body">${hike.fauna}</div>`;
+                        faunaAnnotation.style.display = 'block';
                     }
-                    descriptionContainer.innerHTML = descriptionHtml;
 
                     // 3. Populate External Links
                     document.getElementById('external-links-container').innerHTML = '';

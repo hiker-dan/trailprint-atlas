@@ -365,16 +365,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!isDown) return;
             e.preventDefault();
             const x = e.pageX - viewport.offsetLeft;
-            const walk = (x - startX) * 3; // This multiplier controls scroll sensitivity.
+            const walk = x - startX; // No multiplier for a 1:1 drag feel.
             viewport.scrollLeft = scrollLeft - walk;
         });
 
         // --- Scroll with mouse wheel ---
         viewport.addEventListener('wheel', (e) => {
-            // Prevent the page from scrolling vertically
+            // Prevent the default vertical scroll of the page.
             e.preventDefault();
-            // Add the vertical scroll amount to the horizontal scroll position
-            viewport.scrollLeft += e.deltaY;
+
+            // A typical mouse wheel event has a large deltaY. A trackpad swipe has a
+            // smaller deltaY (for vertical swipes) and/or deltaX (for horizontal swipes).
+            // We add them together to make the timeline respond to both, and apply a
+            // multiplier to make trackpad scrolling feel natural and not sluggish.
+            viewport.scrollLeft += (e.deltaX + e.deltaY);
         }, { passive: false }); // We must set passive: false to be able to preventDefault()
 
         // --- NEW: Global Tooltip Hover Logic ---
@@ -430,7 +434,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // --- Update year display on scroll ---
-        viewport.addEventListener('scroll', updateTimelineDisplay);
+        let ticking = false;
+        viewport.addEventListener('scroll', () => {
+            // Use requestAnimationFrame to throttle scroll events for performance.
+            // This prevents the expensive updateTimelineDisplay function from running
+            // on every single pixel of a scroll, making it much smoother.
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    updateTimelineDisplay();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        });
 
         return { updateTimelineDisplay };
     }

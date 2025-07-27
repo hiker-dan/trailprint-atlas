@@ -62,6 +62,60 @@
             cursor: pointer;
         }
 
+        /* --- Custom Icon Toggle Control --- */
+        .leaflet-bar a.leaflet-control-toggle-icons,
+        .leaflet-bar a.leaflet-control-toggle-icons:hover {
+            width: 30px; /* Match other leaflet buttons */
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative; /* For positioning the strikethrough */
+            overflow: hidden; /* To contain the rotated line */
+        }
+        /* New: A wrapper to create the white "puck" background, just like map icons */
+        .leaflet-control-toggle-icons .hike-icon-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+        }
+        /* The actual icon image inside the puck */
+        .leaflet-control-toggle-icons .hike-icon-wrapper img {
+            width: 18px;
+            height: 18px;
+        }
+        .leaflet-control-toggle-icons .icon-strikethrough {
+            position: absolute;
+            width: 120%; /* Make it longer than the container to ensure full coverage when rotated */
+            height: 3px; /* Thickness of the line */
+            background-color: #c0392b; /* A strong red color */
+            transform: rotate(-45deg);
+            transition: opacity 0.2s ease-in-out;
+            opacity: 0; /* Hidden by default */
+            pointer-events: none; /* So it doesn't interfere with clicks */
+        }
+        .leaflet-bar a.leaflet-control-toggle-icons.active {
+            background-color: #ddd; /* Give visual feedback that the mode is active */
+        }
+        /* When the button is active, show the strikethrough */
+        .leaflet-control-toggle-icons.active .icon-strikethrough {
+            opacity: 1;
+        }
+        #map.trail-icons-hidden .leaflet-marker-icon.trail-start-icon {
+            display: none;
+        }
+
+        /* Style for fading tile layers */
+        .fadeable-tile-layer {
+            transition: opacity 0.4s ease-in-out !important;
+        }
+
         /* --- Filter Control Styles --- */
         .leaflet-top.leaflet-right {
             /* Ensure our control has space from the existing layer control */

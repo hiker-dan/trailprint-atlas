@@ -2,20 +2,35 @@
 // The coordinates are centered roughly on the USA.
 const map = L.map('map').setView([39.82, -98.58], 5);
 
+// --- Create a custom pane for the main trail lines ---
+// This ensures the primary trail is always drawn on top of its "ghost" trails.
+map.createPane('mainTrailPane');
+map.getPane('mainTrailPane').style.zIndex = 450; // Above default polylines (400), but below markers (600).
+
 // --- Define Base Map Tile Layers ---
 const esriTopoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-	attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community'
+	attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+    className: 'fadeable-tile-layer' // Add for fading
 });
 
 const voyagerMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
 	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
 	subdomains: 'abcd',
-	maxZoom: 19
+	maxZoom: 19,
+    className: 'fadeable-tile-layer' // Add for fading
 });
 
 const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-	attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+	attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+    className: 'fadeable-tile-layer' // Add for fading
 });
+
+// Define the dark mode layer we'll toggle to. It starts invisible.
+const darkModeLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+	attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    opacity: 0, // Start invisible
+    className: 'fadeable-tile-layer' // For CSS transitions
+}).addTo(map);
 
 // Set the default map layer
 esriTopoMap.addTo(map);
@@ -30,6 +45,13 @@ const baseMaps = {
 let allHikesData = []; // Will hold the full, original dataset
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
 let layerReferences = {}; // To store references to map layers by trail_id
+
+// Keep track of the currently active base layer for the icon toggle functionality.
+let activeBaseLayer = esriTopoMap; // Default to the initial layer
+map.on('baselayerchange', function(e) {
+    // When the user changes the base map via the layer control, update our tracker.
+    activeBaseLayer = e.layer;
+});
 
 // --- New Filter State Management ---
 const activeFilters = {
@@ -79,13 +101,21 @@ function renderMapLayers(trailGroupsToRender) {
             allTrailsGroup.addLayer(layer);
             layerReferences[hikesForTrail[0].trail_name] = layer;
 
-            // If it's a GPX layer, it loads asynchronously. We create a promise for it.
-            if (hikesForTrail[0].gpx_file) {
-                const gpxPromise = new Promise(resolve => {
-                    layer.on('loaded', () => resolve());
-                    layer.on('error', () => resolve()); // Also resolve on error to not wait forever
+            // --- Asynchronous Loading Logic ---
+            // Since renderTrailGroup can now return a featureGroup with multiple GPX layers
+            // (the main trail + ghost trails), we need to create a loading promise for each one.
+            if (layer.eachLayer) { // Check if it's a group of layers (like L.featureGroup)
+                layer.eachLayer(subLayer => {
+                    // We only care about GPX layers, as they are the only async ones.
+                    if (subLayer instanceof L.GPX) {
+                        const gpxPromise = new Promise(resolve => {
+                            // Resolve the promise when the GPX layer has loaded or errored.
+                            subLayer.on('loaded', () => resolve());
+                            subLayer.on('error', () => resolve());
+                        });
+                        loadingPromises.push(gpxPromise);
+                    }
                 });
-                loadingPromises.push(gpxPromise);
             }
         }
     });
@@ -409,6 +439,50 @@ resetControl.onAdd = function(map) {
 };
 
 resetControl.addTo(map);
+
+// --- Create Custom Icon Toggle Control ---
+const iconToggleControl = L.control({ position: 'topleft' });
+
+iconToggleControl.onAdd = function(map) {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const button = L.DomUtil.create('a', 'leaflet-control-toggle-icons', container);
+    // Use a custom SVG for a clean, intuitive icon.
+    // Use a sample icon inside a styled "puck" to match the map icons.
+    button.innerHTML = `<div class="hike-icon-wrapper">
+                            <img src="assets/icons/day-hike-icon.png" alt="Toggle Icons">
+                        </div>
+                        <div class="icon-strikethrough"></div>`;
+    button.href = '#';
+    button.title = 'Toggle trail path icons';
+    button.setAttribute('role', 'button');
+    button.setAttribute('aria-label', 'Toggle trail path icons');
+
+    L.DomEvent.on(button, 'click', L.DomEvent.stop);
+    L.DomEvent.on(button, 'click', () => {
+        const container = map.getContainer();
+        const isActivating = !container.classList.contains('trail-icons-hidden');
+
+        // Toggle a class on the map container itself to hide icons
+        container.classList.toggle('trail-icons-hidden');
+        // Add an 'active' class to the button for visual feedback
+        button.classList.toggle('active');
+
+        // Toggle the map theme with a smooth fade
+        if (isActivating) {
+            // Fade out the current base layer and fade in the dark one
+            activeBaseLayer.setOpacity(0);
+            darkModeLayer.setOpacity(1);
+        } else {
+            // Fade out the dark layer and fade in the original one
+            darkModeLayer.setOpacity(0);
+            activeBaseLayer.setOpacity(1);
+        }
+    });
+
+    return container;
+};
+
+iconToggleControl.addTo(map);
 
 // --- Create Custom Filter Control ---
 const filterControl = L.control({ position: 'topright' });

@@ -173,6 +173,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const barRight = (endPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
             const barWidth = Math.max(50, barRight - barLeft); // Enforce a wider minimum width for the capsule
 
+            // --- NEW: Pre-calculate expansion needs for dynamic spacing ---
+            const DOT_SPACING_PX = 40; // The ideal space for each dot when expanded.
+            const requiredWidthForDots = (hikesInTrip.length > 1) ? ((hikesInTrip.length - 1) * DOT_SPACING_PX) : 0;
+            const expansionDelta = Math.max(0, requiredWidthForDots - barWidth);
+            const leftShift = expansionDelta / 2; // The amount the bar needs to shift left for centered expansion.
+            const expansionAttr = expansionDelta > 0 ? `data-expansion-delta="${expansionDelta}" data-left-shift="${leftShift}"` : '';
+
             // Generate the dots that will live *inside* the bar
             let tripDotsHtml = '';
             const hikesByDate = new Map();
@@ -204,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             // NEW: Add the label inside the capsule
             const labelText = 'Trip';
             timelineHtml += `
-                <div class="timeline-trip-bar" style="left: ${barLeft}px; width: ${barWidth}px;">
+                <div class="timeline-trip-bar" style="left: ${barLeft}px; width: ${barWidth}px;" ${expansionAttr}>
                     <span class="trip-bar-label">${labelText}</span>
                     ${tripDotsHtml}
                 </div>`;
@@ -232,32 +239,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         // This system uses a delayed collapse to create an "invisible bridge"
         // for the mouse, and gives the hovered bar priority with z-index.
         const expandTripBar = (bar) => {
-            // If a collapse is scheduled, cancel it. This is the "bridge".
             if (bar.dataset.collapseTimeoutId) {
                 clearTimeout(bar.dataset.collapseTimeoutId);
                 bar.dataset.collapseTimeoutId = null;
             }
-            // Don't re-run if already expanded.
             if (bar.classList.contains('trip-bar-hover')) return;
 
             bar.classList.add('trip-bar-hover');
 
-            const dotsInBar = Array.from(bar.querySelectorAll('.timeline-dot'));
-            dotsInBar.forEach(dot => {
-                if (!dot.dataset.originalLeft) dot.dataset.originalLeft = dot.style.left;
-            });
+            // --- NEW: Dynamic expansion logic ---
+            const expansionDelta = parseFloat(bar.dataset.expansionDelta || 0);
+            const leftShift = parseFloat(bar.dataset.leftShift || 0);
 
+            if (expansionDelta > 0) {
+                // Store original styles if they haven't been stored yet
+                if (!bar.dataset.originalLeft) {
+                    bar.dataset.originalLeft = bar.style.left;
+                }
+                if (!bar.dataset.originalWidth) {
+                    bar.dataset.originalWidth = bar.style.width;
+                }
+
+                const originalLeft = parseFloat(bar.dataset.originalLeft);
+                const originalWidth = parseFloat(bar.dataset.originalWidth);
+                
+                // Expand the bar itself, shifting it left to keep it centered
+                bar.style.left = `${originalLeft - leftShift}px`;
+                bar.style.width = `${originalWidth + expansionDelta}px`;
+
+                // Shift adjacent elements
+                const barCenter = originalLeft + (originalWidth / 2);
+                const allTimelineElements = track.querySelectorAll('.timeline-dot, .timeline-trip-bar');
+                const shiftRightAmount = expansionDelta - leftShift;
+
+                allTimelineElements.forEach(el => {
+                    // Don't shift the bar itself or the dots inside it
+                    if (el === bar || bar.contains(el)) return;
+                    
+                    const elCenter = el.offsetLeft + (el.offsetWidth / 2);
+                    const isDot = el.classList.contains('timeline-dot');
+                    const baseTransform = isDot ? 'translate(-50%, -50%)' : 'translateY(-50%)';
+
+                    if (elCenter < barCenter) {
+                        el.style.transform = `translateX(-${leftShift}px) ${baseTransform}`;
+                    } else {
+                        el.style.transform = `translateX(${shiftRightAmount}px) ${baseTransform}`;
+                    }
+                });
+            }
+
+            // --- Dot spreading logic (now works in the new space) ---
+            const dotsInBar = Array.from(bar.querySelectorAll('.timeline-dot'));
+            dotsInBar.forEach(dot => { if (!dot.dataset.originalLeft) dot.dataset.originalLeft = dot.style.left; });
             const numDots = dotsInBar.length;
             if (numDots > 1) {
                 const GUARANTEED_SPACING_PX = 40;
                 const requiredWidth = (numDots - 1) * GUARANTEED_SPACING_PX;
-                const barWidth = bar.offsetWidth;
-                const clusterStartPosition = (barWidth / 2) - (requiredWidth / 2);
-                // Sort dots by their date attribute to ensure chronological order.
+                const expandedBarWidth = bar.offsetWidth;
+                const clusterStartPosition = (expandedBarWidth / 2) - (requiredWidth / 2);
                 const sortedDots = dotsInBar.sort((a, b) => new Date(a.dataset.date + 'T00:00:00Z') - new Date(b.dataset.date + 'T00:00:00Z'));
                 sortedDots.forEach((dot, index) => {
-                    const newPosition = clusterStartPosition + (index * GUARANTEED_SPACING_PX);
-                    dot.style.left = `${newPosition}px`;
+                    // Add leftShift to the dot's position to counteract the parent bar's leftward movement.
+                    dot.style.left = `${clusterStartPosition + (index * GUARANTEED_SPACING_PX) + leftShift}px`;
                 });
             }
         };
@@ -265,10 +308,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const collapseTripBar = (bar) => {
             const timeoutId = setTimeout(() => {
                 bar.classList.remove('trip-bar-hover');
-                const dotsInBar = bar.querySelectorAll('.timeline-dot');
-                dotsInBar.forEach(dot => {
-                    if (dot.dataset.originalLeft) dot.style.left = dot.dataset.originalLeft;
-                });
+                bar.querySelectorAll('.timeline-dot').forEach(dot => { if (dot.dataset.originalLeft) dot.style.left = dot.dataset.originalLeft; });
+
+                // --- NEW: Reverse the expansion ---
+                const expansionDelta = parseFloat(bar.dataset.expansionDelta || 0);
+                if (expansionDelta > 0) {
+                    // Reset the bar's own size and position from stored data
+                    if (bar.dataset.originalLeft) {
+                        bar.style.left = bar.dataset.originalLeft;
+                    }
+                    if (bar.dataset.originalWidth) {
+                        bar.style.width = bar.dataset.originalWidth;
+                    }
+
+                    // Reset all other shifted elements
+                    const allTimelineElements = track.querySelectorAll('.timeline-dot, .timeline-trip-bar');
+                    allTimelineElements.forEach(el => {
+                        if (el !== bar && !bar.contains(el)) el.style.transform = '';
+                    });
+                }
             }, 200); // 200ms grace period before collapsing.
             bar.dataset.collapseTimeoutId = timeoutId;
         };

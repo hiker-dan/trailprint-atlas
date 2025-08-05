@@ -1,0 +1,92 @@
+/* styles/map-stats.css */
+
+/* Keyframe animation for the glowing, "breathing" outline on active states */
+@keyframes atlas-glow {
+    0% {
+        stroke: #6a994e; /* Brighter green */
+        stroke-width: 1.5px;
+        filter: drop-shadow(0 0 2px rgba(74, 124, 89, 0.3));
+    }
+    50% {
+        stroke: #a3d4b5; /* A soft, glowing light green */
+        stroke-width: 3px;
+        filter: drop-shadow(0 0 6px rgba(74, 124, 89, 0.7));
+    }
+    100% {
+        stroke: #6a994e;
+        stroke-width: 1.5px;
+        filter: drop-shadow(0 0 2px rgba(74, 124, 89, 0.3));
+    }
+}
+
+#interactive-map-container {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    margin: 30px auto;
+    padding: 20px;
+    background-color: #fdfdfb; /* A slightly warmer, off-white for a vintage paper feel */
+    border: 1px solid #e0dcd5; /* A soft, brownish border */
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+#us-map-svg {
+    width: 100%;
+    height: auto;
+}
+
+#us-map-svg .state {
+    fill: #e9e4db; /* A light, parchment-like color for non-hiked states */
+    stroke: #bab3a9; /* A darker, softer border color */
+    stroke-width: 1px;
+    stroke-linejoin: round;
+    transition: fill 0.2s ease-in-out, transform 0.2s ease-in-out, stroke 0.2s ease-in-out, stroke-width 0.2s ease-in-out, filter 0.2s ease-in-out;
+}
+
+#us-map-svg .state.active {
+    fill: #4a7c59; /* The project's established green for hiked states */
+    cursor: pointer;
+    /* Apply the new breathing animation to draw the user's eye */
+    animation: atlas-glow 3s infinite ease-in-out;
+}
+
+#us-map-svg .state.active:hover {
+    fill: #6a994e; /* A slightly lighter, more vibrant green for hover */
+    /* Make the state pop out more on hover */
+    transform: scale(1.03) translateY(-3px);
+    /* Stop the breathing animation and apply a solid, brighter stroke */
+    animation: none;
+    stroke: #a3d4b5; /* Bright, solid stroke on hover */
+    stroke-width: 3px;
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
+}
+
+#map-tooltip {
+    position: absolute;
+    display: none;
+    background-color: rgba(44, 62, 80, 0.95); /* Dark, almost opaque for readability */
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 1em;
+    pointer-events: none; /* Tooltip should not capture mouse events */
+    z-index: 1001;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    white-space: nowrap;
+    transition: opacity 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#map-tooltip h4 {
+    margin: 0 0 8px 0;
+    font-size: 1.2em;
+    color: #f1c40f; /* Gold color for the state name */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    padding-bottom: 5px;
+}
+
+#map-tooltip p {
+    margin: 0;
+    font-size: 0.95em;
+}

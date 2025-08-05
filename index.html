@@ -633,6 +633,7 @@
         }
 
     </style>
+    <link rel="stylesheet" href="styles/map-stats.css"/>
 </head>
 <body>
     <nav>
@@ -707,14 +708,11 @@
     </div>
 
     <div class="container">
-        <h2 class="dashboard-title">My Trailprint by State</h2>  <!-- Updated title -->
-        <div class="state-icon-grid" id="state-icon-grid">  <!-- Updated ID -->
-            <!-- State icons will be injected here by JS -->  <!-- Updated comment -->
+        <h2 class="dashboard-title">My Trailprint by State</h2>
+        <div id="interactive-map-container">
+            <!-- SVG will be embedded here -->
         </div>
-        <!-- New panel for displaying state stats. It's hidden by default. -->
-        <div id="state-stats-panel" class="state-stats-panel" style="display: none;">
-            <!-- Content will be injected here by our new JavaScript logic -->
-        </div>
+        <div id="map-tooltip"></div>
     </div>
 
     <!-- NEW: Seasonal Snapshot Section -->
@@ -1139,124 +1137,103 @@
                         trailLogContainer.innerHTML = cardsHtml;
                     })();
 
-                    // --- Create Region Spotlight ---
-                    (function createStateIconGrid() { // Renamed for clarity
-                        const states = {};
+                    // --- NEW: Interactive US Map ---
+                    (function setupInteractiveMap() {
+                        const container = document.getElementById('interactive-map-container');
+                        const tooltip = document.getElementById('map-tooltip');
+                        if (!container || !tooltip) return;
 
-                        Object.values(trailGroups).forEach(group => {
-                            const representativeHike = group[0];
-                            // Extract the state abbreviation from the region string
-                            const state = representativeHike.region ? representativeHike.region.split(", ").pop() : "Unknown";
+                        fetch('assets/state-icons/blank-us-map.svg')
+                            .then(response => response.text())
+                            .then(svgData => {
+                                container.innerHTML = svgData;
+                                const svg = container.querySelector('svg');
+                                svg.id = 'us-map-svg';
 
-                            if (!states[state]) {
-                                states[state] = {
-                                    uniqueTrails: 0,
-                                    totalHikes: 0,
-                                    totalMiles: 0,
-                                    iconPath: `assets/state-icons/${state}.svg` // Construct icon path
+                                // Remove all inline styles and presentation attributes from SVG paths
+                                const paths = svg.querySelectorAll('path');
+                                paths.forEach(path => {
+                                    path.removeAttribute('style');
+                                    path.removeAttribute('fill');
+                                    path.removeAttribute('stroke');
+                                    path.removeAttribute('stroke-width');
+                                    path.removeAttribute('class'); // Remove class attribute as well
+                                });
+
+                                // Remove the inline style block from the SVG
+                                const styleElement = svg.querySelector('style');
+                                if (styleElement) {
+                                    styleElement.remove();
+                                }
+
+                                // Remove class from the main group element if it exists
+                                const gElement = svg.querySelector('g.state');
+                                if (gElement) {
+                                    gElement.removeAttribute('class');
+                                }
+
+                                // Explicitly set default fill and stroke for all paths to ensure external CSS takes over
+                                paths.forEach(path => {
+                                    path.setAttribute('fill', '#e9e4db'); // Default fill for non-hiked states
+                                    path.setAttribute('stroke', '#bab3a9'); // Default stroke for all states
+                                    path.setAttribute('stroke-width', '1px');
+                                });
+
+                                const stateStats = data.reduce((stats, hike) => {
+                                    const region = hike.region || '';
+                                    const stateAbbr = region.split(', ').pop();
+                                    if (stateAbbr) {
+                                        if (!stats[stateAbbr]) {
+                                            stats[stateAbbr] = { totalHikes: 0, totalMiles: 0, uniqueTrails: new Set() };
+                                        }
+                                        stats[stateAbbr].totalHikes++;
+                                        stats[stateAbbr].totalMiles += hike.miles || 0;
+                                        stats[stateAbbr].uniqueTrails.add(hike.trail_name);
+                                    }
+                                    return stats;
+                                }, {});
+
+                                const stateNames = {
+                                    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
+                                    "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
+                                    "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
+                                    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+                                    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
+                                    "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
+                                    "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
+                                    "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+                                    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
+                                    "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia"
                                 };
-                            }
 
-                            states[state].uniqueTrails++;
-                            states[state].totalHikes += group.length;                            
-                            states[state].totalMiles += representativeHike.miles || 0;
-                        });
+                                Object.keys(stateStats).forEach(stateAbbr => {
+                                    const statePath = svg.querySelector(`.${stateAbbr.toLowerCase()}`); // SVG uses lowercase class names
+                                    if (statePath) {
+                                        statePath.classList.add('active');
+                                        statePath.dataset.hikes = stateStats[stateAbbr].totalHikes;
+                                        statePath.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
+                                        statePath.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
+                                        statePath.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
+                                    }
+                                });
 
-                        const container = document.getElementById('state-icon-grid'); // New container ID
-                        if (!container) return;
-                        container.innerHTML = '';
+                                svg.addEventListener('mouseover', e => {
+                                    if (e.target.classList.contains('active')) {
+                                        const { stateName, hikes, miles, trails } = e.target.dataset;
+                                        tooltip.innerHTML = `<h4>${stateName}</h4><p>${hikes} Hikes • ${trails} Unique Trails • ${miles} Miles</p>`;
+                                        tooltip.style.display = 'block';
+                                    }
+                                });
 
-                        // Create state icon elements
-                        Object.entries(states).forEach(([state, stats]) => {
-                            const cardHtml = `
-                                <div class="state-icon-container">
-                                    <img 
-                                        src="${stats.iconPath}" 
-                                        alt="${state} icon" 
-                                        class="state-icon" 
-                                        id="state-icon-${state}"
-                                        data-state="${state}"
-                                        data-unique-trails="${stats.uniqueTrails}"
-                                        data-total-hikes="${stats.totalHikes}"
-                                        data-total-miles="${stats.totalMiles < 0.1 ? '<0.1' : Math.round(stats.totalMiles)}"
-                                    >
-                                    </div>
-                                </div>`;
-                            container.innerHTML += cardHtml; // Append the card HTML to the container
-                        });
-                    })();
+                                svg.addEventListener('mousemove', e => {
+                                    tooltip.style.left = `${e.pageX + 15}px`;
+                                    tooltip.style.top = `${e.pageY}px`;
+                                });
 
-
-                    // --- NEW: State Icon Interactivity ---
-                    // This IIFE sets up the click-to-show-stats functionality.
-                    (function setupStateIconInteractivity() {
-                        const stateIconGrid = document.getElementById('state-icon-grid');
-                        const stateStatsPanel = document.getElementById('state-stats-panel');
-                        if (!stateIconGrid || !stateStatsPanel) return; // Exit if elements don't exist
-
-                        // --- State Name Mapping ---
-                        const stateNames = {
-                            "CA": "California", "AZ": "Arizona" // Add more state mappings as needed
-                        };
-
-                        const getStateName = (abbreviation) => {
-                            return stateNames[abbreviation] || abbreviation; // Return full name or abbreviation if not found
-                        };
-
-                        // --- Update Panel Title ---
-                        const updatePanelTitle = (stateAbbr) => {
-                            const stateFullName = getStateName(stateAbbr);
-                            return `${stateFullName} Hike Stats`;
-                        };
-
-                        let currentlyExpandedIcon = null; // Variable to track which icon is open
-
-                        // Use event delegation for efficiency
-                        stateIconGrid.addEventListener('click', (event) => {
-                            const clickedIcon = event.target.closest('.state-icon');
-                            if (!clickedIcon) return; // If the click wasn't on an icon, do nothing
-
-                            const wasExpanded = clickedIcon.classList.contains('expanded');
-
-                            // First, close any icon that is already open
-                            if (currentlyExpandedIcon && currentlyExpandedIcon !== clickedIcon) {
-                                currentlyExpandedIcon.classList.remove('expanded');
-                            }
-
-                            // Toggle the 'expanded' class on the clicked icon
-                            clickedIcon.classList.toggle('expanded');
-
-                            if (!wasExpanded) {
-                                // If it wasn't expanded before, we now open it.
-                                const { state, uniqueTrails, totalHikes, totalMiles } = clickedIcon.dataset;
-
-                                // Populate the panel with this state's data
-                                stateStatsPanel.innerHTML = `                                    
-                                    <h3>${state} Trailprint Stats</h3>
-                                    <div class="stats-container">
-                                        <div class="stat-item"><span class="number">${totalHikes}</span><span class="label">Total Hikes</span></div>
-                                        <div class="stat-item"><span class="number">${uniqueTrails}</span><span class="label">Unique Trails</span></div>
-                                        <div class="stat-item"><span class="number">${totalMiles}</span><span class="label">Miles Hiked</span></div>
-                                    </div>
-                                `;
-                                stateStatsPanel.querySelector('h3').innerText = updatePanelTitle(state);
-                                stateStatsPanel.style.display = 'block'; // Make the panel visible
-                                currentlyExpandedIcon = clickedIcon; // Set this as the currently open icon
-                            } else {
-                                stateStatsPanel.style.opacity = 0; // Start fade-out
-                                setTimeout(() => { stateStatsPanel.style.display = 'none'; stateStatsPanel.style.opacity = 1; }, 400); // Hide after animation
-                                currentlyExpandedIcon = null; // Clear the currently expanded icon
-                            }
-                        });
-
-                        // Add a click listener to the whole document to close the panel if the user clicks away
-                        document.addEventListener('click', (event) => {
-                            if (!stateIconGrid.contains(event.target) && !stateStatsPanel.contains(event.target) && currentlyExpandedIcon) {
-                                currentlyExpandedIcon.classList.remove('expanded');
-                                stateStatsPanel.style.display = 'none';
-                                currentlyExpandedIcon = null;
-                            }
-                        });
+                                svg.addEventListener('mouseout', () => {
+                                    tooltip.style.display = 'none';
+                                });
+                            });
                     })();
 
                     // --- NEW: Create Seasonal Heatmap ---

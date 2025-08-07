@@ -1146,38 +1146,32 @@
                         fetch('assets/state-icons/blank-us-map.svg')
                             .then(response => response.text())
                             .then(svgData => {
-                                container.innerHTML = svgData;
-                                const svg = container.querySelector('svg');
+                                const parser = new DOMParser();
+                                const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
+                                const svg = svgDoc.documentElement;
+
+                                // 1. Remove problematic elements by their class or tag
+                                svg.querySelector('defs')?.remove();
+                                svg.querySelector('.separator1')?.remove();
+                                svg.querySelector('.borders')?.remove();
+
+                                // 2. Clean all visual elements
+                                svg.querySelectorAll('path, circle').forEach(el => {
+                                    // Add 'state' class for consistent styling, preserving original ID class (e.g., 'ca')
+                                    el.classList.add('state'); 
+                                    
+                                    // Remove any inline styles that could conflict with the external stylesheet
+                                    el.removeAttribute('style');
+                                    el.removeAttribute('fill');
+                                    el.removeAttribute('stroke');
+                                    el.removeAttribute('stroke-width');
+                                });
+
+                                // 3. Inject the sanitized SVG into the DOM
+                                container.innerHTML = '';
+                                container.appendChild(svg);
                                 svg.id = 'us-map-svg';
 
-                                // Remove all inline styles and presentation attributes from SVG paths
-                                const paths = svg.querySelectorAll('path');
-                                paths.forEach(path => {
-                                    path.removeAttribute('style');
-                                    path.removeAttribute('fill');
-                                    path.removeAttribute('stroke');
-                                    path.removeAttribute('stroke-width');
-                                    path.removeAttribute('class'); // Remove class attribute as well
-                                });
-
-                                // Remove the inline style block from the SVG
-                                const styleElement = svg.querySelector('style');
-                                if (styleElement) {
-                                    styleElement.remove();
-                                }
-
-                                // Remove class from the main group element if it exists
-                                const gElement = svg.querySelector('g.state');
-                                if (gElement) {
-                                    gElement.removeAttribute('class');
-                                }
-
-                                // Explicitly set default fill and stroke for all paths to ensure external CSS takes over
-                                paths.forEach(path => {
-                                    path.setAttribute('fill', '#e9e4db'); // Default fill for non-hiked states
-                                    path.setAttribute('stroke', '#bab3a9'); // Default stroke for all states
-                                    path.setAttribute('stroke-width', '1px');
-                                });
 
                                 const stateStats = data.reduce((stats, hike) => {
                                     const region = hike.region || '';
@@ -1207,13 +1201,13 @@
                                 };
 
                                 Object.keys(stateStats).forEach(stateAbbr => {
-                                    const statePath = svg.querySelector(`.${stateAbbr.toLowerCase()}`); // SVG uses lowercase class names
-                                    if (statePath) {
-                                        statePath.classList.add('active');
-                                        statePath.dataset.hikes = stateStats[stateAbbr].totalHikes;
-                                        statePath.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
-                                        statePath.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
-                                        statePath.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
+                                    const stateEl = svg.querySelector(`.${stateAbbr.toLowerCase()}`);
+                                    if (stateEl) {
+                                        stateEl.classList.add('active');
+                                        stateEl.dataset.hikes = stateStats[stateAbbr].totalHikes;
+                                        stateEl.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
+                                        stateEl.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
+                                        stateEl.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
                                     }
                                 });
 
@@ -1226,8 +1220,10 @@
                                 });
 
                                 svg.addEventListener('mousemove', e => {
-                                    tooltip.style.left = `${e.pageX + 15}px`;
-                                    tooltip.style.top = `${e.pageY}px`;
+                                    if (tooltip.style.display === 'block') {
+                                        tooltip.style.left = `${e.pageX + 15}px`;
+                                        tooltip.style.top = `${e.pageY}px`;
+                                    }
                                 });
 
                                 svg.addEventListener('mouseout', () => {

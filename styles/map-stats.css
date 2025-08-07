@@ -1,39 +1,18 @@
 /* styles/map-stats.css */
 
-/* Keyframe animation for the glowing, "breathing" outline on active states */
-@keyframes atlas-glow {
-    0% {
-        stroke: #6a994e; /* Brighter green */
-        stroke-width: 1.5px;
-        filter: drop-shadow(0 0 2px rgba(74, 124, 89, 0.3));
-    }
-    50% {
-        stroke: #a3d4b5; /* A soft, glowing light green */
-        stroke-width: 3px;
-        filter: drop-shadow(0 0 6px rgba(74, 124, 89, 0.7));
-    }
-    100% {
-        stroke: #6a994e;
-        stroke-width: 1.5px;
-        filter: drop-shadow(0 0 2px rgba(74, 124, 89, 0.3));
-    }
-}
-
+/* Remove all styling from the container to prevent clipping and layout issues */
 #interactive-map-container {
-    position: relative;
-    width: 100%;
-    max-width: 900px;
-    margin: 30px auto;
-    padding: 20px;
-    background-color: #fdfdfb; /* A slightly warmer, off-white for a vintage paper feel */
-    border: 1px solid #e0dcd5; /* A soft, brownish border */
-    border-radius: 12px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
 }
 
 #us-map-svg {
     width: 100%;
     height: auto;
+    /* Add a subtle margin for spacing now that the container is gone */
+    margin: 20px auto;
 }
 
 #us-map-svg .state {
@@ -41,25 +20,19 @@
     stroke: #bab3a9; /* A darker, softer border color */
     stroke-width: 1px;
     stroke-linejoin: round;
-    transition: fill 0.2s ease-in-out, transform 0.2s ease-in-out, stroke 0.2s ease-in-out, stroke-width 0.2s ease-in-out, filter 0.2s ease-in-out;
+    /* Simplified transition for smooth fill and filter effects */
+    transition: fill 0.2s ease-in-out, filter 0.2s ease-in-out;
 }
 
 #us-map-svg .state.active {
     fill: #4a7c59; /* The project's established green for hiked states */
     cursor: pointer;
-    /* Apply the new breathing animation to draw the user's eye */
-    animation: atlas-glow 3s infinite ease-in-out;
 }
 
 #us-map-svg .state.active:hover {
     fill: #6a994e; /* A slightly lighter, more vibrant green for hover */
-    /* Make the state pop out more on hover */
-    transform: scale(1.03) translateY(-3px);
-    /* Stop the breathing animation and apply a solid, brighter stroke */
-    animation: none;
-    stroke: #a3d4b5; /* Bright, solid stroke on hover */
-    stroke-width: 3px;
-    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
+    /* A subtle drop-shadow provides a clean "lift" effect without shifting the element */
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.15));
 }
 
 #map-tooltip {
@@ -89,4 +62,19 @@
 #map-tooltip p {
     margin: 0;
     font-size: 0.95em;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+    #interactive-map-container {
+        padding: 10px;
+    }
+
+    #map-tooltip {
+        /* On mobile, the tooltip might be too large or follow the finger awkwardly.
+           A simpler approach or displaying info in a static panel might be better,
+           but for now, we'll just make it smaller. */
+        font-size: 0.9em;
+        padding: 10px 15px;
+    }
 }

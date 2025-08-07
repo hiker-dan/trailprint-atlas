@@ -46,23 +46,53 @@
     pointer-events: none; /* Tooltip should not capture mouse events */
     z-index: 1001;
     box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-    white-space: nowrap;
+    /* Change from nowrap to normal to allow content to wrap if needed */
+    white-space: normal;
     transition: opacity 0.2s ease, transform 0.1s ease-out;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Set a max-width to prevent it from becoming too wide */
+    max-width: 300px;
 }
 
 #map-tooltip h4 {
-    margin: 0 0 8px 0;
-    font-size: 1.2em;
+    margin: 0 0 12px 0; /* Increased bottom margin */
+    font-size: 1.4em; /* Larger font for the state name */
     color: #f1c40f; /* Gold color for the state name */
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding-bottom: 5px;
+    padding-bottom: 8px; /* Increased padding */
+    text-align: center; /* Center the state name */
 }
 
-#map-tooltip p {
-    margin: 0;
-    font-size: 0.95em;
+/* NEW: Flex container for the stats */
+.tooltip-stats {
+    display: flex;
+    justify-content: space-around; /* Distribute stats evenly */
+    gap: 15px; /* Add space between the stat blocks */
 }
+
+/* NEW: Styling for each individual stat block */
+.tooltip-stat {
+    display: flex;
+    flex-direction: column; /* Stack icon, value, and label vertically */
+    align-items: center; /* Center items horizontally */
+    text-align: center;
+}
+
+/* NEW: Style for the number value */
+.tooltip-value {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+}
+
+/* NEW: Style for the text label */
+.tooltip-label {
+    font-size: 0.8em;
+    text-transform: uppercase;
+    color: #bdc3c7; /* A lighter gray for the label */
+    letter-spacing: 0.5px;
+}
+
 
 /* --- Responsive Adjustments --- */
 @media (max-width: 768px) {

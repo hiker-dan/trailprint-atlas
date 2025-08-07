@@ -46,7 +46,7 @@ This is the official plan. We will tackle these features methodically.
 
 ### Phase 1: UI/UX Refinement & Visual Polish
 
-*   [ ] **Homepage State Stats:** The current expanding panel is awkward. Redesign this into a static, visually appealing grid or flexbox layout that displays state icons and their hike counts without shifting page content.
+*   [X] **Homepage State Stats:** The current expanding panel is awkward. Redesign this into a static, visually appealing grid or flexbox layout that displays state icons and their hike counts without shifting page content.
 *   [ ] **Homepage Hike Dot Animation:** The current fade-in is too abrupt. Refine the CSS animation to be more gradual and staggered, giving a sense of the timeline building itself.
 *   [ ] **Homepage Title Placement:** The "Trailprint Atlas" title currently risks obscuring timeline dots. Relocate it to a more prominent, non-interfering position.
 *   [ ] **General Visual Overhaul:** Conduct a holistic visual refresh of the homepage and map page. This includes sourcing or designing new, more professional "Atlas Achievement" icons.

@@ -1143,7 +1143,7 @@
                         const tooltip = document.getElementById('map-tooltip');
                         if (!container || !tooltip) return;
 
-                        fetch('assets/state-icons/blank-us-map.svg')
+                        fetch('assets/blank-us-map.svg')
                             .then(response => response.text())
                             .then(svgData => {
                                 const parser = new DOMParser();
@@ -1218,7 +1218,23 @@
                                 svg.addEventListener('mouseover', e => {
                                     if (e.target.classList.contains('active')) {
                                         const { stateName, hikes, miles, trails } = e.target.dataset;
-                                        tooltip.innerHTML = `<h4>${stateName}</h4><p>${hikes} Hikes • ${trails} Unique Trails • ${miles} Miles</p>`;
+                                        tooltip.innerHTML = `
+                                            <h4>${stateName}</h4>
+                                            <div class="tooltip-stats">
+                                                <div class="tooltip-stat">
+                                                    <span class="tooltip-value">${hikes}</span>
+                                                    <span class="tooltip-label">Hikes</span>
+                                                </div>
+                                                <div class="tooltip-stat">
+                                                    <span class="tooltip-value">${trails}</span>
+                                                    <span class="tooltip-label">Trails</span>
+                                                </div>
+                                                <div class="tooltip-stat">
+                                                    <span class="tooltip-value">${miles}</span>
+                                                    <span class="tooltip-label">Miles</span>
+                                                </div>
+                                            </div>
+                                        `;
                                         tooltip.style.display = 'block';
                                     }
                                 });

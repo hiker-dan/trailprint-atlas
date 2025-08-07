@@ -1155,16 +1155,20 @@
                                 svg.querySelector('.separator1')?.remove();
                                 svg.querySelector('.borders')?.remove();
 
-                                // 2. Clean all visual elements
+                                // Remove the top-level title to prevent the default tooltip
+                                const mainTitle = svg.querySelector('title');
+                                if (mainTitle && mainTitle.parentElement === svg) {
+                                    mainTitle.remove();
+                                }
+
+                                // 2. Clean all visual elements and add accessibility features
                                 svg.querySelectorAll('path, circle').forEach(el => {
-                                    // Add 'state' class for consistent styling, preserving original ID class (e.g., 'ca')
-                                    el.classList.add('state'); 
-                                    
-                                    // Remove any inline styles that could conflict with the external stylesheet
-                                    el.removeAttribute('style');
-                                    el.removeAttribute('fill');
-                                    el.removeAttribute('stroke');
-                                    el.removeAttribute('stroke-width');
+                                    el.classList.add('state');
+                                    const titleEl = el.querySelector('title');
+                                    if (titleEl) {
+                                        el.setAttribute('aria-label', titleEl.textContent);
+                                        titleEl.remove();
+                                    }
                                 });
 
                                 // 3. Inject the sanitized SVG into the DOM
@@ -1221,8 +1225,24 @@
 
                                 svg.addEventListener('mousemove', e => {
                                     if (tooltip.style.display === 'block') {
-                                        tooltip.style.left = `${e.pageX + 15}px`;
-                                        tooltip.style.top = `${e.pageY}px`;
+                                        const tooltipRect = tooltip.getBoundingClientRect();
+                                        const containerRect = container.getBoundingClientRect();
+
+                                        let left = e.pageX + 15;
+                                        let top = e.pageY;
+
+                                        // Adjust horizontal position
+                                        if (left + tooltipRect.width > containerRect.right) {
+                                            left = e.pageX - tooltipRect.width - 15;
+                                        }
+
+                                        // Adjust vertical position
+                                        if (top + tooltipRect.height > window.innerHeight + window.scrollY) {
+                                            top = e.pageY - tooltipRect.height;
+                                        }
+
+                                        tooltip.style.left = `${left}px`;
+                                        tooltip.style.top = `${top}px`;
                                     }
                                 });
 

@@ -975,18 +975,26 @@
                             document.documentElement.classList.add('intro-finished');
                             sessionStorage.setItem('introShown', 'true');
 
-                            // After adding the class, the transition begins. It takes 3s.
-                            // We need to wait for it to finish before invalidating the map size.
+                            const animationDuration = 3000; // Must match the CSS transition duration
+                            const startTime = Date.now();
+
+                            // This function will call invalidateSize on every frame for the duration of the animation
+                            function resizeMap() {
+                                homeMap.invalidateSize();
+                                if (Date.now() - startTime < animationDuration) {
+                                    requestAnimationFrame(resizeMap);
+                                }
+                            }
+                            requestAnimationFrame(resizeMap);
+
+                            // At the end of the transition, do one final, smooth fitBounds to lock it in.
                             setTimeout(() => {
-                                homeMap.invalidateSize(); // Recalculate map size
-                                setTimeout(() => { // A tiny delay to allow invalidateSize to finish
-                                    homeMap.fitBounds(bounds, { // Fly to the final bounds smoothly
-                                        animate: true,
-                                        duration: 2,
-                                        easeLinearity: 0.25
-                                    });
-                                }, 50);
-                            }, 3000); // Wait for the 3s CSS transition to complete
+                                homeMap.fitBounds(bounds, { 
+                                    animate: true,
+                                    duration: 1.5, // A final, gentle animation
+                                    easeLinearity: 0.25
+                                });
+                            }, animationDuration);
                         }, 10000); // 10 seconds total
                     }
                 }

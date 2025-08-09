@@ -631,11 +631,106 @@
             margin-top: 20px;
             text-align: center;
         }
-
     </style>
     <link rel="stylesheet" href="styles/map-stats.css"/>
+    <style>
+        /* --- Intro Animation Styles --- */
+        :root {
+            --intro-duration: 10s;
+            --title-delay: 5s;
+        }
+
+        /* Disable scrolling during intro */
+        html:not(.intro-finished):not(.intro-fast-forward) {
+            overflow: hidden;
+        }
+
+        /* Default state for intro: hide elements that will transition in */
+        nav,
+        .container {
+            opacity: 0;
+            /* A more organic easing function and staggered delay */
+            transition: opacity 3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        nav {
+            transform: translateY(-100%);
+        }
+
+        .container {
+            transform: translateY(50px);
+            transition-delay: 0.6s; /* Stagger the container appearance */
+        }
+
+        /* Default state: map is full screen for the intro */
+        .showcase-map-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 100;
+            /* CRITICAL: DO NOT transition the 'position' property. It causes snapping. */
+            transition: width 3s cubic-bezier(0.25, 0.8, 0.25, 1), height 3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            pointer-events: none; /* Disable clicks during intro */
+        }
+
+        .hero-title-overlay {
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        /* State for when the intro is finished or skipped */
+        .intro-fast-forward nav,
+        .intro-finished nav,
+        .intro-fast-forward .container,
+        .intro-finished .container {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .intro-fast-forward .container,
+        .intro-finished .container {
+            transition-delay: 0s; /* Remove delay for fast-forward */
+        }
+
+        .intro-fast-forward .showcase-map-container,
+        .intro-finished .showcase-map-container {
+            position: relative;
+            height: 60vh;
+            width: 100%;
+            pointer-events: auto; /* Re-enable clicks after intro */
+            z-index: auto; /* Reset z-index to fix tooltip issue */
+        }
+
+        /* When skipping, we want the map to appear instantly in its final state, not transition */
+        .intro-fast-forward .showcase-map-container,
+        .intro-fast-forward .container,
+        .intro-fast-forward nav {
+            transition: none;
+        }
+
+        /* The title becomes visible when the specific class is added */
+        .intro-fast-forward .hero-title-overlay,
+        .title-visible .hero-title-overlay {
+            opacity: 1;
+            transition-delay: 0s;
+        }
+
+        .intro-fast-forward .hero-title-overlay {
+            transition: none;
+        }
+    </style>
 </head>
 <body>
+    <script>
+      // This script runs before the page is rendered to prevent flickering.
+      if (sessionStorage.getItem('introShown')) {
+        // If the intro has been shown, apply a class to the HTML element
+        // that immediately sets the page to its final layout.
+        document.documentElement.classList.add('intro-fast-forward');
+      }
+    </script>
     <nav>
         <a href="index.html">Home</a>
         <a href="map.html">Interactive Map</a>
@@ -712,7 +807,6 @@
         <div id="interactive-map-container">
             <!-- SVG will be embedded here -->
         </div>
-        <div id="map-tooltip"></div>
     </div>
 
     <!-- NEW: Seasonal Snapshot Section -->
@@ -816,8 +910,6 @@
         });
 
         // 2. Add the same beautiful base layer
-        // We're using CartoDB's "Dark Matter" theme. It's visually stunning, makes the trails pop,
-        // and completely eliminates the distracting tile seams for a clean, professional look.
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
 	        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(homeMap);
@@ -826,7 +918,6 @@
         fetch('data/hikes.json')
             .then(response => response.json())
             .then(data => {
-                // Group hikes by trail name, so we only draw each trail once
                 const trailGroups = {};
                 data.forEach(hike => {
                     if (!trailGroups[hike.trail_name]) trailGroups[hike.trail_name] = [];
@@ -836,40 +927,76 @@
                 const allLayersGroup = L.featureGroup().addTo(homeMap);
 
                 Object.values(trailGroups).forEach(group => {
-                    // Use the shared renderer in non-interactive mode
                     const layer = renderTrailGroup(group, { isInteractive: false });
                     if (layer) {
                         allLayersGroup.addLayer(layer);
                     }
                 });
 
-                // 5. Animate the map layers
                 const layersToAnimate = allLayersGroup.getLayers();
 
                 if (layersToAnimate.length === 0) {
                     homeMap.setView([39.82, -98.58], 4); // Fallback
                 } else {
-                    homeMap.fitBounds(allLayersGroup.getBounds().pad(0.1));
+                    // Tighter zoom on the map
+                    const bounds = allLayersGroup.getBounds().pad(0.05);
+                    homeMap.fitBounds(bounds);
 
-                    layersToAnimate.forEach((layer, index) => {
-                        setTimeout(() => {
-                            layer.eachLayer(feature => { // feature is always a CircleMarker
+                    if (document.documentElement.classList.contains('intro-fast-forward')) {
+                        // If we're skipping the intro, show dots immediately.
+                        layersToAnimate.forEach(layer => {
+                            layer.eachLayer(feature => {
                                 const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
                                 feature.setStyle({ fillOpacity: finalOpacity });
                             });
-                        }, index * 75); // Slow down the animation by 50% for a more majestic feel
-                    });
+                        });
+                    } else {
+                        // --- RUN THE FULL INTRO ANIMATION ---
+                        const introDuration = 9000; // Use 9s to leave time for the final page transition
+                        const delayBetweenDots = introDuration / layersToAnimate.length;
+
+                        // 1. Animate dots
+                        layersToAnimate.forEach((layer, index) => {
+                            setTimeout(() => {
+                                layer.eachLayer(feature => {
+                                    const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
+                                    feature.setStyle({ fillOpacity: finalOpacity });
+                                });
+                            }, index * delayBetweenDots);
+                        });
+                        
+                        // 2. Trigger the title to appear mid-way through
+                        setTimeout(() => {
+                            document.documentElement.classList.add('title-visible');
+                        }, 5000); // 5 seconds
+
+                        // 3. Trigger the rest of the page to slide in after 10 seconds
+                        setTimeout(() => {
+                            document.documentElement.classList.add('intro-finished');
+                            sessionStorage.setItem('introShown', 'true');
+
+                            // After adding the class, the transition begins. It takes 3s.
+                            // We need to wait for it to finish before invalidating the map size.
+                            setTimeout(() => {
+                                homeMap.invalidateSize(); // Recalculate map size
+                                setTimeout(() => { // A tiny delay to allow invalidateSize to finish
+                                    homeMap.fitBounds(bounds, { // Fly to the final bounds smoothly
+                                        animate: true,
+                                        duration: 2,
+                                        easeLinearity: 0.25
+                                    });
+                                }, 50);
+                            }, 3000); // Wait for the 3s CSS transition to complete
+                        }, 10000); // 10 seconds total
+                    }
                 }
 
                 // --- Calculate and Display Stats ---
-                // This code runs immediately now, no need to wait for a promise
                 (function calculateAndDisplayStats() {
                     const uniqueTrails = Object.values(trailGroups);
                     const totalHikes = data.length;
                     const totalUniqueTrails = uniqueTrails.length;
                     const totalMiles = uniqueTrails.reduce((sum, group) => {
-                        // Use the miles from the representative hike for each unique trail
-                        // The '|| 0' handles cases where miles might be missing.
                         return sum + (group[0].miles || 0);
                     }, 0);
                     const totalElevation = data.reduce((sum, hike) => {
@@ -878,21 +1005,16 @@
                     const highestSummitHike = data
                         .filter(hike => hike.summit_trail && hike.summit_elevation)
                         .reduce((maxHike, currentHike) => {
-                            // If maxHike is null or the current hike is higher, it becomes the new max
                             return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
-                        }, null); // Start with null to handle cases with no summits
+                        }, null);
 
-                    // Animate the main stats for a "wow" effect
                     animateCountUp('stats-hikes', totalHikes);
                     animateCountUp('stats-trails', totalUniqueTrails);
                     animateCountUp('stats-miles', Math.round(totalMiles));
                     animateCountUp('stats-elevation', Math.round(totalElevation));
 
-                    // The "Highest Summit" stat has been moved to the "Atlas Achievements" section, so we no longer need to update it here.
-
                     // --- Calculate and Display Personal Records ---
                     (function calculateAndDisplayRecords() {
-                        // 1. Longest Hike (by miles)
                         const longestHike = uniqueTrails.reduce((max, group) => {
                             const trailMiles = group[0].miles || 0;
                             return (max && (max[0].miles || 0) > trailMiles) ? max : group;
@@ -902,7 +1024,6 @@
                             document.getElementById('record-longest-miles-name').innerText = longestHike[0].trail_name;
                         }
 
-                        // 2. Biggest Climb (by elevation gain)
                         const biggestClimb = uniqueTrails.reduce((max, group) => {
                             const trailElevation = group[0].elevation_gain || 0;
                             return (max && (max[0].elevation_gain || 0) > trailElevation) ? max : group;
@@ -912,7 +1033,6 @@
                             document.getElementById('record-biggest-climb-name').innerText = biggestClimb[0].trail_name;
                         }
 
-                        // 3. Highest Summit (by summit elevation)
                         const highestSummitHike = data
                             .filter(hike => hike.summit_trail && hike.summit_elevation)
                             .reduce((maxHike, currentHike) => {
@@ -926,7 +1046,6 @@
                             document.getElementById('record-highest-summit-name').innerText = 'No summits recorded';
                         }
 
-                        // 4. Busiest Month (by number of hikes in a single month across all years)
                         const monthlyHikeCounts = data.reduce((counts, hike) => {
                             const date = new Date(hike.date_completed);
                             const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
@@ -954,35 +1073,14 @@
                         }
                     })();
 
-
-                    // --- Recalculate Map Bounds Now That All Trail Data is Loaded ---
-                    if (layersToAnimate.length === 0) {
-                        homeMap.setView([39.82, -98.58], 4); // Fallback
-                    } else {
-                        const allLayersGroup = L.featureGroup();
-                        layersToAnimate.forEach(layer => allLayersGroup.addLayer(layer));
-                        homeMap.fitBounds(allLayersGroup.getBounds().pad(0.1));
-
-                        layersToAnimate.forEach((layer, index) => {
-                            setTimeout(() => {
-                                layer.eachLayer(feature => {
-                                    const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
-                                    feature.setStyle({ fillOpacity: finalOpacity });
-                                });
-                            }, index * 75);
-                        });
-                    }
-                    // --- Calculate and Display Time Range ---
                     if (data.length > 0) {
-                        // Find the earliest year in the dataset
                         const startYear = data.reduce((min, hike) => {
                             const year = new Date(hike.date_completed).getFullYear();
                             return year < min ? year : min;
-                        }, new Date().getFullYear()); // Start with the current year as the initial minimum
+                        }, new Date().getFullYear());
                         document.getElementById('start-year').innerText = startYear;
                     }
 
-                    // --- Calculate and Display First/Most Recent Hikes ---
                     if (data.length > 0) {
                         const sortedHikes = [...data].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
                         const firstHike = sortedHikes[0];
@@ -999,28 +1097,22 @@
                         document.getElementById('most-recent-hike-date').innerText = '--';
                     }
                     
-                    // --- Find and Display Featured Adventure ---
                     const hikesWithTripTag = data.filter(hike => hike.trip_tag);
 
                     if (hikesWithTripTag.length > 0) {
-                        // Find the most recent hike that is part of any trip
                         const latestTripHike = hikesWithTripTag.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
                         const latestTripTag = latestTripHike.trip_tag;
 
-                        // Now, gather all hikes associated with that specific trip
                         const adventureHikes = data.filter(h => h.trip_tag === latestTripTag);
                         
-                        // Find the latest hike within that trip to pull the description and image from
                         const latestHikeInTrip = adventureHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
 
-                        // Populate the title
                         document.getElementById('featured-trip-title').innerText = latestTripTag;
 
-                        // Populate the list of hikes for the trip
                         const hikesListContainer = document.getElementById('featured-trip-hikes-list');
-                        hikesListContainer.innerHTML = ''; // Clear previous content
+                        hikesListContainer.innerHTML = '';
                         adventureHikes
-                            .sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed)) // Sort chronologically
+                            .sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed))
                             .forEach(hike => {
                                 const hikeItemHtml = `
                                     <div class="featured-trip-hike-item">
@@ -1032,36 +1124,32 @@
                                 hikesListContainer.innerHTML += hikeItemHtml;
                             });
 
-                        // Calculate stats for the featured adventure
                         const tripMiles = adventureHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
                         const tripElevation = adventureHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
-                        const tripDays = new Set(adventureHikes.map(h => h.date_completed)).size; // Count unique days
+                        const tripDays = new Set(adventureHikes.map(h => h.date_completed)).size;
                         
-                        // Populate the summary stats at the bottom with clearer labels
                         document.getElementById('featured-trip-days-stat').innerHTML = `<span class="number">${tripDays}</span><span class="label">Trip Day${tripDays !== 1 ? 's' : ''}</span>`;
                         document.getElementById('featured-trip-miles-stat').innerHTML = `<span class="number">${Math.round(tripMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('featured-trip-elevation-stat').innerHTML = `<span class="number">${tripElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
 
-                        // --- NEW: Start the slideshow for the featured adventure ---
                         const featuredImageIds = adventureHikes
                             .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
-                            .filter(Boolean); // Filter out any nulls if a hike has no image
+                            .filter(Boolean);
 
                         startSlideshow('#featured-adventure .featured-adventure-image-container', featuredImageIds);
 
                         document.getElementById('featured-adventure').style.display = 'flex';
                     }
 
-                    // --- Find and Display the "Go-To" (Most Hiked) Trail ---
                     const trailCounts = {};
                     data.forEach(hike => {
-                        if (hike.trail_name) { // Ensure trail_name exists
+                        if (hike.trail_name) {
                             trailCounts[hike.trail_name] = (trailCounts[hike.trail_name] || 0) + 1;
                         }
                     });
 
                     let mostHikedTrailName = '';
-                    let maxHikes = 1; // Only feature trails hiked more than once
+                    let maxHikes = 1;
                     for (const trailName in trailCounts) {
                         if (trailCounts[trailName] > maxHikes) {
                             maxHikes = trailCounts[trailName];
@@ -1089,7 +1177,6 @@
                         document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
 
-                        // --- NEW: Start the slideshow for the go-to trail ---
                         const gotoImageIds = mostHikedHikes
                             .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
                             .filter(Boolean);
@@ -1098,12 +1185,10 @@
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
 
-                    // --- Create Recent Hikes Trail Log ("From the Field") ---
                     (function createTrailLog() {
                         const trailLogContainer = document.getElementById('trail-log-section');
                         if (!trailLogContainer) return;
 
-                        // Sort all hikes by date, most recent first, and take the top 3
                         const recentHikes = [...data]
                             .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
                             .slice(0, 3);
@@ -1115,7 +1200,6 @@
 
                         const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
 
-                        // Generate the HTML for each card
                         const cardsHtml = recentHikes.map(hike => `
                             <div class="trail-log-card">
                                 <div>
@@ -1137,7 +1221,6 @@
                         trailLogContainer.innerHTML = cardsHtml;
                     })();
 
-                    // --- NEW: Interactive US Map ---
                     (function setupInteractiveMap() {
                         const container = document.getElementById('interactive-map-container');
                         const tooltip = document.getElementById('map-tooltip');
@@ -1150,18 +1233,15 @@
                                 const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
                                 const svg = svgDoc.documentElement;
 
-                                // 1. Remove problematic elements by their class or tag
                                 svg.querySelector('defs')?.remove();
                                 svg.querySelector('.separator1')?.remove();
                                 svg.querySelector('.borders')?.remove();
 
-                                // Remove the top-level title to prevent the default tooltip
                                 const mainTitle = svg.querySelector('title');
                                 if (mainTitle && mainTitle.parentElement === svg) {
                                     mainTitle.remove();
                                 }
 
-                                // 2. Clean all visual elements and add accessibility features
                                 svg.querySelectorAll('path, circle').forEach(el => {
                                     el.classList.add('state');
                                     const titleEl = el.querySelector('title');
@@ -1171,7 +1251,6 @@
                                     }
                                 });
 
-                                // 3. Inject the sanitized SVG into the DOM
                                 container.innerHTML = '';
                                 container.appendChild(svg);
                                 svg.id = 'us-map-svg';
@@ -1247,12 +1326,10 @@
                                         let left = e.pageX + 15;
                                         let top = e.pageY;
 
-                                        // Adjust horizontal position
                                         if (left + tooltipRect.width > containerRect.right) {
                                             left = e.pageX - tooltipRect.width - 15;
                                         }
 
-                                        // Adjust vertical position
                                         if (top + tooltipRect.height > window.innerHeight + window.scrollY) {
                                             top = e.pageY - tooltipRect.height;
                                         }
@@ -1268,31 +1345,24 @@
                             });
                     })();
 
-                    // --- NEW: Create Seasonal Heatmap ---
                     (function createSeasonalHeatmap() {
                         const heatmapContainer = document.getElementById('seasonal-heatmap');
-                        if (!heatmapContainer) return; // Exit if the container isn't on the page
+                        if (!heatmapContainer) return;
 
-                        // 1. Tally hikes per month (0-11 index for Jan-Dec)
                         const monthCounts = Array(12).fill(0);
                         data.forEach(hike => {
-                            // Use getUTCMonth to avoid timezone issues with simple 'YYYY-MM-DD' dates
                             const month = new Date(hike.date_completed).getUTCMonth();
                             monthCounts[month]++;
                         });
 
-                        // 2. Determine the min and max hike counts for dynamic scaling
                         const maxCount = Math.max(...monthCounts);
                         const minCount = Math.min(...monthCounts);
 
-                        // 3. Define a function to get the heat level based on hike count
                         const getHeatLevel = (count) => {
                             if (maxCount === minCount) {
-                                // Handle the case where all counts are the same
-                                return count > 0 ? 3 : 0; // Mid-level if hikes exist, otherwise zero
+                                return count > 0 ? 3 : 0;
                             }
 
-                            // Dynamic scaling to 7 levels
                             const normalizedCount = (count - minCount) / (maxCount - minCount);
                             return Math.round(normalizedCount * 6);
                         };
@@ -1301,13 +1371,10 @@
                         const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 
-                        // 4. Clear placeholders and generate the HTML for each month block
                         heatmapContainer.innerHTML = '';
                         monthAbbreviations.forEach((abbr, index) => {
                             const count = monthCounts[index];
                             const heatLevel = getHeatLevel(count);
-                            const tooltipText = `${abbr}: ${count} hike${count !== 1 ? 's' : ''}`;
-                            // Display the count within a visually distinct container
                             const displayText = `${abbr}<div class="hike-count-badge">${count}</div>`;
                             heatmapContainer.innerHTML += `
                                 <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;
@@ -1319,7 +1386,6 @@
                 homeMap.setView([39.82, -98.58], 4);
             });
 
-        // --- Helper function for the count-up animation ---
         function animateCountUp(elementId, finalValue, duration = 2000) {
             const element = document.getElementById(elementId);
             if (!element) return;
@@ -1339,10 +1405,8 @@
         }
    </script>
    <script>
-        // --- NEW: Reusable Slideshow Function ---
         function startSlideshow(containerSelector, imageIds, interval = 10000) {
             const container = document.querySelector(containerSelector);
-            // Use a more robust fallback image path
             const fallbackImage = 'assets/landscapes/fallback-hero.jpg';
 
             if (!container || imageIds.length === 0) {
@@ -1352,7 +1416,7 @@
                 return;
             }
 
-            container.innerHTML = ''; // Clear existing content
+            container.innerHTML = '';
             const imageElements = [];
 
             imageIds.forEach((id, index) => {
@@ -1367,7 +1431,7 @@
                 imageElements.push(img);
             });
 
-            if (imageElements.length <= 1) return; // No need for a slideshow with one image
+            if (imageElements.length <= 1) return;
 
             let currentIndex = 0;
             setInterval(() => {
@@ -1379,5 +1443,6 @@
    </script>
    <!-- Shared script to update the 'Latest Hike' nav link -->
    <script src="scripts/nav-updater.js"></script>
+   <div id="map-tooltip"></div>
 </body>
 </html>

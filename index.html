@@ -23,6 +23,8 @@
             background-color: #333;
             padding: 10px 20px;
             text-align: center;
+            position: relative;
+            z-index: 101;
         }
         nav a {
             color: white;
@@ -633,6 +635,7 @@
         }
     </style>
     <link rel="stylesheet" href="styles/map-stats.css"/>
+    <link rel="stylesheet" href="styles/key-stats.css"/>
     <style>
         /* --- Intro Animation Styles --- */
         :root {
@@ -647,17 +650,19 @@
 
         /* Default state for intro: hide elements that will transition in */
         nav,
-        .container {
+        .container,
+        .key-stats-section {
             opacity: 0;
             /* A more organic easing function and staggered delay */
-            transition: opacity 3s cubic-bezier(0.25, 0.8, 0.25, 1), transform 3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: opacity 3s cubic-bezier(0.4, 0, 0.2, 1), transform 3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         nav {
             transform: translateY(-100%);
         }
 
-        .container {
+        .container,
+        .key-stats-section {
             transform: translateY(50px);
             transition-delay: 0.6s; /* Stagger the container appearance */
         }
@@ -671,7 +676,7 @@
             height: 100vh;
             z-index: 100;
             /* CRITICAL: DO NOT transition the 'position' property. It causes snapping. */
-            transition: width 3s cubic-bezier(0.25, 0.8, 0.25, 1), height 3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: width 3s cubic-bezier(0.4, 0, 0.2, 1), height 3s cubic-bezier(0.4, 0, 0.2, 1);
             pointer-events: none; /* Disable clicks during intro */
         }
 
@@ -684,29 +689,51 @@
         .intro-fast-forward nav,
         .intro-finished nav,
         .intro-fast-forward .container,
-        .intro-finished .container {
+        .intro-finished .container,
+        .intro-fast-forward .key-stats-section,
+        .intro-finished .key-stats-section {
             opacity: 1;
             transform: translateY(0);
         }
 
         .intro-fast-forward .container,
-        .intro-finished .container {
+        .intro-finished .container,
+        .intro-fast-forward .key-stats-section,
+        .intro-finished .key-stats-section {
             transition-delay: 0s; /* Remove delay for fast-forward */
         }
 
-        .intro-fast-forward .showcase-map-container,
         .intro-finished .showcase-map-container {
-            position: relative;
             height: 60vh;
             width: 100%;
-            pointer-events: auto; /* Re-enable clicks after intro */
-            z-index: auto; /* Reset z-index to fix tooltip issue */
+        }
+
+        .intro-fast-forward .showcase-map-container {
+            height: 60vh;
+            width: 100%;
+            position: relative;
+            pointer-events: auto;
+            z-index: auto;
+        }
+
+        /* This class is added via JS after the transition to finalize the layout */
+        .layout-settled .showcase-map-container {
+            position: relative;
+            pointer-events: auto;
+            z-index: auto;
         }
 
         /* When skipping, we want the map to appear instantly in its final state, not transition */
         .intro-fast-forward .showcase-map-container,
         .intro-fast-forward .container,
-        .intro-fast-forward nav {
+        .intro-fast-forward nav,
+        .intro-fast-forward .key-stats-section {
+            transition: none;
+        }
+
+        /* When skipping, we want the stats to appear instantly, not transition */
+        .intro-fast-forward .key-stats-section .stat-number,
+        .intro-fast-forward .key-stats-section .hike-card {
             transition: none;
         }
 
@@ -719,6 +746,54 @@
 
         .intro-fast-forward .hero-title-overlay {
             transition: none;
+        }
+
+        /* --- Intro Stats Overlay --- */
+        #intro-stats-overlay {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 2vh 5vw; /* Use viewport units for responsive padding */
+            display: flex;
+            justify-content: center;
+            gap: 5vw;
+            z-index: 101; /* Above the map, below any potential top-level UI */
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1.5s cubic-bezier(0.25, 0.8, 0.25, 1), transform 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        #intro-stats-overlay.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #intro-stats-overlay.hiding {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        .intro-stat-item {
+            text-align: center;
+            color: white;
+            text-shadow: 0 1px 5px rgba(0,0,0,0.5);
+        }
+
+        .intro-stat-item .number {
+            font-size: 3.5vw; /* Responsive font size */
+            font-weight: 600;
+            display: block;
+            line-height: 1;
+        }
+
+        .intro-stat-item .label {
+            font-size: 1vw; /* Responsive font size */
+            font-weight: 300;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.8;
         }
     </style>
 </head>
@@ -750,24 +825,51 @@
         </div>
     </a>
 
-    <div class="container">
-        <h2 class="dashboard-title">Key Atlas Stats (<span id="start-year">....</span> - Present)</h2>
-        <!-- Combined Stats Dashboard -->
-        <div class="stats-dashboard">
-            <div class="stat-group stat-group--emphasized">
-                <div class="stat-item"><div id="stats-hikes" class="number">--</div><div class="label">Total Hikes</div></div>
-                <div class="stat-item"><div id="stats-trails" class="number">--</div><div class="label">Unique Trails</div></div>
+    <!-- NEW: Overlay for Intro Stats -->
+    <div id="intro-stats-overlay"></div>
+
+    <!-- ===== KEY ATLAS STATS SECTION (NEW) ===== -->
+    <section id="key-stats-section" class="key-stats-section">
+        <div class="key-stats-container">
+            <div class="key-stats-grid">
+                <div class="stat-item">
+                    <span id="stats-hikes" class="stat-number">--</span>
+                    <span class="stat-label">Total Hikes</span>
+                </div>
+                <div class="stat-item">
+                    <span id="stats-miles" class="stat-number">--</span>
+                    <span class="stat-label">Miles Hiked</span>
+                </div>
+                <div class="stat-item">
+                    <span id="stats-elevation" class="stat-number">--</span>
+                    <span class="stat-label">Feet Climbed</span>
+                </div>
+                <div class="stat-item">
+                    <span id="stats-trails" class="stat-number">--</span>
+                    <span class="stat-label">Unique Trails</span>
+                </div>
             </div>
-            <div class="stat-group stat-group--emphasized">
-                <div class="stat-item"><div id="stats-miles" class="number">--</div><div class="label">Miles Hiked</div></div>
-                <div class="stat-item"><div id="stats-elevation" class="number">--</div><div class="label">Feet Climbed</div></div>
+            <div class="key-stats-cards">
+                <div class="hike-card">
+                    <span class="card-label">First Hike</span>
+                    <span id="first-hike-date" class="card-title">--</span>
+                    <span id="first-hike-name" class="card-subtitle"></span>
+                </div>
+                <div class="hike-card">
+                    <span class="card-label">Latest Hike</span>
+                    <span id="most-recent-hike-date" class="card-title">--</span>
+                    <span id="most-recent-hike-name" class="card-subtitle"></span>
+                </div>
             </div>
-            <div class="stat-group">
-                <div class="stat-item"><div id="first-hike-date" class="date-number">--</div><div class="label">First Hike</div><div id="first-hike-name" class="sub-label"></div></div>
-                <div class="stat-item"><div id="most-recent-hike-date" class="date-number">--</div><div class="label">Latest Hike</div><div id="most-recent-hike-name" class="sub-label"></div></div>
+            <div class="key-stats-headline">
+                <h2 class="eyebrow">The Trailprint Atlas</h2>
+                <p class="headline-text">An ever-growing journal of a life outdoors, told by the numbers.</p>
+                <p class="headline-subtext">Charting adventures from <span id="start-year">....</span> to Present.</p>
             </div>
         </div>
+    </section>
 
+    <div class="container">
         <!-- NEW: Personal Records Section -->
         <div class="personal-records-section">
             <h2 class="dashboard-title">Atlas Achievements</h2>
@@ -933,29 +1035,60 @@
                     }
                 });
 
+                // --- Refactored Stats Calculation --- 
+                const atlasStats = (function getAtlasStats() {
+                    const uniqueTrails = Object.values(trailGroups);
+                    return {
+                        totalHikes: data.length,
+                        totalUniqueTrails: uniqueTrails.length,
+                        totalMiles: uniqueTrails.reduce((sum, group) => sum + (group[0].miles || 0), 0),
+                        totalElevation: data.reduce((sum, hike) => sum + (hike.elevation_gain || 0), 0)
+                    };
+                })();
+
+                // --- Populate Intro Stats Overlay ---
+                const overlay = document.getElementById('intro-stats-overlay');
+                overlay.innerHTML = `
+                    <div class="intro-stat-item">
+                        <span class="number" id="intro-stats-hikes">0</span>
+                        <span class="label">Total Hikes</span>
+                    </div>
+                    <div class="intro-stat-item">
+                        <span class="number" id="intro-stats-trails">0</span>
+                        <span class="label">Unique Trails</span>
+                    </div>
+                    <div class="intro-stat-item">
+                        <span class="number" id="intro-stats-miles">0</span>
+                        <span class="label">Miles Hiked</span>
+                    </div>
+                    <div class="intro-stat-item">
+                        <span class="number" id="intro-stats-elevation">0</span>
+                        <span class="label">Feet Climbed</span>
+                    </div>
+                `;
+
                 const layersToAnimate = allLayersGroup.getLayers();
 
                 if (layersToAnimate.length === 0) {
                     homeMap.setView([39.82, -98.58], 4); // Fallback
                 } else {
-                    // Tighter zoom on the map
                     const bounds = allLayersGroup.getBounds().pad(0.05);
                     homeMap.fitBounds(bounds);
 
                     if (document.documentElement.classList.contains('intro-fast-forward')) {
-                        // If we're skipping the intro, show dots immediately.
                         layersToAnimate.forEach(layer => {
                             layer.eachLayer(feature => {
                                 const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
                                 feature.setStyle({ fillOpacity: finalOpacity });
                             });
                         });
+                        // Make the stats visible immediately on a fast-forward load
+                        document.getElementById('key-stats-section').classList.add('stats-visible');
                     } else {
                         // --- RUN THE FULL INTRO ANIMATION ---
-                        const introDuration = 9000; // Use 9s to leave time for the final page transition
+                        const introDuration = 9000;
                         const delayBetweenDots = introDuration / layersToAnimate.length;
 
-                        // 1. Animate dots
                         layersToAnimate.forEach((layer, index) => {
                             setTimeout(() => {
                                 layer.eachLayer(feature => {
@@ -965,20 +1098,32 @@
                             }, index * delayBetweenDots);
                         });
                         
-                        // 2. Trigger the title to appear mid-way through
                         setTimeout(() => {
                             document.documentElement.classList.add('title-visible');
-                        }, 5000); // 5 seconds
+                        }, 5000);
 
-                        // 3. Trigger the rest of the page to slide in after 10 seconds
+                        setTimeout(() => {
+                            document.getElementById('intro-stats-overlay').classList.add('visible');
+                            animateCountUp('intro-stats-hikes', atlasStats.totalHikes);
+                            animateCountUp('intro-stats-trails', atlasStats.totalUniqueTrails);
+                            animateCountUp('intro-stats-miles', Math.round(atlasStats.totalMiles));
+                            animateCountUp('intro-stats-elevation', atlasStats.totalElevation);
+                        }, 6000);
+
                         setTimeout(() => {
                             document.documentElement.classList.add('intro-finished');
                             sessionStorage.setItem('introShown', 'true');
+                            document.getElementById('intro-stats-overlay').classList.add('hiding');
 
-                            const animationDuration = 3000; // Must match the CSS transition duration
+                            // Trigger the new key stats section to animate in
+                            // A short delay ensures the main content has started its transition
+                            setTimeout(() => {
+                                document.getElementById('key-stats-section').classList.add('stats-visible');
+                            }, 400); // Stagger after the main transition starts
+
+                            const animationDuration = 3000;
                             const startTime = Date.now();
 
-                            // This function will call invalidateSize on every frame for the duration of the animation
                             function resizeMap() {
                                 homeMap.invalidateSize();
                                 if (Date.now() - startTime < animationDuration) {
@@ -987,100 +1132,91 @@
                             }
                             requestAnimationFrame(resizeMap);
 
-                            // At the end of the transition, do one final, smooth fitBounds to lock it in.
+                            // Start the map pan/zoom slightly before the resize finishes to blend the animations
                             setTimeout(() => {
                                 homeMap.fitBounds(bounds, { 
                                     animate: true,
-                                    duration: 1.5, // A final, gentle animation
+                                    duration: 1.5, // This animation will last 1.5s
                                     easeLinearity: 0.25
                                 });
-                            }, animationDuration);
-                        }, 10000); // 10 seconds total
+                            }, 1500); // Start 1.5s into the 3s transition
+
+                            // After the 3-second CSS transition, settle the layout by changing position
+                            setTimeout(() => {
+                                document.documentElement.classList.add('layout-settled');
+                            }, 3000);
+                        }, 10000);
                     }
                 }
 
-                // --- Calculate and Display Stats ---
-                (function calculateAndDisplayStats() {
+                // --- Populate Main Dashboard and other sections ---
+                (function populatePageContent() {
+                    // Key Atlas Stats
+                    document.getElementById('stats-hikes').innerText = atlasStats.totalHikes.toLocaleString();
+                    document.getElementById('stats-trails').innerText = atlasStats.totalUniqueTrails.toLocaleString();
+                    document.getElementById('stats-miles').innerText = Math.round(atlasStats.totalMiles).toLocaleString();
+                    document.getElementById('stats-elevation').innerText = atlasStats.totalElevation.toLocaleString();
+
+                    // Other stats calculations that are not part of the intro
                     const uniqueTrails = Object.values(trailGroups);
-                    const totalHikes = data.length;
-                    const totalUniqueTrails = uniqueTrails.length;
-                    const totalMiles = uniqueTrails.reduce((sum, group) => {
-                        return sum + (group[0].miles || 0);
-                    }, 0);
-                    const totalElevation = data.reduce((sum, hike) => {
-                        return sum + (hike.elevation_gain || 0);
-                    }, 0);
                     const highestSummitHike = data
                         .filter(hike => hike.summit_trail && hike.summit_elevation)
                         .reduce((maxHike, currentHike) => {
                             return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
                         }, null);
 
-                    animateCountUp('stats-hikes', totalHikes);
-                    animateCountUp('stats-trails', totalUniqueTrails);
-                    animateCountUp('stats-miles', Math.round(totalMiles));
-                    animateCountUp('stats-elevation', Math.round(totalElevation));
+                    // Personal Records
+                    const longestHike = uniqueTrails.reduce((max, group) => {
+                        const trailMiles = group[0].miles || 0;
+                        return (max && (max[0].miles || 0) > trailMiles) ? max : group;
+                    }, null);
+                    if (longestHike) {
+                        document.getElementById('record-longest-miles').innerText = `${Math.round(longestHike[0].miles).toLocaleString()} mi`;
+                        document.getElementById('record-longest-miles-name').innerText = longestHike[0].trail_name;
+                    }
 
-                    // --- Calculate and Display Personal Records ---
-                    (function calculateAndDisplayRecords() {
-                        const longestHike = uniqueTrails.reduce((max, group) => {
-                            const trailMiles = group[0].miles || 0;
-                            return (max && (max[0].miles || 0) > trailMiles) ? max : group;
-                        }, null);
-                        if (longestHike) {
-                            document.getElementById('record-longest-miles').innerText = `${Math.round(longestHike[0].miles).toLocaleString()} mi`;
-                            document.getElementById('record-longest-miles-name').innerText = longestHike[0].trail_name;
+                    const biggestClimb = uniqueTrails.reduce((max, group) => {
+                        const trailElevation = group[0].elevation_gain || 0;
+                        return (max && (max[0].elevation_gain || 0) > trailElevation) ? max : group;
+                    }, null);
+                    if (biggestClimb) {
+                        document.getElementById('record-biggest-climb').innerText = `${biggestClimb[0].elevation_gain.toLocaleString()} ft`;
+                        document.getElementById('record-biggest-climb-name').innerText = biggestClimb[0].trail_name;
+                    }
+
+                    if (highestSummitHike) {
+                        document.getElementById('record-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
+                        document.getElementById('record-highest-summit-name').innerText = highestSummitHike.trail_name;
+                    } else {
+                        document.getElementById('record-highest-summit').innerText = '--';
+                        document.getElementById('record-highest-summit-name').innerText = 'No summits recorded';
+                    }
+
+                    const monthlyHikeCounts = data.reduce((counts, hike) => {
+                        const date = new Date(hike.date_completed);
+                        const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                        counts[monthYear] = (counts[monthYear] || 0) + 1;
+                        return counts;
+                    }, {});
+
+                    let busiestMonthYear = '';
+                    let maxHikesInMonth = 0;
+                    for (const [monthYear, hikeCount] of Object.entries(monthlyHikeCounts)) {
+                        if (hikeCount > maxHikesInMonth) {
+                            maxHikesInMonth = hikeCount;
+                            busiestMonthYear = monthYear;
                         }
+                    }
+                    if (busiestMonthYear) {
+                        const [year, month] = busiestMonthYear.split('-');
+                        const date = new Date(year, month - 1);
+                        const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+                        document.getElementById('record-busiest-month').innerText = `${monthName} ${year} (${maxHikesInMonth} hikes)`;
+                    } else {
+                        document.getElementById('record-busiest-month').innerText = '--';
+                    }
 
-                        const biggestClimb = uniqueTrails.reduce((max, group) => {
-                            const trailElevation = group[0].elevation_gain || 0;
-                            return (max && (max[0].elevation_gain || 0) > trailElevation) ? max : group;
-                        }, null);
-                        if (biggestClimb) {
-                            document.getElementById('record-biggest-climb').innerText = `${biggestClimb[0].elevation_gain.toLocaleString()} ft`;
-                            document.getElementById('record-biggest-climb-name').innerText = biggestClimb[0].trail_name;
-                        }
-
-                        const highestSummitHike = data
-                            .filter(hike => hike.summit_trail && hike.summit_elevation)
-                            .reduce((maxHike, currentHike) => {
-                                return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
-                            }, null);
-                        if (highestSummitHike) {
-                            document.getElementById('record-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
-                            document.getElementById('record-highest-summit-name').innerText = highestSummitHike.trail_name;
-                        } else {
-                            document.getElementById('record-highest-summit').innerText = '--';
-                            document.getElementById('record-highest-summit-name').innerText = 'No summits recorded';
-                        }
-
-                        const monthlyHikeCounts = data.reduce((counts, hike) => {
-                            const date = new Date(hike.date_completed);
-                            const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                            counts[monthYear] = (counts[monthYear] || 0) + 1;
-                            return counts;
-                        }, {});
-
-                        let busiestMonthYear = '';
-                        let maxHikesInMonth = 0;
-
-                        for (const [monthYear, hikeCount] of Object.entries(monthlyHikeCounts)) {
-                            if (hikeCount > maxHikesInMonth) {
-                                maxHikesInMonth = hikeCount;
-                                busiestMonthYear = monthYear;
-                            }
-                        }
-
-                        if (busiestMonthYear) {
-                            const [year, month] = busiestMonthYear.split('-');
-                            const date = new Date(year, month - 1);
-                            const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-                            document.getElementById('record-busiest-month').innerText = `${monthName} ${year} (${maxHikesInMonth} hikes)`;
-                        } else {
-                            document.getElementById('record-busiest-month').innerText = '--';
-                        }
-                    })();
-
+                    // Time Range
                     if (data.length > 0) {
                         const startYear = data.reduce((min, hike) => {
                             const year = new Date(hike.date_completed).getFullYear();
@@ -1089,15 +1225,14 @@
                         document.getElementById('start-year').innerText = startYear;
                     }
 
+                    // First/Most Recent Hikes
                     if (data.length > 0) {
                         const sortedHikes = [...data].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
                         const firstHike = sortedHikes[0];
                         const mostRecentHike = sortedHikes[sortedHikes.length - 1];
                         const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
-
                         document.getElementById('first-hike-date').innerText = new Date(firstHike.date_completed).toLocaleDateString('en-US', dateOptions);
                         document.getElementById('first-hike-name').innerText = `${firstHike.trail_name} - ${firstHike.location}`;
-
                         document.getElementById('most-recent-hike-date').innerText = new Date(mostRecentHike.date_completed).toLocaleDateString('en-US', dateOptions);
                         document.getElementById('most-recent-hike-name').innerText = `${mostRecentHike.trail_name} - ${mostRecentHike.location}`;
                     } else {
@@ -1105,109 +1240,67 @@
                         document.getElementById('most-recent-hike-date').innerText = '--';
                     }
                     
+                    // Featured Adventure
                     const hikesWithTripTag = data.filter(hike => hike.trip_tag);
-
                     if (hikesWithTripTag.length > 0) {
                         const latestTripHike = hikesWithTripTag.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
                         const latestTripTag = latestTripHike.trip_tag;
-
                         const adventureHikes = data.filter(h => h.trip_tag === latestTripTag);
-                        
-                        const latestHikeInTrip = adventureHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
-
                         document.getElementById('featured-trip-title').innerText = latestTripTag;
-
                         const hikesListContainer = document.getElementById('featured-trip-hikes-list');
                         hikesListContainer.innerHTML = '';
                         adventureHikes
                             .sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed))
                             .forEach(hike => {
-                                const hikeItemHtml = `
+                                hikesListContainer.innerHTML += `
                                     <div class="featured-trip-hike-item">
                                         <h4>${hike.trail_name}</h4>
                                         <div class="hike-meta">${hike.miles} miles | ${hike.elevation_gain.toLocaleString()} ft gain</div>
                                         <p class="hike-description">${hike.description}</p>
                                     </div>
                                 `;
-                                hikesListContainer.innerHTML += hikeItemHtml;
                             });
-
                         const tripMiles = adventureHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
                         const tripElevation = adventureHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
                         const tripDays = new Set(adventureHikes.map(h => h.date_completed)).size;
-                        
                         document.getElementById('featured-trip-days-stat').innerHTML = `<span class="number">${tripDays}</span><span class="label">Trip Day${tripDays !== 1 ? 's' : ''}</span>`;
                         document.getElementById('featured-trip-miles-stat').innerHTML = `<span class="number">${Math.round(tripMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('featured-trip-elevation-stat').innerHTML = `<span class="number">${tripElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
-
-                        const featuredImageIds = adventureHikes
-                            .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
-                            .filter(Boolean);
-
+                        const featuredImageIds = adventureHikes.map(h => h.images && h.images.length > 0 ? h.images[0] : null).filter(Boolean);
                         startSlideshow('#featured-adventure .featured-adventure-image-container', featuredImageIds);
-
                         document.getElementById('featured-adventure').style.display = 'flex';
                     }
 
+                    // Go-To Trail
                     const trailCounts = {};
-                    data.forEach(hike => {
-                        if (hike.trail_name) {
-                            trailCounts[hike.trail_name] = (trailCounts[hike.trail_name] || 0) + 1;
-                        }
-                    });
-
+                    data.forEach(hike => { if (hike.trail_name) { trailCounts[hike.trail_name] = (trailCounts[hike.trail_name] || 0) + 1; } });
                     let mostHikedTrailName = '';
                     let maxHikes = 1;
-                    for (const trailName in trailCounts) {
-                        if (trailCounts[trailName] > maxHikes) {
-                            maxHikes = trailCounts[trailName];
-                            mostHikedTrailName = trailName;
-                        }
-                    }
-
+                    for (const trailName in trailCounts) { if (trailCounts[trailName] > maxHikes) { maxHikes = trailCounts[trailName]; mostHikedTrailName = trailName; } }
                     if (mostHikedTrailName) {
                         const mostHikedHikes = data.filter(h => h.trail_name === mostHikedTrailName);
                         const representativeHike = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
-
                         const totalMiles = mostHikedHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
                         const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
-
                         document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
                         document.getElementById('goto-trail-description').innerText = representativeHike.description;
-
-                        const datesHtml = mostHikedHikes
-                            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
-                            .map(h => `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`)
-                            .join('');
+                        const datesHtml = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).map(h => `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`).join('');
                         document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
-
                         document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
                         document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
                         document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
-
-                        const gotoImageIds = mostHikedHikes
-                            .map(h => h.images && h.images.length > 0 ? h.images[0] : null)
-                            .filter(Boolean);
-                        
+                        const gotoImageIds = mostHikedHikes.map(h => h.images && h.images.length > 0 ? h.images[0] : null).filter(Boolean);
                         startSlideshow('#goto-trail-section .featured-adventure-image-container', gotoImageIds);
                         document.getElementById('goto-trail-section').style.display = 'flex';
                     }
 
+                    // Trail Log
                     (function createTrailLog() {
                         const trailLogContainer = document.getElementById('trail-log-section');
                         if (!trailLogContainer) return;
-
-                        const recentHikes = [...data]
-                            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
-                            .slice(0, 3);
-
-                        if (recentHikes.length === 0) {
-                            trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>';
-                            return;
-                        }
-
+                        const recentHikes = [...data].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).slice(0, 3);
+                        if (recentHikes.length === 0) { trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>'; return; }
                         const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
-
                         const cardsHtml = recentHikes.map(hike => `
                             <div class="trail-log-card">
                                 <div>
@@ -1215,177 +1308,107 @@
                                     <p class="location-date">${new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions)} &bull; ${hike.location}</p>
                                 </div>
                                 <div class="trail-log-stats">
-                                    <div class="stat">
-                                        <span class="stat-icon">📏</span>
-                                        <span class="stat-value">${hike.miles} mi</span>
-                                    </div>
-                                    <div class="stat">
-                                        <span class="stat-icon">🧗</span>
-                                        <span class="stat-value">${hike.elevation_gain.toLocaleString()} ft</span>
-                                    </div>
+                                    <div class="stat"><span class="stat-icon">📏</span><span class="stat-value">${hike.miles} mi</span></div>
+                                    <div class="stat"><span class="stat-icon">🧗</span><span class="stat-value">${hike.elevation_gain.toLocaleString()} ft</span></div>
                                 </div>
                             </div>`).join('');
-
                         trailLogContainer.innerHTML = cardsHtml;
                     })();
 
+                    // Interactive State Map
                     (function setupInteractiveMap() {
                         const container = document.getElementById('interactive-map-container');
                         const tooltip = document.getElementById('map-tooltip');
                         if (!container || !tooltip) return;
-
-                        fetch('assets/blank-us-map.svg')
-                            .then(response => response.text())
-                            .then(svgData => {
-                                const parser = new DOMParser();
-                                const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
-                                const svg = svgDoc.documentElement;
-
-                                svg.querySelector('defs')?.remove();
-                                svg.querySelector('.separator1')?.remove();
-                                svg.querySelector('.borders')?.remove();
-
-                                const mainTitle = svg.querySelector('title');
-                                if (mainTitle && mainTitle.parentElement === svg) {
-                                    mainTitle.remove();
-                                }
-
-                                svg.querySelectorAll('path, circle').forEach(el => {
-                                    el.classList.add('state');
-                                    const titleEl = el.querySelector('title');
-                                    if (titleEl) {
-                                        el.setAttribute('aria-label', titleEl.textContent);
-                                        titleEl.remove();
-                                    }
-                                });
-
-                                container.innerHTML = '';
-                                container.appendChild(svg);
-                                svg.id = 'us-map-svg';
-
-
-                                const stateStats = data.reduce((stats, hike) => {
-                                    const region = hike.region || '';
-                                    const stateAbbr = region.split(', ').pop();
-                                    if (stateAbbr) {
-                                        if (!stats[stateAbbr]) {
-                                            stats[stateAbbr] = { totalHikes: 0, totalMiles: 0, uniqueTrails: new Set() };
-                                        }
-                                        stats[stateAbbr].totalHikes++;
-                                        stats[stateAbbr].totalMiles += hike.miles || 0;
-                                        stats[stateAbbr].uniqueTrails.add(hike.trail_name);
-                                    }
-                                    return stats;
-                                }, {});
-
-                                const stateNames = {
-                                    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",
-                                    "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia",
-                                    "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa",
-                                    "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
-                                    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri",
-                                    "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey",
-                                    "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio",
-                                    "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
-                                    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont",
-                                    "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia"
-                                };
-
-                                Object.keys(stateStats).forEach(stateAbbr => {
-                                    const stateEl = svg.querySelector(`.${stateAbbr.toLowerCase()}`);
-                                    if (stateEl) {
-                                        stateEl.classList.add('active');
-                                        stateEl.dataset.hikes = stateStats[stateAbbr].totalHikes;
-                                        stateEl.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
-                                        stateEl.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
-                                        stateEl.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
-                                    }
-                                });
-
-                                svg.addEventListener('mouseover', e => {
-                                    if (e.target.classList.contains('active')) {
-                                        const { stateName, hikes, miles, trails } = e.target.dataset;
-                                        tooltip.innerHTML = `
-                                            <h4>${stateName}</h4>
-                                            <div class="tooltip-stats">
-                                                <div class="tooltip-stat">
-                                                    <span class="tooltip-value">${hikes}</span>
-                                                    <span class="tooltip-label">Hikes</span>
-                                                </div>
-                                                <div class="tooltip-stat">
-                                                    <span class="tooltip-value">${trails}</span>
-                                                    <span class="tooltip-label">Trails</span>
-                                                </div>
-                                                <div class="tooltip-stat">
-                                                    <span class="tooltip-value">${miles}</span>
-                                                    <span class="tooltip-label">Miles</span>
-                                                </div>
-                                            </div>
-                                        `;
-                                        tooltip.style.display = 'block';
-                                    }
-                                });
-
-                                svg.addEventListener('mousemove', e => {
-                                    if (tooltip.style.display === 'block') {
-                                        const tooltipRect = tooltip.getBoundingClientRect();
-                                        const containerRect = container.getBoundingClientRect();
-
-                                        let left = e.pageX + 15;
-                                        let top = e.pageY;
-
-                                        if (left + tooltipRect.width > containerRect.right) {
-                                            left = e.pageX - tooltipRect.width - 15;
-                                        }
-
-                                        if (top + tooltipRect.height > window.innerHeight + window.scrollY) {
-                                            top = e.pageY - tooltipRect.height;
-                                        }
-
-                                        tooltip.style.left = `${left}px`;
-                                        tooltip.style.top = `${top}px`;
-                                    }
-                                });
-
-                                svg.addEventListener('mouseout', () => {
-                                    tooltip.style.display = 'none';
-                                });
+                        fetch('assets/blank-us-map.svg').then(response => response.text()).then(svgData => {
+                            const parser = new DOMParser();
+                            const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
+                            const svg = svgDoc.documentElement;
+                            svg.querySelector('defs')?.remove();
+                            svg.querySelector('.separator1')?.remove();
+                            svg.querySelector('.borders')?.remove();
+                            const mainTitle = svg.querySelector('title');
+                            if (mainTitle && mainTitle.parentElement === svg) { mainTitle.remove(); }
+                            svg.querySelectorAll('path, circle').forEach(el => {
+                                el.classList.add('state');
+                                const titleEl = el.querySelector('title');
+                                if (titleEl) { el.setAttribute('aria-label', titleEl.textContent); titleEl.remove(); }
                             });
+                            container.innerHTML = '';
+                            container.appendChild(svg);
+                            svg.id = 'us-map-svg';
+                            const stateStats = data.reduce((stats, hike) => {
+                                const region = hike.region || '';
+                                const stateAbbr = region.split(', ').pop();
+                                if (stateAbbr) {
+                                    if (!stats[stateAbbr]) { stats[stateAbbr] = { totalHikes: 0, totalMiles: 0, uniqueTrails: new Set() }; }
+                                    stats[stateAbbr].totalHikes++;
+                                    stats[stateAbbr].totalMiles += hike.miles || 0;
+                                    stats[stateAbbr].uniqueTrails.add(hike.trail_name);
+                                }
+                                return stats;
+                            }, {});
+                            const stateNames = { "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia" };
+                            Object.keys(stateStats).forEach(stateAbbr => {
+                                const stateEl = svg.querySelector(`.${stateAbbr.toLowerCase()}`);
+                                if (stateEl) {
+                                    stateEl.classList.add('active');
+                                    stateEl.dataset.hikes = stateStats[stateAbbr].totalHikes;
+                                    stateEl.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
+                                    stateEl.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
+                                    stateEl.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
+                                }
+                            });
+                            svg.addEventListener('mouseover', e => {
+                                if (e.target.classList.contains('active')) {
+                                    const { stateName, hikes, miles, trails } = e.target.dataset;
+                                    tooltip.innerHTML = `
+                                        <h4>${stateName}</h4>
+                                        <div class="tooltip-stats">
+                                            <div class="tooltip-stat"><span class="tooltip-value">${hikes}</span><span class="tooltip-label">Hikes</span></div>
+                                            <div class="tooltip-stat"><span class="tooltip-value">${trails}</span><span class="tooltip-label">Trails</span></div>
+                                            <div class="tooltip-stat"><span class="tooltip-value">${miles}</span><span class="tooltip-label">Miles</span></div>
+                                        </div>
+                                    `;
+                                    tooltip.style.display = 'block';
+                                }
+                            });
+                            svg.addEventListener('mousemove', e => {
+                                if (tooltip.style.display === 'block') {
+                                    const tooltipRect = tooltip.getBoundingClientRect();
+                                    const containerRect = container.getBoundingClientRect();
+                                    let left = e.pageX + 15;
+                                    let top = e.pageY;
+                                    if (left + tooltipRect.width > containerRect.right) { left = e.pageX - tooltipRect.width - 15; }
+                                    if (top + tooltipRect.height > window.innerHeight + window.scrollY) { top = e.pageY - tooltipRect.height; }
+                                    tooltip.style.left = `${left}px`;
+                                    tooltip.style.top = `${top}px`;
+                                }
+                            });
+                            svg.addEventListener('mouseout', () => { tooltip.style.display = 'none'; });
+                        });
                     })();
 
+                    // Seasonal Heatmap
                     (function createSeasonalHeatmap() {
                         const heatmapContainer = document.getElementById('seasonal-heatmap');
                         if (!heatmapContainer) return;
-
                         const monthCounts = Array(12).fill(0);
-                        data.forEach(hike => {
-                            const month = new Date(hike.date_completed).getUTCMonth();
-                            monthCounts[month]++;
-                        });
-
+                        data.forEach(hike => { const month = new Date(hike.date_completed).getUTCMonth(); monthCounts[month]++; });
                         const maxCount = Math.max(...monthCounts);
                         const minCount = Math.min(...monthCounts);
-
                         const getHeatLevel = (count) => {
-                            if (maxCount === minCount) {
-                                return count > 0 ? 3 : 0;
-                            }
-
+                            if (maxCount === minCount) { return count > 0 ? 3 : 0; }
                             const normalizedCount = (count - minCount) / (maxCount - minCount);
                             return Math.round(normalizedCount * 6);
                         };
-
-
                         const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-
                         heatmapContainer.innerHTML = '';
                         monthAbbreviations.forEach((abbr, index) => {
                             const count = monthCounts[index];
                             const heatLevel = getHeatLevel(count);
                             const displayText = `${abbr}<div class="hike-count-badge">${count}</div>`;
-                            heatmapContainer.innerHTML += `
-                                <div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;
+                            heatmapContainer.innerHTML += `<div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;
                         });
                     })();
                 })();

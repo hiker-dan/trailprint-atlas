@@ -1,0 +1,161 @@
+/* === KEY STATS SECTION === */
+/* This is inspired by Apple's clean, spacious, and typography-focused design. */
+
+.key-stats-section {
+    background-color: #f5f5f7; /* A very light, slightly warm gray like Apple's */
+    color: #1d1d1f; /* Apple's primary text color (near black) */
+    padding: 120px 40px;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden; /* Contains any animations */
+}
+
+.key-stats-container {
+    max-width: 980px;
+    margin: 0 auto;
+}
+
+/* --- Base styles for animated containers --- */
+.key-stats-headline,
+.key-stats-grid,
+.key-stats-cards {
+    opacity: 0;
+    transform: translateY(15px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+/* --- Layout styles --- */
+.key-stats-headline {
+    margin-top: 80px;
+}
+
+.key-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 40px;
+}
+
+.key-stats-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    text-align: left;
+    margin-bottom: 80px;
+}
+
+/* --- Content styles (non-animated) --- */
+.key-stats-headline .eyebrow {
+    font-size: 24px;
+    font-weight: 600;
+    color: #86868b;
+    margin-bottom: 12px;
+}
+
+.key-stats-headline .headline-text {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.003em;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.headline-subtext {
+    font-size: 17px;
+    font-weight: 400;
+    color: #86868b;
+    margin-top: 20px;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-number {
+    font-size: 64px;
+    font-weight: 700;
+    line-height: 1;
+    color: #1d1d1f;
+}
+
+.stat-label {
+    font-size: 17px;
+    font-weight: 600;
+    color: #86868b;
+    margin-top: 8px;
+}
+
+.hike-card {
+    background-color: #ffffff;
+    border-radius: 18px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+}
+
+.hike-card .card-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #86868b;
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    margin-bottom: 8px;
+}
+
+.hike-card .card-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d1d1f;
+    margin-bottom: 4px;
+}
+
+.hike-card .card-subtitle {
+    font-size: 17px;
+    font-weight: 400;
+    color: #1d1d1f;
+}
+
+/* --- Animation trigger and staggering --- */
+.key-stats-section.stats-visible .key-stats-grid,
+.key-stats-section.stats-visible .key-stats-cards,
+.key-stats-section.stats-visible .key-stats-headline {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.key-stats-section.stats-visible .key-stats-grid {
+    transition-delay: 0.1s;
+}
+.key-stats-section.stats-visible .key-stats-cards {
+    transition-delay: 0.2s;
+}
+.key-stats-section.stats-visible .key-stats-headline {
+    transition-delay: 0.3s;
+}
+
+
+/* --- Responsive adjustments --- */
+@media (max-width: 768px) {
+    .key-stats-section {
+        padding: 80px 20px;
+    }
+
+    .key-stats-headline .headline-text {
+        font-size: 40px;
+    }
+
+    .key-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 50px;
+    }
+
+    .stat-number {
+        font-size: 56px;
+    }
+
+    .key-stats-cards {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+}

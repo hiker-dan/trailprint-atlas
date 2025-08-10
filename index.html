@@ -21,10 +21,13 @@
         /* --- Navigation Bar --- */
         nav {
             background-color: #333;
-            padding: 10px 20px;
+            height: 40px; /* Force height to a round number */
+            line-height: 40px; /* Vertically center text */
+            padding: 0 20px; /* Remove vertical padding */
             text-align: center;
             position: relative;
             z-index: 101;
+            margin-bottom: 0;
         }
         nav a {
             color: white;
@@ -649,7 +652,6 @@
         }
 
         /* Default state for intro: hide elements that will transition in */
-        nav,
         .container,
         .key-stats-section {
             opacity: 0;
@@ -657,15 +659,33 @@
             transition: opacity 3s cubic-bezier(0.4, 0, 0.2, 1), transform 3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        nav {
-            transform: translateY(-100%);
-        }
-
         .container,
         .key-stats-section {
             transform: translateY(50px);
             transition-delay: 0.6s; /* Stagger the container appearance */
         }
+
+        /* --- Intro Animation Placeholders & Containers --- */
+        .map-placeholder {
+            height: 0;
+            /* This transition must match the map container's height transition */
+            transition: height 3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .intro-fast-forward .map-placeholder {
+            height: 0;
+            transition: none;
+        }
+
+        .intro-finished .map-placeholder {
+            height: 60vh;
+        }
+
+        /* When the layout is final, the placeholder is no longer needed */
+        .layout-settled .map-placeholder {
+            display: none;
+        }
+
 
         /* Default state: map is full screen for the intro */
         .showcase-map-container {
@@ -677,7 +697,7 @@
             z-index: 100;
             /* CRITICAL: DO NOT transition the 'position' property. It causes snapping. */
             transition: width 3s cubic-bezier(0.4, 0, 0.2, 1), height 3s cubic-bezier(0.4, 0, 0.2, 1);
-            pointer-events: none; /* Disable clicks during intro */
+            pointer-events: none;
         }
 
         .hero-title-overlay {
@@ -708,23 +728,24 @@
             width: 100%;
         }
 
+        /* This class is added via JS after the transition to finalize the layout */
+        .layout-settled .showcase-map-container {
+            position: relative;
+            margin-top: 0; /* NEW: Ensure no gap above map */
+            pointer-events: auto;
+            z-index: auto;
+        }
+
         .intro-fast-forward .showcase-map-container {
             height: 60vh;
             width: 100%;
             position: relative;
             pointer-events: auto;
             z-index: auto;
-        }
-
-        /* This class is added via JS after the transition to finalize the layout */
-        .layout-settled .showcase-map-container {
-            position: relative;
-            pointer-events: auto;
-            z-index: auto;
+            transition: none; /* Ensure no transition on fast-forward */
         }
 
         /* When skipping, we want the map to appear instantly in its final state, not transition */
-        .intro-fast-forward .showcase-map-container,
         .intro-fast-forward .container,
         .intro-fast-forward nav,
         .intro-fast-forward .key-stats-section {
@@ -809,9 +830,12 @@
     <nav>
         <a href="index.html">Home</a>
         <a href="map.html">Interactive Map</a>
-        <a href="#" id="latest-hike-link">Latest Hike</a>
+        <a href="#" id="latest-hike-link">Map Collection</a>
         <a href="credits.html">The Overlook</a>
     </nav>
+
+    <!-- Map Placeholder for smooth animation -->
+    <div class="map-placeholder"></div>
 
     <!-- Showcase Map Section -->
     <a href="map.html" class="showcase-map-container" title="Explore the Interactive Map">
@@ -1016,6 +1040,8 @@
 	        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(homeMap);
 
+        
+
         // 4. Fetch hike data and render only the GPX trails
         fetch('data/hikes.json')
             .then(response => response.json())
@@ -1144,7 +1170,13 @@
                             // After the 3-second CSS transition, settle the layout by changing position
                             setTimeout(() => {
                                 document.documentElement.classList.add('layout-settled');
-                            }, 3000);
+                                // The map needs to be re-centered in its new container
+                                // Add a small delay to ensure the container has fully settled in its new position
+                                setTimeout(() => {
+                                    homeMap.invalidateSize(); // Invalidate size to ensure it renders correctly in new position
+                                    homeMap.fitBounds(bounds, { animate: false }); // Re-fit bounds without animation
+                                }, 50); // Small delay (e.g., 50ms)
+                            }, 3600);
                         }, 10000);
                     }
                 }

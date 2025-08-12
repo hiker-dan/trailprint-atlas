@@ -77,4 +77,10 @@ This is the official plan. We will tackle these features methodically.
     *   **Goal:** Add a layer of privacy for personal photos.
     *   **Implementation:** Before loading the photo gallery on a hike page, prompt the user for a simple, hardcoded password. This is a privacy feature, not a full user authentication system.
 
+### Phase 4: Manual Element/Writing Review
+
+*   [ ] **De-Ai-ify the Website:**
+    *   Review all the intro sequence loading phrases to write my own instead of the AI generated ones.
+    *   Create a thoughtful NON AI generated personal statement in the credits page.
+    
 This document is our contract. Let's build something amazing.

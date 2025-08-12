@@ -19,25 +19,83 @@
             font-size: 2.5em;
         }
         /* --- Navigation Bar --- */
-        nav {
+        nav#top-bar-container {
             background-color: #333;
             height: 40px; /* Force height to a round number */
-            line-height: 40px; /* Vertically center text */
-            padding: 0 20px; /* Remove vertical padding */
-            text-align: center;
+            padding: 0 20px;
             position: relative;
             z-index: 101;
             margin-bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
-        nav a {
+        nav#top-bar-container a {
             color: white;
             margin: 0 15px;
             text-decoration: none;
             font-weight: bold;
         }
-        nav a:hover {
+        nav#top-bar-container a:hover {
             text-decoration: underline;
         }
+
+        /* --- Loading Bar Styles (Refined for Subtlety) --- */
+        #loading-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+            color: rgba(255, 255, 255, 0.7); /* Make text less bright */
+            font-weight: normal; /* Not bold */
+            letter-spacing: 0.5px; /* Less spacing */
+            font-size: 0.85em; /* Slightly smaller */
+            transition: opacity 0.5s ease-out;
+            opacity: 1; /* Start visible */
+        }
+
+        #loading-text {
+            margin-right: 15px;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .loader-dots span {
+            display: inline-block;
+            width: 6px; /* Smaller dots */
+            height: 6px; /* Smaller dots */
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.7); /* Match text subtlety */
+            margin: 0 3px;
+            animation: dot-loader 1.4s infinite ease-in-out both;
+        }
+
+        .loader-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .loader-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes dot-loader {
+            0%, 80%, 100% {
+                transform: scale(0);
+            } 40% {
+                transform: scale(1.0);
+            }
+        }
+
+        #main-nav {
+            display: flex; /* Use flex to match original nav layout */
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.5s ease-in;
+        }
+
         /* Style for our custom hike icons (for viewpoints) */
         .hike-icon {
             /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
@@ -690,10 +748,10 @@
         /* Default state: map is full screen for the intro */
         .showcase-map-container {
             position: fixed;
-            top: 0;
+            top: 40px; /* Start below the nav bar */
             left: 0;
             width: 100vw;
-            height: 100vh;
+            height: calc(100vh - 40px); /* Fill the remaining viewport height */
             z-index: 100;
             /* CRITICAL: DO NOT transition the 'position' property. It causes snapping. */
             transition: width 3s cubic-bezier(0.4, 0, 0.2, 1), height 3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -732,6 +790,7 @@
         .layout-settled .showcase-map-container {
             position: relative;
             margin-top: 0; /* NEW: Ensure no gap above map */
+            top: auto; /* CRITICAL: Reset the 'top' property used during fixed positioning */
             pointer-events: auto;
             z-index: auto;
         }
@@ -740,6 +799,7 @@
             height: 60vh;
             width: 100%;
             position: relative;
+            top: auto; /* CRITICAL: Reset top property for fast-forward state */
             pointer-events: auto;
             z-index: auto;
             transition: none; /* Ensure no transition on fast-forward */
@@ -827,11 +887,21 @@
         document.documentElement.classList.add('intro-fast-forward');
       }
     </script>
-    <nav>
-        <a href="index.html">Home</a>
-        <a href="map.html">Interactive Map</a>
-        <a href="#" id="latest-hike-link">Map Collection</a>
-        <a href="credits.html">The Overlook</a>
+    <nav id="top-bar-container">
+        <div id="loading-bar">
+            <span id="loading-text"></span>
+            <div class="loader-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+        <div id="main-nav" style="display: none;">
+            <a href="index.html">Home</a>
+            <a href="map.html">Interactive Map</a>
+            <a href="#" id="latest-hike-link">Map Collection</a>
+            <a href="credits.html">The Overlook</a>
+        </div>
     </nav>
 
     <!-- Map Placeholder for smooth animation -->
@@ -1506,6 +1576,66 @@
    </script>
    <!-- Shared script to update the 'Latest Hike' nav link -->
    <script src="scripts/nav-updater.js"></script>
+   <script>
+    (function() {
+        const loadingBar = document.getElementById('loading-bar');
+        const mainNav = document.getElementById('main-nav');
+        const loadingText = document.getElementById('loading-text');
+
+        // If we're fast-forwarding, just show the nav immediately.
+        if (document.documentElement.classList.contains('intro-fast-forward')) {
+            loadingBar.style.display = 'none';
+            mainNav.style.display = 'flex';
+            mainNav.style.opacity = '1';
+            return;
+        }
+
+        const allPhrases = [
+            "Calibrating Compass...", "Drawing Maps...", "Lacing Boots...", "Checking Weather...",
+            "Packing Snacks...", "Finding North...", "Rendering Trails...", "Filtering Water...",
+            "Setting up Camp...", "Watching the Sunset...", "Consulting Topography...", "Identifying Constellations...",
+            "Avoiding Poison Oak...", "Listening for Birdsong...", "Following the Switchbacks...", "Taking a Break...",
+            "Signing the Trail Log...", "Remembering the View...", "Planning the Next Leg...", "Zipping up the Tent...",
+            "Gazing at the Stars...", "Waking up at Dawn...", "Making Cowboy Coffee...", "Breaking Down Camp..."
+        ];
+
+        // Fisher-Yates shuffle to randomize the phrases array
+        for (let i = allPhrases.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [allPhrases[i], allPhrases[j]] = [allPhrases[j], allPhrases[i]];
+        }
+
+        const phrase1 = allPhrases[0];
+        const phrase2 = allPhrases[1];
+
+        // Set initial phrase
+        loadingText.textContent = phrase1;
+
+        // Set timeout to change to the second phrase
+        setTimeout(() => {
+            loadingText.style.opacity = 0;
+            setTimeout(() => {
+                loadingText.textContent = phrase2;
+                loadingText.style.opacity = 1;
+            }, 500); // Fade transition
+        }, 4750); // Change just before the 5-second mark
+
+        // Set timeout to transition to the final nav bar
+        const transitionTime = 9500; 
+        setTimeout(() => {
+            // Fade out loading bar
+            loadingBar.style.opacity = '0';
+            setTimeout(() => {
+                loadingBar.style.display = 'none';
+                mainNav.style.display = 'flex';
+                setTimeout(() => {
+                    mainNav.style.opacity = '1';
+                }, 20);
+            }, 500); // Match CSS transition
+        }, transitionTime);
+
+    })();
+   </script>
    <div id="map-tooltip"></div>
 </body>
 </html>

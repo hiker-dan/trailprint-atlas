@@ -26,13 +26,14 @@
 
 /* --- Layout styles --- */
 .key-stats-headline {
-    margin-top: 80px;
+    margin-top: 60px; /* Reduced space to bring it closer to the cards */
 }
 
 .key-stats-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 40px;
+    margin-bottom: 80px; /* Added space between the main stats and the cards */
 }
 
 .key-stats-cards {
@@ -40,7 +41,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 30px;
     text-align: left;
-    margin-bottom: 80px;
+    /* Removed margin-bottom to tighten the card/headline group */
 }
 
 /* --- Content styles (non-animated) --- */

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Trailprint Atlas - Achievements</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <link rel="stylesheet" href="styles/key-stats.css"/>
+    <link rel="stylesheet" href="styles/achievements.css"/>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: sans-serif; 
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        nav#top-bar-container {
+            background-color: #333;
+            height: 40px;
+            padding: 0 20px;
+            position: relative;
+            z-index: 101;
+            margin-bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        nav#top-bar-container a {
+            color: white;
+            margin: 0 15px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        nav#top-bar-container a:hover {
+            text-decoration: underline;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 20px;
+            text-align: center;
+            background-color: #f9f9f9;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            padding: 40px 20px;
+            max-width: 1000px;
+        }
+        .dashboard-title { 
+            font-size: 2.2em;
+            font-weight: 600;
+            color: #333;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 0; 
+        }
+    </style>
+</head>
+<body>
+    <nav id="top-bar-container">
+        <div id="main-nav">
+            <a href="index.html">Home</a>
+            <a href="map.html">Interactive Map</a>
+            <a href="achievements.html">Achievements</a>
+            <a href="credits.html">The Overlook</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="personal-records-section">
+            <h2 class="dashboard-title">Atlas Achievements</h2>
+            <div class="stats-dashboard">
+                <!-- Record Card 1: Longest Haul -->
+                <div class="record-card">
+                    <div id="record-longest-miles" class="number">--</div>
+                    <div class="label">Longest Hike</div>
+                    <div id="record-longest-miles-name" class="sub-label"></div>
+                </div>
+
+                <!-- Record Card 2: Biggest Climb -->
+                <div class="record-card">
+                    <div id="record-biggest-climb" class="number">--</div>
+                    <div class="label">Biggest Climb</div>
+                    <div id="record-biggest-climb-name" class="sub-label"></div>
+                </div>
+
+                <!-- Record Card 3: Highest Summit -->
+                <div class="record-card">
+                    <div id="record-highest-summit" class="number">--</div>
+                    <div class="label">Highest Summit</div>
+                    <div id="record-highest-summit-name" class="sub-label"></div>
+                </div>
+
+                <!-- Record Card 4: Busiest Month -->
+                <div class="record-card">
+                    <div id="record-busiest-month" class="number">--</div>
+                    <div class="label">Busiest Month</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="scripts/nav-updater.js"></script>
+    <script>
+        // We need to fetch the hike data to populate these fields
+        fetch('data/hikes.json')
+            .then(response => response.json())
+            .then(data => {
+                const uniqueTrails = Object.values(data.reduce((groups, hike) => {
+                    if (!groups[hike.trail_name]) groups[hike.trail_name] = [];
+                    groups[hike.trail_name].push(hike);
+                    return groups;
+                }, {}));
+
+                // Personal Records
+                const longestHike = uniqueTrails.reduce((max, group) => {
+                    const trailMiles = group[0].miles || 0;
+                    return (max && (max[0].miles || 0) > trailMiles) ? max : group;
+                }, null);
+                if (longestHike) {
+                    document.getElementById('record-longest-miles').innerText = `${Math.round(longestHike[0].miles).toLocaleString()} mi`;
+                    document.getElementById('record-longest-miles-name').innerText = longestHike[0].trail_name;
+                }
+
+                const biggestClimb = uniqueTrails.reduce((max, group) => {
+                    const trailElevation = group[0].elevation_gain || 0;
+                    return (max && (max[0].elevation_gain || 0) > trailElevation) ? max : group;
+                }, null);
+                if (biggestClimb) {
+                    document.getElementById('record-biggest-climb').innerText = `${biggestClimb[0].elevation_gain.toLocaleString()} ft`;
+                    document.getElementById('record-biggest-climb-name').innerText = biggestClimb[0].trail_name;
+                }
+
+                const highestSummitHike = data
+                    .filter(hike => hike.summit_trail && hike.summit_elevation)
+                    .reduce((maxHike, currentHike) => {
+                        return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
+                    }, null);
+
+                if (highestSummitHike) {
+                    document.getElementById('record-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
+                    document.getElementById('record-highest-summit-name').innerText = highestSummitHike.trail_name;
+                } else {
+                    document.getElementById('record-highest-summit').innerText = '--';
+                    document.getElementById('record-highest-summit-name').innerText = 'No summits recorded';
+                }
+
+                const monthlyHikeCounts = data.reduce((counts, hike) => {
+                    const date = new Date(hike.date_completed);
+                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    counts[monthYear] = (counts[monthYear] || 0) + 1;
+                    return counts;
+                }, {});
+
+                let busiestMonthYear = '';
+                let maxHikesInMonth = 0;
+                for (const [monthYear, hikeCount] of Object.entries(monthlyHikeCounts)) {
+                    if (hikeCount > maxHikesInMonth) {
+                        maxHikesInMonth = hikeCount;
+                        busiestMonthYear = monthYear;
+                    }
+                }
+                if (busiestMonthYear) {
+                    const [year, month] = busiestMonthYear.split('-');
+                    const date = new Date(year, month - 1);
+                    const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+                    document.getElementById('record-busiest-month').innerText = `${monthName} ${year} (${maxHikesInMonth} hikes)`;
+                } else {
+                    document.getElementById('record-busiest-month').innerText = '--';
+                }
+            });
+    </script>
+</body>
+</html>

@@ -234,52 +234,7 @@
         /* Remove the divider for emphasized stats since they are in separate bubbles */
         .stat-group--emphasized > .stat-item + .stat-item { border-left: none; }
         
-        .personal-records-section {
-            margin-top: 60px; /* Add more space between the key stats and achievements */
-        }
-        .record-card {
-            background-color: #fff;
-            border: 1px solid #e9e9e9;
-            border-left: 5px solid #4a7c59; /* A natural green accent */
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            padding: 25px;
-            position: relative; /* For icon positioning */
-            padding-left: 80px; /* Make more space for the icon */
-            flex: 1 1 45%; /* Use a percentage-based flex-basis to ensure two cards fit per row */
-            text-align: left; /* Align text to the left for a more formal look */
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-sizing: border-box; /* This is the key fix: it includes padding/border in the element's total width */
-        }
-        .record-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 6px 15px rgba(0,0,0,0.08);
-        }
-        /* A simple placeholder icon for each card */
-        .record-card::before {
-            font-size: 2.5em; /* Make icons a bit larger */
-            position: absolute;
-            left: 25px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #4a7c59;
-            opacity: 0.7;
-        }
-        /* Custom icons for each record using emojis */
-        .record-card:nth-of-type(1)::before { content: '📏'; } /* Ruler for longest hike */
-        .record-card:nth-of-type(2)::before { content: '🧗'; } /* Climber for biggest climb */
-        .record-card:nth-of-type(3)::before { content: '🏔️'; } /* Mountain for highest summit */
-        .record-card:nth-of-type(4)::before { content: '🗓️'; } /* Calendar for busiest month */
-
-        /* Custom styles for text inside record cards */
-        .record-card .number { font-size: 2.2em; }
-        .record-card .label {
-            color: #333; /* Slightly darker label for better contrast */
-        }
-        .record-card .sub-label {
-            font-style: italic; /* Differentiate the hike name from the main label */
-            color: #666;
-        }
+        
 
         .stat-item {
             text-align: center;
@@ -900,6 +855,7 @@
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
             <a href="#" id="latest-hike-link">Map Collection</a>
+            <a href="achievements.html">Achievements</a>
             <a href="credits.html">The Overlook</a>
         </div>
     </nav>
@@ -962,41 +918,6 @@
             </div>
         </div>
     </section>
-
-    <div class="container">
-        <!-- NEW: Personal Records Section -->
-        <div class="personal-records-section">
-            <h2 class="dashboard-title">Atlas Achievements</h2>
-            <div class="stats-dashboard">
-                <!-- Record Card 1: Longest Haul -->
-                <div class="record-card">
-                    <div id="record-longest-miles" class="number">--</div>
-                    <div class="label">Longest Hike</div>
-                    <div id="record-longest-miles-name" class="sub-label"></div>
-                </div>
-
-                <!-- Record Card 2: Biggest Climb -->
-                <div class="record-card">
-                    <div id="record-biggest-climb" class="number">--</div>
-                    <div class="label">Biggest Climb</div>
-                    <div id="record-biggest-climb-name" class="sub-label"></div>
-                </div>
-
-                <!-- Record Card 3: Highest Summit -->
-                <div class="record-card">
-                    <div id="record-highest-summit" class="number">--</div>
-                    <div class="label">Highest Summit</div>
-                    <div id="record-highest-summit-name" class="sub-label"></div>
-                </div>
-
-                <!-- Record Card 4: Busiest Month -->
-                <div class="record-card">
-                    <div id="record-busiest-month" class="number">--</div>
-                    <div class="label">Busiest Month</div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <div class="container">
         <h2 class="dashboard-title">My Trailprint by State</h2>
@@ -1267,56 +1188,7 @@
                             return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
                         }, null);
 
-                    // Personal Records
-                    const longestHike = uniqueTrails.reduce((max, group) => {
-                        const trailMiles = group[0].miles || 0;
-                        return (max && (max[0].miles || 0) > trailMiles) ? max : group;
-                    }, null);
-                    if (longestHike) {
-                        document.getElementById('record-longest-miles').innerText = `${Math.round(longestHike[0].miles).toLocaleString()} mi`;
-                        document.getElementById('record-longest-miles-name').innerText = longestHike[0].trail_name;
-                    }
-
-                    const biggestClimb = uniqueTrails.reduce((max, group) => {
-                        const trailElevation = group[0].elevation_gain || 0;
-                        return (max && (max[0].elevation_gain || 0) > trailElevation) ? max : group;
-                    }, null);
-                    if (biggestClimb) {
-                        document.getElementById('record-biggest-climb').innerText = `${biggestClimb[0].elevation_gain.toLocaleString()} ft`;
-                        document.getElementById('record-biggest-climb-name').innerText = biggestClimb[0].trail_name;
-                    }
-
-                    if (highestSummitHike) {
-                        document.getElementById('record-highest-summit').innerText = `${highestSummitHike.summit_elevation.toLocaleString()} ft`;
-                        document.getElementById('record-highest-summit-name').innerText = highestSummitHike.trail_name;
-                    } else {
-                        document.getElementById('record-highest-summit').innerText = '--';
-                        document.getElementById('record-highest-summit-name').innerText = 'No summits recorded';
-                    }
-
-                    const monthlyHikeCounts = data.reduce((counts, hike) => {
-                        const date = new Date(hike.date_completed);
-                        const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-                        counts[monthYear] = (counts[monthYear] || 0) + 1;
-                        return counts;
-                    }, {});
-
-                    let busiestMonthYear = '';
-                    let maxHikesInMonth = 0;
-                    for (const [monthYear, hikeCount] of Object.entries(monthlyHikeCounts)) {
-                        if (hikeCount > maxHikesInMonth) {
-                            maxHikesInMonth = hikeCount;
-                            busiestMonthYear = monthYear;
-                        }
-                    }
-                    if (busiestMonthYear) {
-                        const [year, month] = busiestMonthYear.split('-');
-                        const date = new Date(year, month - 1);
-                        const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-                        document.getElementById('record-busiest-month').innerText = `${monthName} ${year} (${maxHikesInMonth} hikes)`;
-                    } else {
-                        document.getElementById('record-busiest-month').innerText = '--';
-                    }
+                    
 
                     // Time Range
                     if (data.length > 0) {

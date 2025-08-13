@@ -352,63 +352,124 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- Seasonal Heatmap Styles --- */
-        .seasonal-heatmap {
-            display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            gap: 5px;
-            margin-top: 20px;
+        /* --- Seasonal Snapshot Section --- */
+        .seasonal-snapshot-section {
+            padding: 120px 40px;
+            text-align: center;
+            background-color: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden; /* Contain animations */
         }
-        .heatmap-month {
-            aspect-ratio: 1 / 1.5; /* Make blocks taller than they are wide */
-            background-color: #ebedf0; /* Default color for placeholder */
-            border-radius: 4px;
+
+        .section-title {
+            font-size: 4em;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #1d1d1f;
+        }
+
+        .elegant-subtitle {
+            font-size: 1.3em;
+            color: #86868b;
+            margin-bottom: 80px; /* More space before the chart */
+            font-weight: 500;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* --- Stylized Bar Chart --- */
+        .seasonal-chart {
             display: flex;
-            align-items: flex-end;
+            justify-content: space-between;
+            align-items: flex-end; /* Aligns bars to the bottom */
+            gap: 20px;
+            height: 300px; /* Set a fixed height for the chart area */
+            max-width: 980px;
+            margin: 80px auto 0 auto;
+            padding: 0 20px;
+        }
+
+        .chart-bar-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .chart-bar {
+            width: 100%;
+            background-color: #e9ecef; /* Default bar color */
+            border-radius: 8px; /* Rounded tops */
+            cursor: pointer;
+            transition: transform 0.3s ease, box-shadow 0.3s ease, height 1s cubic-bezier(0.19, 1, 0.22, 1); /* Animate height */
+            transform-origin: bottom;
+            opacity: 0;
+            transform: scaleY(0);
+            display: flex;
             justify-content: center;
-            padding-bottom: 5px;
-            font-size: 0.8em;
-            font-weight: bold;
-            color: rgba(0,0,0,0.4);
-            border: 1px solid rgba(0,0,0,0.05);
-            cursor: default; /* Indicate that the blocks are interactive */
-            position: relative; /* This is the key fix: it contains the absolutely positioned badge */
-            box-sizing: border-box;
-            transition: all 0.2s ease;
-        }
-        .heatmap-month:hover {
-            transform: scale(1.05); /* Slightly enlarge on hover */
+            align-items: flex-start;
         }
 
-        /* Color scale for the heatmap (to be applied by JS) */
-        .heat-level-0 { background-color: #f0eee9; color: #5d5d5d; } /* Off-white */
-        .heat-level-1 { background-color: #e0dcd5; color: #5d5d5d; } /* Very light beige */
-        .heat-level-2 { background-color: #c1b6ab; color: #5d5d5d; } /* Light beige */
-        .heat-level-3 { background-color: #a29181; color: white; } /* Medium beige */
-        .heat-level-4 { background-color: #836c57; color: white; } /* Dark beige */
-        .heat-level-5 { background-color: #64472d; color: white; } /* Darker brown */
-        .heat-level-6 { background-color: #452203; color: white; } /* Deep brown */
-        
-
-        /* You can add text-shadow to higher levels for readability if needed */
-        .heat-level-4, .heat-level-5, .heat-level-6 {
-            text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
+        .bar-count {
+            padding-top: 10px;
+            font-weight: 700;
+            font-size: 1.1em;
+            color: #ffffff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.4);
         }
+
+        /* Change number color for light backgrounds */
+        .heat-level-0 .bar-count,
+        .heat-level-1 .bar-count {
+            color: #5a3a22;
+            text-shadow: none;
+        }
+
+        .chart-bar-wrapper.visible .chart-bar {
+            opacity: 1;
+            transform: scaleY(1);
+        }
+
+        .month-label {
+            margin-top: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            color: #86868b;
+        }
+
+        .chart-bar-wrapper:hover .chart-bar {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* Earthy, natural color palette */
+        .heat-level-0 { background-color: #f5f5dc; color: #6b4f3a; } /* Beige, Dark Brown text */
+        .heat-level-1 { background-color: #d2b48c; color: #5a3a22; } /* Tan, Dark Brown text */
+        .heat-level-2 { background-color: #a0522d; color: #ffffff; } /* Sienna, White text */
+        .heat-level-3 { background-color: #8b4513; color: #ffffff; } /* SaddleBrown, White text */
+        .heat-level-4 { background-color: #5a3a22; color: #ffffff; } /* Dark Brown, White text */
+        .heat-level-5 { background-color: #3b2a1a; color: #ffffff; } /* Very Dark Brown, White text */
+        .heat-level-6 { background-color: #2a1d10; color: #ffffff; } /* Almost Black, White text */
 
         .heatmap-legend {
-             display: flex;
+            display: flex;
             align-items: center;
-            justify-content: flex-end; /* Align to the right */
-            margin-top: 10px;
-            gap: 5px;
-            font-size: 12px;
-            color: #555;
+            justify-content: center;
+            margin-top: 50px;
+            gap: 10px;
+            font-size: 14px;
+            color: #86868b;
         }
+
         .legend-color-box {
-            width: 15px;
-            height: 15px;
-            border-radius: 3px;
-            border: 1px solid rgba(0,0,0,0.1);
+            width: 22px;
+            height: 22px;
+            border-radius: 50%; /* Keep legend as circles */
+            border: 1px solid rgba(0,0,0,0.08);
         }
 
         /* Subtitle for the heatmap legend */
@@ -416,31 +477,6 @@
             font-style: italic;
             font-weight: normal;
             margin: 0; /* Reset default paragraph margins to fit in the flex container */
-        }
-
-        /* Add style for the count display within heatmap blocks */
-        .heatmap-count {
-            font-size: 0.9em;
-            font-weight: normal;
-            color: #555;
-        }
-        /* --- Style for the count badge within heatmap blocks --- */
-        .hike-count-badge {
-            position: absolute; /* Position it within the month block */
-            top: 5px;          /* Adjust as needed */
-            right: 5px;        /* Adjust as needed */
-            background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark background */
-            color: white;
-            font-size: 0.7em;
-            padding: 3px 6px;
-            border-radius: 10px; /* Rounded corners for the badge */
-            font-weight: bold;
-            z-index: 1;           /* Ensure it's above other content within the block */
-            transition: background-color 0.3s ease; /* Smooth transition for hover effect */
-        }
-
-        .heatmap-month:hover .hike-count-badge {
-            background-color: rgba(0, 0, 0, 0.8); /* Darker on hover for emphasis */
         }
         /* --- Animated Title for "Field Notes" --- */
         .field-notes-title {
@@ -854,7 +890,6 @@
         <div id="main-nav" style="display: none;">
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
-            <a href="#" id="latest-hike-link">Map Collection</a>
             <a href="achievements.html">Achievements</a>
             <a href="credits.html">The Overlook</a>
         </div>
@@ -927,34 +962,22 @@
     </div>
 
     <!-- NEW: Seasonal Snapshot Section -->
-    <div class="container">
-        <h2 class="dashboard-title">Seasonal Snapshot</h2>
-        <div class="seasonal-heatmap" id="seasonal-heatmap">
-            <!-- These divs are placeholders and will be updated by JavaScript -->
-            <div class="heatmap-month">Jan</div>
-            <div class="heatmap-month">Feb</div>
-            <div class="heatmap-month">Mar</div>
-            <div class="heatmap-month">Apr</div>
-            <div class="heatmap-month">May</div>
-            <div class="heatmap-month">Jun</div>
-            <div class="heatmap-month">Jul</div>
-            <div class="heatmap-month">Aug</div>
-            <div class="heatmap-month">Sep</div>
-            <div class="heatmap-month">Oct</div>
-            <div class="heatmap-month">Nov</div>
-            <div class="heatmap-month">Dec</div>
+    <section class="seasonal-snapshot-section">
+        <h2 class="section-title">Seasonal Snapshot</h2>
+        <p class="section-subtitle elegant-subtitle">A visual journey through a year on the trail, revealing the rhythm of my adventures.</p>
+        <div class="seasonal-chart" id="seasonal-chart">
+            <!-- Chart bars will be injected here by JavaScript -->
         </div>
         <div class="heatmap-legend">
             <span class="legend-label">Less</span>
-            <span class="legend-color-box heat-level-0"></span>
             <span class="legend-color-box heat-level-1"></span>
             <span class="legend-color-box heat-level-2"></span>
             <span class="legend-color-box heat-level-3"></span>
             <span class="legend-color-box heat-level-4"></span>
+            <span class="legend-color-box heat-level-5"></span>
             <span class="legend-label">More</span>
-            <p class="legend-subtitle">(Total Number of Hikes Per Month)</p>
         </div>
-    </div>
+    </section>
 
     <div class="container live-journal-section">
         <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
@@ -1363,27 +1386,69 @@
                         });
                     })();
 
-                    // Seasonal Heatmap
-                    (function createSeasonalHeatmap() {
-                        const heatmapContainer = document.getElementById('seasonal-heatmap');
-                        if (!heatmapContainer) return;
+                    // Seasonal Chart
+                    (function createSeasonalChart() {
+                        const chartContainer = document.getElementById('seasonal-chart');
+                        if (!chartContainer) return;
+
                         const monthCounts = Array(12).fill(0);
-                        data.forEach(hike => { const month = new Date(hike.date_completed).getUTCMonth(); monthCounts[month]++; });
-                        const maxCount = Math.max(...monthCounts);
-                        const minCount = Math.min(...monthCounts);
+                        data.forEach(hike => {
+                            const month = new Date(hike.date_completed).getUTCMonth();
+                            monthCounts[month]++;
+                        });
+
+                        const maxCount = Math.max(...monthCounts, 1);
+                        const nonZeroCounts = monthCounts.filter(c => c > 0);
+                        const minCount = nonZeroCounts.length > 0 ? Math.min(...nonZeroCounts) : 0;
+
                         const getHeatLevel = (count) => {
-                            if (maxCount === minCount) { return count > 0 ? 3 : 0; }
-                            const normalizedCount = (count - minCount) / (maxCount - minCount);
-                            return Math.round(normalizedCount * 6);
+                            if (count === 0) return 0;
+                            if (minCount === maxCount) return 3; // Use a mid-range color if all data is the same
+
+                            // Normalize the count within the actual data range [minCount, maxCount]
+                            const normalized = (count - minCount) / (maxCount - minCount);
+                            
+                            // Scale into 5 buckets (levels 1-5)
+                            const heatRange = 5;
+                            return 1 + Math.floor(normalized * (heatRange - 0.001));
                         };
+
                         const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        heatmapContainer.innerHTML = '';
+                        chartContainer.innerHTML = ''; // Clear existing content
+
                         monthAbbreviations.forEach((abbr, index) => {
                             const count = monthCounts[index];
                             const heatLevel = getHeatLevel(count);
-                            const displayText = `${abbr}<div class="hike-count-badge">${count}</div>`;
-                            heatmapContainer.innerHTML += `<div class="heatmap-month heat-level-${heatLevel}">${displayText}</div>`;
+                            const barHeight = count === 0 ? 5 : (count / maxCount) * 95 + 5;
+
+                            const barWrapper = document.createElement('div');
+                            barWrapper.className = 'chart-bar-wrapper';
+                            
+                            barWrapper.innerHTML = `
+                                <div class="chart-bar heat-level-${heatLevel}" style="height: ${barHeight}%;">
+                                    <span class="bar-count">${count}</span>
+                                </div>
+                                <div class="month-label">${abbr}</div>
+                            `;
+                            chartContainer.appendChild(barWrapper);
                         });
+
+                        // --- Intersection Observer for Animation ---
+                        const observer = new IntersectionObserver((entries, observer) => {
+                            entries.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    const bars = chartContainer.querySelectorAll('.chart-bar-wrapper');
+                                    bars.forEach((bar, index) => {
+                                        setTimeout(() => {
+                                            bar.classList.add('visible');
+                                        }, index * 60);
+                                    });
+                                    observer.unobserve(entry.target);
+                                }
+                            });
+                        }, { threshold: 0.1 });
+
+                        observer.observe(chartContainer);
                     })();
                 })();
             }) .catch(error => {

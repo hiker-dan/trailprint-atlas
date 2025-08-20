@@ -378,6 +378,22 @@
             margin-right: auto;
         }
 
+        /* --- State Map Section --- */
+        .state-map-section {
+            padding: 120px 40px;
+            text-align: center;
+            background-color: #ffffff; /* A clean white background */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #interactive-map-container svg {
+            max-width: 1000px; /* Limit map width */
+            height: auto;
+            margin: 0 auto; /* Center the map */
+            display: block;
+        }
+
         /* --- Stylized Bar Chart --- */
         .seasonal-chart {
             display: flex;
@@ -954,12 +970,14 @@
         </div>
     </section>
 
-    <div class="container">
-        <h2 class="dashboard-title">My Trailprint by State</h2>
+    <!-- ===== STATE MAP SECTION ===== -->
+    <section class="state-map-section">
+        <h2 class="section-title">My Trailprint by State</h2>
+        <p class="elegant-subtitle">A visual chronicle of my adventures across the country, state by state.</p>
         <div id="interactive-map-container">
             <!-- SVG will be embedded here -->
         </div>
-    </div>
+    </section>
 
     <!-- NEW: Seasonal Snapshot Section -->
     <section class="seasonal-snapshot-section">
@@ -1321,6 +1339,9 @@
                             const parser = new DOMParser();
                             const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
                             const svg = svgDoc.documentElement;
+                            svg.setAttribute('viewBox', '0 0 959 593');
+                            svg.removeAttribute('width');
+                            svg.removeAttribute('height');
                             svg.querySelector('defs')?.remove();
                             svg.querySelector('.separator1')?.remove();
                             svg.querySelector('.borders')?.remove();

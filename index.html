@@ -906,6 +906,7 @@
         <div id="main-nav" style="display: none;">
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
+            <a href="#" id="latest-hike-link">Map Collection</a>
             <a href="achievements.html">Achievements</a>
             <a href="credits.html">The Overlook</a>
         </div>
@@ -1130,7 +1131,7 @@
                 if (layersToAnimate.length === 0) {
                     homeMap.setView([39.82, -98.58], 4); // Fallback
                 } else {
-                    const bounds = allLayersGroup.getBounds().pad(0.05);
+                    const bounds = allLayersGroup.getBounds();
                     homeMap.fitBounds(bounds);
 
                     if (document.documentElement.classList.contains('intro-fast-forward')) {

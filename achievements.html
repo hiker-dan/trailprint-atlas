@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Trailprint Atlas - Achievements</title>
+    <meta name="description" content="Personal records from the trail: longest hike, biggest climb, highest summit, busiest month.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <!-- Link preview cards (Open Graph + Twitter) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Trailprint Atlas">
+    <meta property="og:title" content="Atlas Achievements — The Trailprint Atlas">
+    <meta property="og:description" content="Personal records from the trail: longest hike, biggest climb, highest summit, busiest month.">
+    <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/achievements.html">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_37-mount-lowe-peak-01">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Atlas Achievements — The Trailprint Atlas">
+    <meta name="twitter:description" content="Personal records from the trail: longest hike, biggest climb, highest summit, busiest month.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_37-mount-lowe-peak-01">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
@@ -62,7 +79,7 @@
         <div id="main-nav">
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
-            <a href="#" id="latest-hike-link">Map Collection</a>
+            <a href="#" id="latest-hike-link">Logbook</a>
             <a href="achievements.html">Achievements</a>
             <a href="credits.html">The Overlook</a>
         </div>
@@ -149,7 +166,7 @@
 
                 const monthlyHikeCounts = data.reduce((counts, hike) => {
                     const date = new Date(hike.date_completed);
-                    const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
+                    const monthYear = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
                     counts[monthYear] = (counts[monthYear] || 0) + 1;
                     return counts;
                 }, {});

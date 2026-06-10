@@ -1,0 +1,7 @@
+# macOS Finder artifacts
+.DS_Store
+
+# Local tooling, if/when we add build scripts (Phase 2+)
+__pycache__/
+*.pyc
+node_modules/

@@ -18,6 +18,17 @@ const RENDERER_CONFIG = {
     DEFAULT_COLOR: '#7f8c8d'
 };
 
+/**
+ * Formats long-form hike text (descriptions, notes, flora/fauna) for HTML display:
+ * converts **bold** markers to <strong> and newlines to <br>.
+ */
+function formatHikeText(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+}
+
 function renderTrailGroup(hikesForTrail, options = {}) {
     const { isInteractive = false, popupHtmlGenerator } = options;
 
@@ -28,7 +39,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
 
     // --- Icon Logic ---
     const getIcon = (hikeType) => {
-        const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'hiker-icon.png';
+        const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
 
         // Add a specific class for trail start icons to allow toggling them separately from viewpoints.
         let iconClassName = 'hike-icon';
@@ -50,7 +61,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
     };
 
     // --- Color Logic ---
-    const year = new Date(representativeHike.date_completed).getFullYear().toString();
+    const year = new Date(representativeHike.date_completed).getUTCFullYear().toString();
     const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
 
     // --- Layer Creation ---
@@ -74,7 +85,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
                 olderHikes.reverse().forEach((hike, index) => {
                     if (hike.gpx_file) {
                         // Determine the color for this specific past hike based on its year.
-                        const ghostYear = new Date(hike.date_completed).getFullYear().toString();
+                        const ghostYear = new Date(hike.date_completed).getUTCFullYear().toString();
                         const ghostColor = RENDERER_CONFIG.COLOR_MAP[ghostYear] || RENDERER_CONFIG.DEFAULT_COLOR;
 
                         const ghostLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {

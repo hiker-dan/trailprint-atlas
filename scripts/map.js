@@ -252,7 +252,7 @@ function populateFilters(trailGroups) {
         difficulties.add(representativeHike.difficulty);
         sizes.add(representativeHike.hike_size);
         // For year, we need to check all hikes in the group
-        group.forEach(hike => years.add(new Date(hike.date_completed).getFullYear()));
+        group.forEach(hike => years.add(new Date(hike.date_completed).getUTCFullYear()));
     });
 
     const createFilterTags = (elementId, items, filterType) => {
@@ -320,7 +320,7 @@ function applyFilters() {
 
         // Then, check that the group contains at least one hike matching the tag filters.
         const tagFiltersMatch = group.some(hike => {
-            const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(new Date(hike.date_completed).getFullYear().toString());
+            const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(new Date(hike.date_completed).getUTCFullYear().toString());
             const typeMatch = activeFilters.hike_type.size === 0 || activeFilters.hike_type.has(hike.hike_type);
             const difficultyMatch = activeFilters.difficulty.size === 0 || activeFilters.difficulty.has(hike.difficulty);
             const sizeMatch = activeFilters.size.size === 0 || activeFilters.size.has(hike.hike_size);

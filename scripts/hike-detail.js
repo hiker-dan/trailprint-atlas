@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Global State ---
     let detailMap; // To hold the Leaflet map instance
+    let tileCycleInterval; // Tile-cycling timer, cleared between hikes to prevent leaks
 
     // Helper function to extract video ID from various YouTube URL formats
     const getYoutubeId = (url) => {
@@ -694,7 +695,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // --- Define helper function to create the correct icon ---
                 // This logic is mirrored from trail-renderer.js for consistency.
                 const getIcon = (hikeType) => {
-                    const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'hiker-icon.png';
+                    const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
                     return L.icon({
                         iconUrl: `assets/icons/${iconFilename}`,
                         iconSize: [32, 32],
@@ -713,7 +714,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 // --- Determine the correct trail color based on the year ---
-                const year = new Date(hike.date_completed + 'T00:00:00Z').getFullYear().toString();
+                const year = new Date(hike.date_completed + 'T00:00:00Z').getUTCFullYear().toString();
                 const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
 
                 // --- Initialize a non-interactive, cycling map ---
@@ -744,9 +745,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 satelliteLayer.addTo(detailMap);
                 topoLayer.addTo(detailMap);
 
-                // Set up the cycling interval
+                // Set up the cycling interval, clearing any timer left over from a previously viewed hike
                 const cycleDuration = 15000; // 15 seconds
-                setInterval(() => {
+                if (tileCycleInterval) clearInterval(tileCycleInterval);
+                tileCycleInterval = setInterval(() => {
                     // Check the current opacity of the top layer (topoLayer) and toggle it
                     const newOpacity = topoLayer.options.opacity === 1 ? 0 : 1;
                     topoLayer.setOpacity(newOpacity);
@@ -851,7 +853,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     faunaAnnotation.innerHTML = '';
 
                     const descriptionContainer = document.getElementById('description-content-container');
-                    descriptionContainer.innerHTML = `<p>${hike.description.replace(/\n/g, '<br>')}</p>`;
+                    descriptionContainer.innerHTML = `<p>${formatHikeText(hike.description)}</p>`;
 
                     if (hike.flora) {
                         floraAnnotation.innerHTML = `
@@ -859,7 +861,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <img src="assets/icons/flora-icon.png" alt="Flora" class="annotation-icon">
                                 <span class="annotation-title">Flora Spotlight</span>
                             </div>
-                            <div class="annotation-body">${hike.flora}</div>`;
+                            <div class="annotation-body">${formatHikeText(hike.flora)}</div>`;
                         floraAnnotation.style.display = 'block';
                     }
                     if (hike.fauna) {
@@ -868,7 +870,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 <img src="assets/icons/fauna-icon.png" alt="Fauna" class="annotation-icon">
                                 <span class="annotation-title">Fauna Spotlight</span>
                             </div>
-                            <div class="annotation-body">${hike.fauna}</div>`;
+                            <div class="annotation-body">${formatHikeText(hike.fauna)}</div>`;
                         faunaAnnotation.style.display = 'block';
                     }
 
@@ -1037,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (hike.notes) {
                         descriptionContainer.innerHTML += `
                             <div class="journal-entry">
-                                <p>${hike.notes.replace(/\n/g, '<br>')}</p>
+                                <p>${formatHikeText(hike.notes)}</p>
                             </div>
                         `;
                     }
@@ -1064,7 +1066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
  
                             let notesHtml = '';
                             if (log.notes) {
-                                notesHtml = `<div class="notes">${log.notes}</div>`;
+                                notesHtml = `<div class="notes">${formatHikeText(log.notes)}</div>`;
                             }
 
                             const innerContent = `

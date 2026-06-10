@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Trailprint Atlas</title>
+    <meta name="description" content="A living journal of one hiker's life outdoors — every trail, summit, and mile, mapped and remembered.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <!-- Link preview cards (Open Graph + Twitter) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Trailprint Atlas">
+    <meta property="og:title" content="The Trailprint Atlas">
+    <meta property="og:description" content="A living journal of one hiker's life outdoors — every trail, summit, and mile, mapped and remembered.">
+    <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="The Trailprint Atlas">
+    <meta name="twitter:description" content="A living journal of one hiker's life outdoors — every trail, summit, and mile, mapped and remembered.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
     <!-- Add Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -906,7 +923,7 @@
         <div id="main-nav" style="display: none;">
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
-            <a href="#" id="latest-hike-link">Map Collection</a>
+            <a href="#" id="latest-hike-link">Logbook</a>
             <a href="achievements.html">Achievements</a>
             <a href="credits.html">The Overlook</a>
         </div>
@@ -1100,7 +1117,7 @@
                     return {
                         totalHikes: data.length,
                         totalUniqueTrails: uniqueTrails.length,
-                        totalMiles: uniqueTrails.reduce((sum, group) => sum + (group[0].miles || 0), 0),
+                        totalMiles: data.reduce((sum, hike) => sum + (hike.miles || 0), 0),
                         totalElevation: data.reduce((sum, hike) => sum + (hike.elevation_gain || 0), 0)
                     };
                 })();
@@ -1235,7 +1252,7 @@
                     // Time Range
                     if (data.length > 0) {
                         const startYear = data.reduce((min, hike) => {
-                            const year = new Date(hike.date_completed).getFullYear();
+                            const year = new Date(hike.date_completed).getUTCFullYear();
                             return year < min ? year : min;
                         }, new Date().getFullYear());
                         document.getElementById('start-year').innerText = startYear;
@@ -1272,7 +1289,7 @@
                                     <div class="featured-trip-hike-item">
                                         <h4>${hike.trail_name}</h4>
                                         <div class="hike-meta">${hike.miles} miles | ${hike.elevation_gain.toLocaleString()} ft gain</div>
-                                        <p class="hike-description">${hike.description}</p>
+                                        <p class="hike-description">${formatHikeText(hike.description)}</p>
                                     </div>
                                 `;
                             });
@@ -1299,7 +1316,7 @@
                         const totalMiles = mostHikedHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
                         const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
                         document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
-                        document.getElementById('goto-trail-description').innerText = representativeHike.description;
+                        document.getElementById('goto-trail-description').innerHTML = formatHikeText(representativeHike.description);
                         const datesHtml = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).map(h => `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`).join('');
                         document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
                         document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
@@ -1499,7 +1516,7 @@
    <script>
         function startSlideshow(containerSelector, imageIds, interval = 10000) {
             const container = document.querySelector(containerSelector);
-            const fallbackImage = 'assets/landscapes/fallback-hero.jpg';
+            const fallbackImage = 'https://res.cloudinary.com/dgdniwosl/image/upload/w_800,h_600,c_fill,q_auto,f_auto/tta_67-china-camp-campground-via-pine-ridge-trail-01';
 
             if (!container || imageIds.length === 0) {
                 if (container) {

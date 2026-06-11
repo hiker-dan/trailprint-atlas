@@ -529,15 +529,15 @@ function renderLegend() {
 
     // Section 1: Trail Colors
     let colorHtml = '<h3>Trail Color (Year Last Hiked)</h3>';
-    for (const year in RENDERER_CONFIG.COLOR_MAP) {
-        const color = RENDERER_CONFIG.COLOR_MAP[year];
+    for (const year in ATLAS_CONFIG.COLOR_MAP) {
+        const color = ATLAS_CONFIG.COLOR_MAP[year];
         colorHtml += `<div class="legend-item"><span class="legend-trail-segment" style="background-color: ${color};"></span> ${year}</div>`;
     }
 
     // Section 2: Hike Types
     let iconHtml = '<h3>Hike Type</h3>';
-    for (const type in RENDERER_CONFIG.ICON_MAP) {
-        const iconFile = RENDERER_CONFIG.ICON_MAP[type];
+    for (const type in ATLAS_CONFIG.ICON_MAP) {
+        const iconFile = ATLAS_CONFIG.ICON_MAP[type];
         const labelText = (type === 'Viewpoint') ? `${type} (No Trail Path)` : type;
         iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${labelText}</div>`;
     }

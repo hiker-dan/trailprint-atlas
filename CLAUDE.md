@@ -32,6 +32,9 @@ Danny is a non-coder ("vibecoder at best"). Claude is his hands-on technical par
 4. **Desktop first.** All mobile-specific work is deferred to its own future phase. Don't
    "fix" mobile things in passing. Performance work (payload size, load speed) is in scope —
    it benefits everyone.
+5. **Git: no feature branches.** Solo project. Once Danny approves a chunk of work, commit
+   straight to `main` and push — GitHub Pages deploys it live immediately. Keep commits
+   small and verified; the site should work at every commit.
 
 ### The voice rule
 

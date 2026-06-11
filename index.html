@@ -1072,6 +1072,9 @@
    <!-- Leaflet-GPX Plugin -->
    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
+   <!-- Shared Atlas config (must load before other Atlas scripts) -->
+   <script src="scripts/config.js"></script>
+
    <!-- Our new shared trail renderer -->
    <script src="scripts/trail-renderer.js"></script>
 
@@ -1516,7 +1519,7 @@
    <script>
         function startSlideshow(containerSelector, imageIds, interval = 10000) {
             const container = document.querySelector(containerSelector);
-            const fallbackImage = 'https://res.cloudinary.com/dgdniwosl/image/upload/w_800,h_600,c_fill,q_auto,f_auto/tta_67-china-camp-campground-via-pine-ridge-trail-01';
+            const fallbackImage = cloudinaryUrl('tta_67-china-camp-campground-via-pine-ridge-trail-01', 'w_800,h_600,c_fill,q_auto,f_auto');
 
             if (!container || imageIds.length === 0) {
                 if (container) {
@@ -1530,7 +1533,7 @@
 
             imageIds.forEach((id, index) => {
                 const img = document.createElement('img');
-                img.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_800,h_600,c_fill,q_auto,f_auto/${id}`;
+                img.src = cloudinaryUrl(id, 'w_800,h_600,c_fill,q_auto,f_auto');
                 img.alt = "A photo from the trail";
                 img.className = 'slideshow-image';
                 if (index === 0) {

@@ -1,22 +1,8 @@
 /**
  * This is a shared renderer for drawing a single trail group on a Leaflet map.
  * It can be used by both the interactive map and the homepage showcase map.
+ * Color/icon maps live in config.js (ATLAS_CONFIG) — load that first.
  */
-
-const RENDERER_CONFIG = {
-    ICON_MAP: {
-        "Overnight Trip": "overnight-trip-icon.png",
-        "Day Trip": "day-trip-icon.png",
-        "Day Hike": "day-hike-icon.png",
-        "Car Camping": "car-camping-icon.png",
-        "Backpacking": "backpacking-icon.png",
-        "Viewpoint": "viewpoint-icon.png"
-    },
-    COLOR_MAP: {
-        "2022": "#3498db", "2023": "#2ecc71", "2024": "#f1c40f", "2025": "#e67e22", "2026": "#9b59b6",
-    },
-    DEFAULT_COLOR: '#7f8c8d'
-};
 
 /**
  * Formats long-form hike text (descriptions, notes, flora/fauna) for HTML display:
@@ -39,7 +25,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
 
     // --- Icon Logic ---
     const getIcon = (hikeType) => {
-        const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
+        const iconFilename = ATLAS_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
 
         // Add a specific class for trail start icons to allow toggling them separately from viewpoints.
         let iconClassName = 'hike-icon';
@@ -62,7 +48,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
 
     // --- Color Logic ---
     const year = new Date(representativeHike.date_completed).getUTCFullYear().toString();
-    const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
+    const trailColor = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
 
     // --- Layer Creation ---
     let layer;
@@ -86,7 +72,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
                     if (hike.gpx_file) {
                         // Determine the color for this specific past hike based on its year.
                         const ghostYear = new Date(hike.date_completed).getUTCFullYear().toString();
-                        const ghostColor = RENDERER_CONFIG.COLOR_MAP[ghostYear] || RENDERER_CONFIG.DEFAULT_COLOR;
+                        const ghostColor = ATLAS_CONFIG.COLOR_MAP[ghostYear] || ATLAS_CONFIG.DEFAULT_COLOR;
 
                         const ghostLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {
                             async: true,

@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalVideoContainer.innerHTML = '';
 
         if (item.type === 'photo') {
-            modalImage.src = `https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_1200,c_limit,q_auto,f_auto/${item.id}`;
+            modalImage.src = cloudinaryUrl(item.id, 'w_1200,h_1200,c_limit,q_auto,f_auto');
             modalImage.style.display = 'block';
         } else if (item.type === 'video') {
             const videoId = getYoutubeId(item.url);
@@ -387,11 +387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (dateDisplay.style.opacity !== '1') {
                     dateDisplay.style.opacity = '1';
                 }
-                // NEW: Determine current season and update the background color
-                let currentSeason = 'winter'; // Default for Dec, Jan, Feb
-                if ([2, 3, 4].includes(monthIndex)) currentSeason = 'spring';      // Mar, Apr, May
-                else if ([5, 6, 7].includes(monthIndex)) currentSeason = 'summer'; // Jun, Jul, Aug
-                else if ([8, 9, 10].includes(monthIndex)) currentSeason = 'autumn';// Sep, Oct, Nov
+                // Determine current season (shared definition in config.js) and update the background color
+                const currentSeason = ATLAS_CONFIG.SEASON_BY_MONTH[monthIndex];
 
                 const seasonClass = `season-${currentSeason}`;
                 // Only update the DOM if the season has actually changed
@@ -695,7 +692,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // --- Define helper function to create the correct icon ---
                 // This logic is mirrored from trail-renderer.js for consistency.
                 const getIcon = (hikeType) => {
-                    const iconFilename = RENDERER_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
+                    const iconFilename = ATLAS_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
                     return L.icon({
                         iconUrl: `assets/icons/${iconFilename}`,
                         iconSize: [32, 32],
@@ -715,7 +712,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // --- Determine the correct trail color based on the year ---
                 const year = new Date(hike.date_completed + 'T00:00:00Z').getUTCFullYear().toString();
-                const trailColor = RENDERER_CONFIG.COLOR_MAP[year] || RENDERER_CONFIG.DEFAULT_COLOR;
+                const trailColor = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
 
                 // --- Initialize a non-interactive, cycling map ---
                 // If a map instance already exists, remove it to prevent errors.
@@ -926,8 +923,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const mainPolaroidImage = document.getElementById('polaroid-main-image');
                         const youtubePlayerContainer = document.getElementById('youtube-player-container');
 
-                        const cloudName = 'dgdniwosl';
-
                         let currentMediaIndex = 0;
 
                         const showMedia = (newIndex) => {
@@ -942,7 +937,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             youtubePlayerContainer.innerHTML = ''; // Stop video when switching
 
                             if (item.type === 'photo') {
-                                mainPolaroidImage.src = `https://res.cloudinary.com/${cloudName}/image/upload/w_800,h_600,c_limit,q_auto,f_auto/${item.id}`;
+                                mainPolaroidImage.src = cloudinaryUrl(item.id, 'w_800,h_600,c_limit,q_auto,f_auto');
                                 mainPolaroidImage.style.display = 'block';
                             } else if (item.type === 'video') {
                                 const videoId = getYoutubeId(item.url);

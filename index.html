@@ -1072,8 +1072,9 @@
    <!-- Leaflet-GPX Plugin -->
    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
 
-   <!-- Shared Atlas config (must load before other Atlas scripts) -->
+   <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
    <script src="scripts/config.js"></script>
+   <script src="scripts/atlas-data.js"></script>
 
    <!-- Our new shared trail renderer -->
    <script src="scripts/trail-renderer.js"></script>
@@ -1095,15 +1096,10 @@
 
         
 
-        // 4. Fetch hike data and render only the GPX trails
-        fetch('data/hikes.json')
-            .then(response => response.json())
+        // 4. Fetch hike data (one shared, cached request) and render only the GPX trails
+        fetchHikes()
             .then(data => {
-                const trailGroups = {};
-                data.forEach(hike => {
-                    if (!trailGroups[hike.trail_name]) trailGroups[hike.trail_name] = [];
-                    trailGroups[hike.trail_name].push(hike);
-                });
+                const trailGroups = groupByTrail(data);
 
                 const allLayersGroup = L.featureGroup().addTo(homeMap);
 
@@ -1115,15 +1111,7 @@
                 });
 
                 // --- Refactored Stats Calculation --- 
-                const atlasStats = (function getAtlasStats() {
-                    const uniqueTrails = Object.values(trailGroups);
-                    return {
-                        totalHikes: data.length,
-                        totalUniqueTrails: uniqueTrails.length,
-                        totalMiles: data.reduce((sum, hike) => sum + (hike.miles || 0), 0),
-                        totalElevation: data.reduce((sum, hike) => sum + (hike.elevation_gain || 0), 0)
-                    };
-                })();
+                const atlasStats = getAtlasStats(data);
 
                 // --- Populate Intro Stats Overlay ---
                 const overlay = document.getElementById('intro-stats-overlay');
@@ -1242,22 +1230,13 @@
                     document.getElementById('stats-miles').innerText = Math.round(atlasStats.totalMiles).toLocaleString();
                     document.getElementById('stats-elevation').innerText = atlasStats.totalElevation.toLocaleString();
 
-                    // Other stats calculations that are not part of the intro
-                    const uniqueTrails = Object.values(trailGroups);
-                    const highestSummitHike = data
-                        .filter(hike => hike.summit_trail && hike.summit_elevation)
-                        .reduce((maxHike, currentHike) => {
-                            return (!maxHike || currentHike.summit_elevation > maxHike.summit_elevation) ? currentHike : maxHike;
-                        }, null);
+                    // (Record-stat calculations that once lived here moved to achievements.html.)
 
                     
 
                     // Time Range
                     if (data.length > 0) {
-                        const startYear = data.reduce((min, hike) => {
-                            const year = new Date(hike.date_completed).getUTCFullYear();
-                            return year < min ? year : min;
-                        }, new Date().getFullYear());
+                        const startYear = data.reduce((min, hike) => Math.min(min, hikeYear(hike)), new Date().getFullYear());
                         document.getElementById('start-year').innerText = startYear;
                     }
 
@@ -1266,10 +1245,9 @@
                         const sortedHikes = [...data].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
                         const firstHike = sortedHikes[0];
                         const mostRecentHike = sortedHikes[sortedHikes.length - 1];
-                        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
-                        document.getElementById('first-hike-date').innerText = new Date(firstHike.date_completed).toLocaleDateString('en-US', dateOptions);
+                        document.getElementById('first-hike-date').innerText = formatHikeDate(firstHike.date_completed);
                         document.getElementById('first-hike-name').innerText = `${firstHike.trail_name} - ${firstHike.location}`;
-                        document.getElementById('most-recent-hike-date').innerText = new Date(mostRecentHike.date_completed).toLocaleDateString('en-US', dateOptions);
+                        document.getElementById('most-recent-hike-date').innerText = formatHikeDate(mostRecentHike.date_completed);
                         document.getElementById('most-recent-hike-name').innerText = `${mostRecentHike.trail_name} - ${mostRecentHike.location}`;
                     } else {
                         document.getElementById('first-hike-date').innerText = '--';
@@ -1277,11 +1255,12 @@
                     }
                     
                     // Featured Adventure
+                    const trips = groupByTrip(data);
                     const hikesWithTripTag = data.filter(hike => hike.trip_tag);
                     if (hikesWithTripTag.length > 0) {
                         const latestTripHike = hikesWithTripTag.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
                         const latestTripTag = latestTripHike.trip_tag;
-                        const adventureHikes = data.filter(h => h.trip_tag === latestTripTag);
+                        const adventureHikes = trips.get(latestTripTag);
                         document.getElementById('featured-trip-title').innerText = latestTripTag;
                         const hikesListContainer = document.getElementById('featured-trip-hikes-list');
                         hikesListContainer.innerHTML = '';
@@ -1320,7 +1299,7 @@
                         const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
                         document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
                         document.getElementById('goto-trail-description').innerHTML = formatHikeText(representativeHike.description);
-                        const datesHtml = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).map(h => `<li>${new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}</li>`).join('');
+                        const datesHtml = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).map(h => `<li>${formatHikeDate(h.date_completed)}</li>`).join('');
                         document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
                         document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
                         document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
@@ -1336,12 +1315,11 @@
                         if (!trailLogContainer) return;
                         const recentHikes = [...data].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).slice(0, 3);
                         if (recentHikes.length === 0) { trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>'; return; }
-                        const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
                         const cardsHtml = recentHikes.map(hike => `
                             <div class="trail-log-card">
                                 <div>
                                     <h4>${hike.trail_name}</h4>
-                                    <p class="location-date">${new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions)} &bull; ${hike.location}</p>
+                                    <p class="location-date">${formatHikeDate(hike.date_completed)} &bull; ${hike.location}</p>
                                 </div>
                                 <div class="trail-log-stats">
                                     <div class="stat"><span class="stat-icon">📏</span><span class="stat-value">${hike.miles} mi</span></div>
@@ -1435,8 +1413,7 @@
 
                         const monthCounts = Array(12).fill(0);
                         data.forEach(hike => {
-                            const month = new Date(hike.date_completed).getUTCMonth();
-                            monthCounts[month]++;
+                            monthCounts[hikeMonth(hike)]++;
                         });
 
                         const maxCount = Math.max(...monthCounts, 1);

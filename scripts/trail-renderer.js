@@ -47,7 +47,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
     };
 
     // --- Color Logic ---
-    const year = new Date(representativeHike.date_completed).getUTCFullYear().toString();
+    const year = hikeYear(representativeHike).toString();
     const trailColor = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
 
     // --- Layer Creation ---
@@ -71,7 +71,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
                 olderHikes.reverse().forEach((hike, index) => {
                     if (hike.gpx_file) {
                         // Determine the color for this specific past hike based on its year.
-                        const ghostYear = new Date(hike.date_completed).getUTCFullYear().toString();
+                        const ghostYear = hikeYear(hike).toString();
                         const ghostColor = ATLAS_CONFIG.COLOR_MAP[ghostYear] || ATLAS_CONFIG.DEFAULT_COLOR;
 
                         const ghostLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {

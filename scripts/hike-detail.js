@@ -137,19 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         let timelineHtml = '';
 
         // --- NEW: Group hikes by trip_tag ---
-        const trips = new Map();
-        const soloHikes = [];
-
-        sortedHikes.forEach(hike => {
-            if (hike.trip_tag) {
-                if (!trips.has(hike.trip_tag)) {
-                    trips.set(hike.trip_tag, []);
-                }
-                trips.get(hike.trip_tag).push(hike);
-            } else {
-                soloHikes.push(hike);
-            }
-        });
+        const trips = groupByTrip(sortedHikes);
+        const soloHikes = sortedHikes.filter(hike => !hike.trip_tag);
 
         // --- Render Solo Hikes (as individual dots) ---
         soloHikes.forEach(hike => {
@@ -363,8 +352,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalTimeSpan = lastHikeTime - firstHikeTime;
         const PADDING_PX = viewport.clientWidth;
 
-        const dateOptions = { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' };
-
         const updateTimelineDisplay = () => {
             // This function handles background seasons, parallax, and the central date display.
             const scrollCenter = viewport.scrollLeft + (viewport.clientWidth / 2);
@@ -445,7 +432,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const hike = allHikes.find(h => h.trail_id === hikeId);
 
                 if (hike) {
-                    const formattedDate = new Date(hike.date_completed).toLocaleDateString('en-US', dateOptions);
+                    const formattedDate = formatHikeDate(hike.date_completed, { year: 'numeric', month: 'short', day: 'numeric' });
                     globalTooltip.innerHTML = `${hike.trail_name}<br><small>${formattedDate}</small>`;
                     
                     // To calculate the correct position, we need the tooltip's width.
@@ -677,8 +664,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.title = `${hike.trail_name} - The Trailprint Atlas`;
                 heroTitle.innerText = hike.trail_name;
                 heroLocation.innerText = `${hike.location} • ${hike.region}`;
-                const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' };
-                const formattedDate = new Date(hike.date_completed + 'T00:00:00Z').toLocaleDateString('en-US', dateOptions);
+                const formattedDate = formatHikeDate(hike.date_completed);
                 const datePrefix = hike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
                 heroDate.innerText = `${datePrefix} ${formattedDate}`;
 
@@ -711,7 +697,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 // --- Determine the correct trail color based on the year ---
-                const year = new Date(hike.date_completed + 'T00:00:00Z').getUTCFullYear().toString();
+                const year = hikeYear(hike).toString();
                 const trailColor = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
 
                 // --- Initialize a non-interactive, cycling map ---
@@ -1051,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                         logbookContainer.innerHTML = hikeGroup.map(log => {
                             const isCurrent = log.trail_id === hike.trail_id;
-                            const dateStr = new Date(log.date_completed + 'T00:00:00Z').toLocaleDateString('en-US', dateOptions);
+                            const dateStr = formatHikeDate(log.date_completed);
 
                             let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
                             if (log.hiked_with && log.hiked_with.length > 0) {
@@ -1088,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (event.state && event.state.hikeId) {
             // We need the full `allHikes` array to be available here.
             // We'll fetch it again or ideally have it stored globally.
-            fetch('data/hikes.json').then(res => res.json()).then(allHikes => {
+            fetchHikes().then(allHikes => {
                 const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
                 if (hikeToDisplay) {
                     // Update the main page content
@@ -1109,12 +1095,8 @@ document.addEventListener('DOMContentLoaded', async () => {
      * The main execution block that runs on page load.
      */
     try {
-        // 1. Fetch all hike data
-        const response = await fetch('data/hikes.json');
-        if (!response.ok) {
-            throw new Error(`Network response was not ok: ${response.statusText}`);
-        }
-        const allHikes = await response.json();
+        // 1. Fetch all hike data (cached by the shared data layer)
+        const allHikes = await fetchHikes();
 
         // 2. Get the hike ID from the URL to display the initial hike
         const urlParams = new URLSearchParams(window.location.search);

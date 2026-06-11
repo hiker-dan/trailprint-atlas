@@ -62,20 +62,10 @@ const activeFilters = {
     search: '' // New property for the search term
 };
 
-fetch('data/hikes.json')
-    .then(response => response.json())
+fetchHikes()
     .then(data => {
-        // --- Data Grouping ---
-        // We group all hikes by their trail_name to handle multiple hikes of the same trail.
-        const trailGroups = {};
-        data.forEach(hike => {
-            if (!trailGroups[hike.trail_name]) {
-                trailGroups[hike.trail_name] = [];
-            }
-            trailGroups[hike.trail_name].push(hike);
-        });
-
-        allHikesData = Object.values(trailGroups); // Store the grouped data
+        // Group hikes by trail_name (shared helper) so repeat hikes of a trail stay together.
+        allHikesData = Object.values(groupByTrail(data)); // Store the grouped data
         populateFilters(allHikesData);
         renderMapLayers(allHikesData); // Initial render with all data
         setupEventListeners();
@@ -158,7 +148,7 @@ function generatePopupHtml(hikesForTrail) {
         const dateList = hikesForTrail
             .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
             .map(h => {
-                const dateStr = new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+                const dateStr = formatHikeDate(h.date_completed);
                 return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
             }).join('');
         const verb = representativeHike.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
@@ -166,7 +156,7 @@ function generatePopupHtml(hikesForTrail) {
     } else {
         // If hiked only once, use the single "View Full Details" link
         const singleHike = hikesForTrail[0];
-        const dateStr = new Date(singleHike.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        const dateStr = formatHikeDate(singleHike.date_completed);
         const verb = singleHike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
         datesSectionHtml = `
             <p><strong>${verb}:</strong> ${dateStr}</p>
@@ -207,7 +197,7 @@ function generateListDetailsHtml(hikesForTrail) {
         const dateList = hikesForTrail
             .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
             .map(h => {
-                const dateStr = new Date(h.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+                const dateStr = formatHikeDate(h.date_completed);
                 return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
             }).join('');
         const verb = representativeHike.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
@@ -215,7 +205,7 @@ function generateListDetailsHtml(hikesForTrail) {
     } else {
         // If hiked only once, use the single "View Full Details" link
         const singleHike = hikesForTrail[0];
-        const dateStr = new Date(singleHike.date_completed).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        const dateStr = formatHikeDate(singleHike.date_completed);
         const verb = singleHike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
         datesSectionHtml = `
             <p><strong>${verb}:</strong> ${dateStr}</p>
@@ -252,7 +242,7 @@ function populateFilters(trailGroups) {
         difficulties.add(representativeHike.difficulty);
         sizes.add(representativeHike.hike_size);
         // For year, we need to check all hikes in the group
-        group.forEach(hike => years.add(new Date(hike.date_completed).getUTCFullYear()));
+        group.forEach(hike => years.add(hikeYear(hike)));
     });
 
     const createFilterTags = (elementId, items, filterType) => {
@@ -320,7 +310,7 @@ function applyFilters() {
 
         // Then, check that the group contains at least one hike matching the tag filters.
         const tagFiltersMatch = group.some(hike => {
-            const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(new Date(hike.date_completed).getUTCFullYear().toString());
+            const yearMatch = activeFilters.year.size === 0 || activeFilters.year.has(hikeYear(hike).toString());
             const typeMatch = activeFilters.hike_type.size === 0 || activeFilters.hike_type.has(hike.hike_type);
             const difficultyMatch = activeFilters.difficulty.size === 0 || activeFilters.difficulty.has(hike.difficulty);
             const sizeMatch = activeFilters.size.size === 0 || activeFilters.size.has(hike.hike_size);

@@ -119,17 +119,14 @@
         </div>
     </div>
 
+    <!-- Shared Atlas data layer (one cached fetch + helpers) -->
+    <script src="scripts/atlas-data.js"></script>
     <script src="scripts/nav-updater.js"></script>
     <script>
-        // We need to fetch the hike data to populate these fields
-        fetch('data/hikes.json')
-            .then(response => response.json())
+        // Hike data comes from the shared, cached data layer
+        fetchHikes()
             .then(data => {
-                const uniqueTrails = Object.values(data.reduce((groups, hike) => {
-                    if (!groups[hike.trail_name]) groups[hike.trail_name] = [];
-                    groups[hike.trail_name].push(hike);
-                    return groups;
-                }, {}));
+                const uniqueTrails = Object.values(groupByTrail(data));
 
                 // Personal Records
                 const longestHike = uniqueTrails.reduce((max, group) => {
@@ -165,8 +162,7 @@
                 }
 
                 const monthlyHikeCounts = data.reduce((counts, hike) => {
-                    const date = new Date(hike.date_completed);
-                    const monthYear = `${date.getUTCFullYear()}-${(date.getUTCMonth() + 1).toString().padStart(2, '0')}`;
+                    const monthYear = `${hikeYear(hike)}-${(hikeMonth(hike) + 1).toString().padStart(2, '0')}`;
                     counts[monthYear] = (counts[monthYear] || 0) + 1;
                     return counts;
                 }, {});

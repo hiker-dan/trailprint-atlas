@@ -10,11 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Update "Latest Hike" Link ---
     const latestHikeLink = document.getElementById('latest-hike-link');
     if (latestHikeLink) {
-        fetch('data/hikes.json')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return response.json();
-            })
+        fetchHikes()
             .then(hikes => {
                 if (hikes.length === 0) {
                     latestHikeLink.style.display = 'none';

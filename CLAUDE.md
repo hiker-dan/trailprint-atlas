@@ -59,14 +59,19 @@ there is fine, with his review.
 
 | Path | What it is |
 |---|---|
-| `index.html` | Homepage: intro animation, dot map, key stats, state map, seasonal chart, field notes. Currently holds large inline CSS/JS blocks (Phase 1 extracts them). |
+| `index.html` | Homepage shell. Logic lives in `scripts/home.js`; a 5-line sessionStorage intro check stays inline by design (must run before first paint). Inline CSS remains until Phase 1.5. |
+| `404.html` | Branded "Off the Trail" page (GitHub Pages serves it for bad URLs). Self-contained on purpose — no relative assets. |
+| `scripts/config.js` | `ATLAS_CONFIG` (Cloudinary cloud + `cloudinaryUrl()`, year colors, type icons, seasons). Load before all other Atlas scripts. |
+| `scripts/atlas-data.js` | Data layer: cached `fetchHikes()`, `groupByTrail`/`groupByTrip`, `hikeYear`/`hikeMonth`, `formatHikeDate`, `getAtlasStats`. |
+| `scripts/nav.js` | Injects the single shared nav structure (synchronously) + the site footer on every page. |
+| `scripts/home.js` | All homepage logic: showcase map + intro choreography, stats, state map, seasonal chart, slideshows, loading-bar phrases. |
 | `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. |
 | `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. |
 | `achievements.html` | Personal records (longest hike, biggest climb, highest summit, busiest month). |
 | `credits.html` | "The Overlook": hero slideshow + asset credits. Personal statement arrives in Phase 4. |
-| `scripts/trail-renderer.js` | Shared renderer for both maps (`isInteractive` flag), plus `RENDERER_CONFIG` (year colors, hike-type icons) and `formatHikeText()`. |
+| `scripts/trail-renderer.js` | Shared renderer for both maps (`isInteractive` flag), plus `formatHikeText()` for `**bold**`/newline rendering. |
 | `scripts/nav-updater.js` | Points the "Logbook" nav link at the most recent hike; highlights the active page. |
-| `styles/` | Per-page stylesheets (more CSS still lives inline in the HTML files — known debt). |
+| `styles/` | `base.css` (shared nav + footer; grows into the full shared system in Phase 1.5) + per-page sheets. Large CSS blocks still live inline in the HTML files until 1.5. |
 | `data/hikes.json` | **The single source of truth.** All hike data. |
 | `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. |
 | `assets/` | Icons, the US map SVG, the timeline mountainscape. |
@@ -122,9 +127,10 @@ needs new per-hike information, the first step is always to add the field to the
 - **Year colors and hike-type icons** come from `RENDERER_CONFIG` in `trail-renderer.js`
   (2022 blue → 2026 purple). Don't define new color/icon maps elsewhere.
 - Comments explain the *why*, not the *what*. `const` by default, `async/await` for fetches.
-- Known debt (do not imitate; Phase 1 fixes): inline CSS/JS in the HTML files, the nav bar
-  hand-copied 5×, the Cloudinary cloud name hardcoded in 3 places, date/grouping logic
-  re-implemented per page.
+- Known debt (do not imitate): large inline CSS blocks in the HTML files — Phase 1.5
+  (the last open step of Phase 1) extracts them into `styles/base.css` + per-page sheets.
+  The old debts (five nav copies, hardcoded Cloudinary name, per-page data/date logic)
+  were retired in Phase 1.1–1.4.
 
 ## History
 

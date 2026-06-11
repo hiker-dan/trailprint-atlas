@@ -6,31 +6,25 @@ body {
     color: #333;
 }
 
-/* --- Navigation Bar --- */
-nav {
+/* --- Navigation Bar ---
+   The Overlook keeps its signature look: the shared nav (injected by
+   scripts/nav.js) floats transparently over the hero photo here,
+   overriding the solid bar from styles/base.css. */
+nav#top-bar-container {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
+    height: auto;
     background-color: transparent;
     padding: 15px 30px;
-    text-align: center;
     z-index: 100;
     box-sizing: border-box;
-    transition: background-color 0.3s ease;
 }
 
-nav a {
-    color: white;
-    margin: 0 15px;
-    text-decoration: none;
-    font-weight: bold;
+nav#top-bar-container a {
     font-size: 1.1em;
     text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-}
-
-nav a:hover {
-    text-decoration: underline;
 }
 
 /* --- Hero Section --- */

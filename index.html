@@ -25,6 +25,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
+    <link rel="stylesheet" href="styles/base.css"/>
     <style>
         body { 
             margin: 0; 
@@ -35,27 +36,7 @@
         h1 {
             font-size: 2.5em;
         }
-        /* --- Navigation Bar --- */
-        nav#top-bar-container {
-            background-color: #333;
-            height: 40px; /* Force height to a round number */
-            padding: 0 20px;
-            position: relative;
-            z-index: 101;
-            margin-bottom: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        nav#top-bar-container a {
-            color: white;
-            margin: 0 15px;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        nav#top-bar-container a:hover {
-            text-decoration: underline;
-        }
+        /* Navigation bar styles live in styles/base.css */
 
         /* --- Loading Bar Styles (Refined for Subtlety) --- */
         #loading-bar {
@@ -103,12 +84,8 @@
             }
         }
 
+        /* Intro-only: the nav links fade in after the loading phrases finish */
         #main-nav {
-            display: flex; /* Use flex to match original nav layout */
-            justify-content: center;
-            align-items: center;
-            width: 100%;
-            height: 100%;
             opacity: 0;
             transition: opacity 0.5s ease-in;
         }
@@ -911,23 +888,9 @@
         document.documentElement.classList.add('intro-fast-forward');
       }
     </script>
-    <nav id="top-bar-container">
-        <div id="loading-bar">
-            <span id="loading-text"></span>
-            <div class="loader-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-        </div>
-        <div id="main-nav" style="display: none;">
-            <a href="index.html">Home</a>
-            <a href="map.html">Interactive Map</a>
-            <a href="#" id="latest-hike-link">Logbook</a>
-            <a href="achievements.html">Achievements</a>
-            <a href="credits.html">The Overlook</a>
-        </div>
-    </nav>
+    <!-- Shared nav: structure injected by scripts/nav.js (one copy for all pages) -->
+    <nav id="top-bar-container"></nav>
+    <script src="scripts/nav.js"></script>
 
     <!-- Map Placeholder for smooth animation -->
     <div class="map-placeholder"></div>
@@ -1545,6 +1508,11 @@
             mainNav.style.opacity = '1';
             return;
         }
+
+        // Full intro: start with the loading phrases visible and the nav links hidden.
+        // (The shared nav component renders them the other way around by default.)
+        loadingBar.style.display = 'flex';
+        mainNav.style.display = 'none';
 
         const allPhrases = [
             "Calibrating Compass...", "Drawing Maps...", "Lacing Boots...", "Checking Weather...",

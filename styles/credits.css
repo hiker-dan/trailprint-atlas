@@ -124,7 +124,7 @@ nav#top-bar-container a {
 
 .credit-category h3 {
     font-size: 1.8em;
-    color: #2c3e50;
+    color: var(--evergreen);
     margin-bottom: 20px;
 }
 
@@ -180,7 +180,7 @@ nav#top-bar-container a {
 }
 
 .credit-info a {
-    color: #4a7c59;
+    color: var(--trail-green);
     text-decoration: none;
 }
 

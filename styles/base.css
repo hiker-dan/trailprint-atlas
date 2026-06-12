@@ -1,12 +1,29 @@
 /* =====================================================================
    The Trailprint Atlas — shared base styles
-   Seeded in Phase 1.3 with the nav + footer. Phase 1.5 moves the rest of
-   the shared system (palette variables, typography) here.
+   The palette and typography are defined once here as CSS custom
+   properties; page stylesheets reference them with var(). The nav and
+   footer components (injected by scripts/nav.js) are styled here too.
    ===================================================================== */
+
+/* --- The earthy palette, defined once --- */
+:root {
+    --trail-green: #4a7c59;  /* signature green: accents, record cards, links */
+    --evergreen: #2c3e50;    /* deep slate: headings, dark panels */
+    --charcoal: #333;        /* nav bar, primary text */
+    --stone: #555;           /* secondary text */
+    --gravel: #777;          /* tertiary / muted text */
+    --paper: #f9f9f9;        /* card and panel backgrounds */
+    --mist: #eee;            /* light borders and dividers */
+
+    /* System font stack used by the hike page; future pages adopt it as
+       they're polished (swapping a page off plain sans-serif changes its
+       look, so that happens deliberately, not in passing). */
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
 
 /* --- Navigation bar (one component, injected by scripts/nav.js) --- */
 nav#top-bar-container {
-    background-color: #333;
+    background-color: var(--charcoal);
     height: 40px;
     padding: 0 20px;
     position: relative;
@@ -34,7 +51,7 @@ nav#top-bar-container a:hover {
 
 /* --- Footer (injected by scripts/nav.js) --- */
 .atlas-footer {
-    background-color: #333;
+    background-color: var(--charcoal);
     color: #bdc3c7;
     text-align: center;
     padding: 25px 20px;

@@ -25,7 +25,7 @@
 }
 
 #us-map-svg .state.active {
-    fill: #4a7c59; /* The project's established green for hiked states */
+    fill: var(--trail-green); /* The project's established green for hiked states */
     cursor: pointer;
 }
 

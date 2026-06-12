@@ -132,7 +132,7 @@ Six phases. Each is independently shippable — the site works and looks better 
 ### Phase 1 — New Bones *(architecture renovation; 1–2 sessions)*
 > Same house, real framing.
 
-- [ ] Extract all inline CSS into a clean shared system: `styles/base.css` (typography, colors as CSS custom properties, nav, footer) + one stylesheet per page. Define the earthy palette once.
+- [x] Extract all inline CSS into a clean shared system: `styles/base.css` (typography, colors as CSS custom properties, nav, footer) + one stylesheet per page. Define the earthy palette once.
 - [ ] Extract all inline JS from `index.html` into `scripts/home.js`.
 - [ ] Create `scripts/config.js` — Cloudinary cloud name + image URL builder, color/icon maps, season definitions. One place.
 - [ ] Create `scripts/atlas-data.js` — shared data layer: fetch + cache `hikes.json`, group-by-trail, group-by-trip, UTC-safe date helpers, canonical stats functions (used by home, map, achievements — ending the "three definitions of total miles" problem).

@@ -16,7 +16,9 @@ function formatHikeText(text) {
 }
 
 function renderTrailGroup(hikesForTrail, options = {}) {
-    const { isInteractive = false, popupHtmlGenerator } = options;
+    // trailGeometries: trail_id -> array of [lat,lng] segments, from
+    // fetchTrailGeometries(). Required to draw trail lines (interactive map).
+    const { isInteractive = false, popupHtmlGenerator, trailGeometries = {} } = options;
 
     // Sort hikes by date to easily identify the most recent one for styling.
     // This is safer than assuming the input array is pre-sorted.
@@ -69,23 +71,19 @@ function renderTrailGroup(hikesForTrail, options = {}) {
             // We render these first (from oldest to newest) so they appear underneath the main trail.
             if (olderHikes.length > 0) {
                 olderHikes.reverse().forEach((hike, index) => {
-                    if (hike.gpx_file) {
+                    const ghostSegments = trailGeometries[hike.trail_id];
+                    if (ghostSegments) {
                         // Determine the color for this specific past hike based on its year.
                         const ghostYear = hikeYear(hike).toString();
                         const ghostColor = ATLAS_CONFIG.COLOR_MAP[ghostYear] || ATLAS_CONFIG.DEFAULT_COLOR;
 
-                        const ghostLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {
-                            async: true,
-                            gpx_options: { parseElements: ['track'] },
-                            marker_options: { startIconUrl: null, endIconUrl: null, shadowUrl: null }, // No icons for ghosts
-                            polyline_options: {
-                                color: ghostColor,
-                                // The oldest hikes are thickest, creating a "halo" effect.
-                                weight: 5 + (olderHikes.length - index) * 4,
-                                // The oldest hikes are slightly more opaque than recent ghosts.
-                                opacity: Math.max(0.05, 0.2 - (index * 0.05)),
-                                interactive: false // Ghosts are not clickable.
-                            }
+                        const ghostLayer = L.polyline(ghostSegments, {
+                            color: ghostColor,
+                            // The oldest hikes are thickest, creating a "halo" effect.
+                            weight: 5 + (olderHikes.length - index) * 4,
+                            // The oldest hikes are slightly more opaque than recent ghosts.
+                            opacity: Math.max(0.05, 0.2 - (index * 0.05)),
+                            interactive: false // Ghosts are not clickable.
                         });
                         allLayers.push(ghostLayer);
                     }
@@ -93,18 +91,17 @@ function renderTrailGroup(hikesForTrail, options = {}) {
             }
 
             // --- Create the Main, Interactive Layer for the Most Recent Hike ---
-            if (mostRecentHike.gpx_file) {
-                const markerOpts = { startIcon: getIcon(mostRecentHike.hike_type), endIconUrl: null };
-                const mainLayer = new L.GPX(`data/trails/${mostRecentHike.gpx_file}`, {
-                    async: true,
-                    gpx_options: { parseElements: ['track'] },
-                    marker_options: markerOpts,
-                    polyline_options: {
-                        color: trailColor, weight: 5, opacity: 0.85,
-                        pane: 'mainTrailPane' // Render on the higher-level pane.
-                    }
-                });
-                allLayers.push(mainLayer);
+            const mainSegments = trailGeometries[mostRecentHike.trail_id];
+            if (mainSegments) {
+                allLayers.push(L.polyline(mainSegments, {
+                    color: trailColor, weight: 5, opacity: 0.85,
+                    pane: 'mainTrailPane' // Render on the higher-level pane.
+                }));
+                // The trailhead marker leaflet-gpx used to place on the first
+                // trackpoint, now placed on the first point of the first segment.
+                allLayers.push(L.marker(mainSegments[0][0], {
+                    icon: getIcon(mostRecentHike.hike_type)
+                }));
             }
 
             // Combine all layers into a single group for easy handling on the map.

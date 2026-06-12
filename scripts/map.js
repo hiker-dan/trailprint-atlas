@@ -43,6 +43,7 @@ const baseMaps = {
 };
 
 let allHikesData = []; // Will hold the full, original dataset
+let allTrailGeometries = {}; // trail_id -> [lat,lng] segments, from trails.geojson
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
 let layerReferences = {}; // To store references to map layers by trail_id
 
@@ -62,60 +63,45 @@ const activeFilters = {
     search: '' // New property for the search term
 };
 
-fetchHikes()
-    .then(data => {
+// Two cached fetches: the hike records and the prepared trail geometry
+// (data/trails.geojson — one small file instead of ~70 raw GPX downloads).
+Promise.all([fetchHikes(), fetchTrailGeometries()])
+    .then(([data, trailGeometries]) => {
         // Group hikes by trail_name (shared helper) so repeat hikes of a trail stay together.
         allHikesData = Object.values(groupByTrail(data)); // Store the grouped data
+        allTrailGeometries = trailGeometries;
         populateFilters(allHikesData);
         renderMapLayers(allHikesData); // Initial render with all data
         setupEventListeners();
         renderLegend();
     })
-    .catch(error => console.error('Error loading hike data:', error));
+    .catch(error => console.error('Error loading map data:', error));
 
 function renderMapLayers(trailGroupsToRender) {
     allTrailsGroup.clearLayers(); // Clear all previous layers
     layerReferences = {}; // Reset references to prevent memory leaks and bugs
 
     renderTrailList(trailGroupsToRender);
-    const loadingPromises = []; // An array to hold our loading promises
 
     trailGroupsToRender.forEach(hikesForTrail => {
         // Use the shared renderer in interactive mode
         const layer = renderTrailGroup(hikesForTrail, {
             isInteractive: true,
-            popupHtmlGenerator: generatePopupHtml // Pass the function to generate popups
+            popupHtmlGenerator: generatePopupHtml, // Pass the function to generate popups
+            trailGeometries: allTrailGeometries
         });
 
         if (layer) {
             allTrailsGroup.addLayer(layer);
             layerReferences[hikesForTrail[0].trail_name] = layer;
-
-            // --- Asynchronous Loading Logic ---
-            // Since renderTrailGroup can now return a featureGroup with multiple GPX layers
-            // (the main trail + ghost trails), we need to create a loading promise for each one.
-            if (layer.eachLayer) { // Check if it's a group of layers (like L.featureGroup)
-                layer.eachLayer(subLayer => {
-                    // We only care about GPX layers, as they are the only async ones.
-                    if (subLayer instanceof L.GPX) {
-                        const gpxPromise = new Promise(resolve => {
-                            // Resolve the promise when the GPX layer has loaded or errored.
-                            subLayer.on('loaded', () => resolve());
-                            subLayer.on('error', () => resolve());
-                        });
-                        loadingPromises.push(gpxPromise);
-                    }
-                });
-            }
         }
     });
 
-    // Wait for all promises to resolve, then set the map view.
-    Promise.all(loadingPromises).then(() => {
-        if (allTrailsGroup.getLayers().length > 0) {
-            map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
-        }
-    });
+    // Geometry is already in hand (no per-trail downloads), so the bounds
+    // are correct immediately.
+    if (allTrailsGroup.getLayers().length > 0) {
+        map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
+    }
 }
 
 function renderTrailList(trailGroupsToRender) {
@@ -270,6 +256,7 @@ function updateActiveFiltersDisplay() {
     let hasActiveFilters = false;
 
     for (const type in activeFilters) {
+        if (!(activeFilters[type] instanceof Set)) continue; // 'search' is a string, not a tag filter
         activeFilters[type].forEach(value => {
             hasActiveFilters = true;
             const activeTag = document.createElement('div');
@@ -396,7 +383,7 @@ function setupEventListeners() {
             const trailName = listItem.dataset.trailName;
             const layer = layerReferences[trailName];
             if (layer) {
-                if (layer.getBounds) { // It's a GPX layer
+                if (layer.getBounds) { // It's a trail group (polylines)
                     map.fitBounds(layer.getBounds(), { padding: [50, 50] });
                 } else if (layer.getLatLng) { // It's a Marker
                     map.setView(layer.getLatLng(), 15);

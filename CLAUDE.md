@@ -73,7 +73,9 @@ there is fine, with his review.
 | `scripts/nav-updater.js` | Points the "Logbook" nav link at the most recent hike; highlights the active page. |
 | `styles/` | `base.css` (the earthy palette as CSS custom properties + nav + footer) and one sheet per page: `home.css`, `map.css`, `hike.css`, `achievements.css`, `credits.css`, plus the `key-stats.css`/`map-stats.css` dashboard sheets. No inline CSS anywhere except `404.html` (self-contained by design). |
 | `data/hikes.json` | **The single source of truth.** All hike data. |
-| `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. |
+| `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. Never served to visitors. |
+| `data/trails.geojson` | **Generated — don't hand-edit.** All trails, simplified, in one file for the map page. Rebuild with `python3 tools/build-trails.py` whenever a GPX is added or changed. |
+| `tools/build-trails.py` | The GPX → trails.geojson build script (stdlib-only Python; runs locally, never ships). Warns if hikes.json and data/trails/ disagree. |
 | `assets/` | Icons, the US map SVG, the timeline mountainscape. |
 | `docs/` | The roadmap (`STATE_OF_THE_ATLAS.md`) and historical documents (original PRD). |
 

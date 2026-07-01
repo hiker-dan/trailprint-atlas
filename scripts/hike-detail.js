@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Global State ---
     let detailMap; // To hold the Leaflet map instance
     let tileCycleInterval; // Tile-cycling timer, cleared between hikes to prevent leaks
+    let allHikes = null; // All hike records: fetched once on load, reused by timeline nav + back/forward
 
     // Helper function to extract video ID from various YouTube URL formats
     const getYoutubeId = (url) => {
@@ -1071,23 +1072,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listen for the browser's back/forward buttons
     window.addEventListener('popstate', (event) => {
-        if (event.state && event.state.hikeId) {
-            // We need the full `allHikes` array to be available here.
-            // We'll fetch it again or ideally have it stored globally.
-            fetchHikes().then(allHikes => {
-                const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
-                if (hikeToDisplay) {
-                    // Update the main page content
-                    displayHike(hikeToDisplay, allHikes);
-                    // Update the active dot on the timeline
-                    document.querySelector('#timeline-nav-container .timeline-dot.active')?.classList.remove('active');
-                    const newActiveDot = document.querySelector(`#timeline-track .timeline-dot[data-hike-id="${event.state.hikeId}"]`);
-                    if (newActiveDot) {
-                        newActiveDot.classList.add('active');
-                        centerTimelineOn(event.state.hikeId);
-                    }
+        // Reuse the hikes we already loaded on page init — no need to fetch again.
+        if (event.state && event.state.hikeId && allHikes) {
+            const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
+            if (hikeToDisplay) {
+                // Update the main page content
+                displayHike(hikeToDisplay, allHikes);
+                // Update the active dot on the timeline
+                document.querySelector('#timeline-nav-container .timeline-dot.active')?.classList.remove('active');
+                const newActiveDot = document.querySelector(`#timeline-track .timeline-dot[data-hike-id="${event.state.hikeId}"]`);
+                if (newActiveDot) {
+                    newActiveDot.classList.add('active');
+                    centerTimelineOn(event.state.hikeId);
                 }
-            });
+            }
         }
     });
 
@@ -1095,8 +1093,9 @@ document.addEventListener('DOMContentLoaded', async () => {
      * The main execution block that runs on page load.
      */
     try {
-        // 1. Fetch all hike data (cached by the shared data layer)
-        const allHikes = await fetchHikes();
+        // 1. Fetch all hike data (cached by the shared data layer), then keep
+        //    it in closure scope so timeline nav and back/forward can reuse it.
+        allHikes = await fetchHikes();
 
         // 2. Get the hike ID from the URL to display the initial hike
         const urlParams = new URLSearchParams(window.location.search);

@@ -142,12 +142,12 @@ Six phases. Each is independently shippable — the site works and looks better 
 ### Phase 2 — Pack Lighter *(performance + mobile; 1–2 sessions)*
 > The Atlas should load like a day pack, not a bear canister.
 
-- [ ] Build `tools/build-trails.py` (or Node — runs locally, never ships): parses every GPX, simplifies geometry (Douglas-Peucker), extracts per-hike derived stats (start time, duration, elevation profile, actual distance), and emits one compact `data/trails.geojson` for the map page + small per-hike profile data. Raw GPX stays in repo as archive. Target: map page payload from ~8.2 MB → under 500 KB, one request instead of 70.
-- [ ] Drop the leaflet-gpx plugin on the map page (render GeoJSON natively); keep or replace it on the hike page.
-- [ ] Optimize `timeline-landscape-fall.svg` (5.9 MB → tens of KB).
-- [ ] Intro animation: add click/tap-to-skip, shorten on mobile, keep the cinematic full cut for desktop first visits.
-- [ ] Mobile pass on all five pages: touch-friendly timeline (tap instead of hover, momentum scroll), tap-toggled state-map tooltips, responsive type scale, thumb-reachable hike-page layout.
-- **Exit test:** the map page loads fast on a throttled mobile connection, and every feature is usable with a thumb.
+- [x] Build `tools/build-trails.py` (stdlib Python, runs locally, never ships): parses every GPX, simplifies geometry (Douglas-Peucker), and emits one compact `data/trails.geojson` for the map page. Raw GPX stays in repo as archive. **Result: 8.4 MB / 168 req → 1.1 MB / 103 req; all trails drawn in 8.8 s vs 47.8 s on throttled Fast-3G.** (Per-hike *derived* stats — start time, duration, elevation profile — were **deferred to Phase 4**, where the elevation-profile chart that needs them lives.)
+- [x] Drop the leaflet-gpx plugin on the map page (render GeoJSON natively). **Kept** on the hike page (Danny's call, June 2026): it loads one trail at a time and carries the 60 hand-placed waypoints the bundle doesn't.
+- [x] Optimize `timeline-landscape-fall.svg` (5.9 MB → **204 KB**, 96% smaller, visually identical) via `tools/optimize-landscape.py`.
+- [x] Intro animation: added click-to-skip button **+ Escape key**, keeping the full cinematic for desktop first visits. (The "shorten on mobile" half rides with the deferred mobile pass below.)
+- [ ] **DEFERRED — dedicated mobile phase** (Danny's June 10, 2026 amendment): mobile pass on all five pages — touch-friendly timeline, tap-toggled state-map tooltips, responsive type scale, thumb-reachable hike-page layout.
+- **Exit test:** ✅ the map page loads fast on a throttled connection (met). The "usable with a thumb" half rides with the deferred mobile phase.
 
 ### Phase 3 — Catch Up the Logbook *(data; ongoing sessions, parallelizable with Phase 4)*
 > A living atlas needs its missing years — and a faster pen.

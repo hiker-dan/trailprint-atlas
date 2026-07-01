@@ -856,3 +856,36 @@ html:not(.intro-finished):not(.intro-fast-forward) {
     letter-spacing: 0.1em;
     opacity: 0.8;
 }
+
+/* --- Skip-intro affordance (injected by home.js during the full intro) --- */
+#skip-intro-btn {
+    position: fixed;
+    top: 52px; /* just below the 40px nav/loading bar */
+    right: 20px;
+    z-index: 200; /* above the fullscreen intro map (100) and stats overlay (101) */
+    padding: 9px 16px;
+    font-family: inherit;
+    font-size: 0.85em;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background-color: rgba(44, 62, 80, 0.55); /* --evergreen, translucent */
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 20px;
+    cursor: pointer;
+    /* Fade in a beat after load so the first frame stays clean, but soon
+       enough that an impatient visitor sees the way out quickly. */
+    opacity: 0;
+    animation: skip-btn-fade-in 0.6s ease 0.8s forwards;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+#skip-intro-btn:hover {
+    background-color: rgba(44, 62, 80, 0.85);
+    transform: translateY(-1px);
+}
+@keyframes skip-btn-fade-in {
+    to { opacity: 1; }
+}
+/* Never show it on a repeat-visit fast-forward load. */
+.intro-fast-forward #skip-intro-btn {
+    display: none;
+}

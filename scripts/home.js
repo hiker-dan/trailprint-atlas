@@ -3,11 +3,46 @@
  * Owns the showcase map + intro animation, headline stats, the state map,
  * the seasonal chart, the "Echoes of the Trail" sections, and the nav
  * loading-bar intro sequence. Extracted verbatim from index.html (Phase 1.4).
- * Requires Leaflet, leaflet-gpx, config.js, atlas-data.js, trail-renderer.js.
+ * Requires Leaflet, config.js, atlas-data.js, trail-renderer.js.
  *
  * (The tiny sessionStorage fast-forward check stays inline in index.html —
  * it must run before first paint to prevent intro flicker.)
  */
+
+// ===== Intro skip coordination =====
+// The first-visit intro plays as two parallel timed sequences: the showcase
+// map/stats choreography and the nav loading-bar. Both register their pending
+// timers and a "jump to the end" finisher here, so a single skip() cancels
+// everything still pending and lands on the finished homepage at once.
+const AtlasIntro = {
+    timeouts: [],
+    finishers: [],
+    skipped: false,
+    // Use for every intro timer so skip() can cancel whatever hasn't fired.
+    schedule(fn, delay) {
+        const id = setTimeout(fn, delay);
+        this.timeouts.push(id);
+        return id;
+    },
+    // Register a "snap to final state" callback for one sequence.
+    onSkip(fn) { this.finishers.push(fn); },
+    skip() {
+        if (this.skipped) return; // idempotent — natural completion also flips this
+        this.skipped = true;
+        this.timeouts.forEach(clearTimeout);
+        // Land on exactly the repeat-visit state: the fast-forward class alone
+        // expresses the finished layout instantly (no transitions). NB: do not
+        // also add 'intro-finished' — its .map-placeholder rule (height: 60vh)
+        // is only meant to be paired with 'layout-settled', which hides the
+        // placeholder; without it you get a 60vh white gap above the map.
+        document.documentElement.classList.add('intro-fast-forward');
+        sessionStorage.setItem('introShown', 'true');
+        this.finishers.forEach(fn => {
+            try { fn(); } catch (e) { console.error('intro skip finisher failed:', e); }
+        });
+        document.getElementById('skip-intro-btn')?.remove();
+    }
+};
 
 // ===== Showcase map, intro animation, stats, and page sections =====
 
@@ -79,22 +114,35 @@ fetchHikes()
             const bounds = allLayersGroup.getBounds();
             homeMap.fitBounds(bounds);
 
-            if (document.documentElement.classList.contains('intro-fast-forward')) {
+            // Snap the map dots + stats to their final look (repeat-visit load,
+            // or the user skipped before the map finished loading).
+            const settleMapInstantly = () => {
                 layersToAnimate.forEach(layer => {
                     layer.eachLayer(feature => {
                         const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
                         feature.setStyle({ fillOpacity: finalOpacity });
                     });
                 });
-                // Make the stats visible immediately on a fast-forward load
                 document.getElementById('key-stats-section').classList.add('stats-visible');
+                const overlay = document.getElementById('intro-stats-overlay');
+                overlay.classList.remove('visible');
+                overlay.style.display = 'none';
+                homeMap.invalidateSize();
+                homeMap.fitBounds(bounds, { animate: false });
+            };
+
+            if (document.documentElement.classList.contains('intro-fast-forward') || AtlasIntro.skipped) {
+                settleMapInstantly();
             } else {
                 // --- RUN THE FULL INTRO ANIMATION ---
+                // If the user hits skip mid-animation, jump straight to the end.
+                AtlasIntro.onSkip(settleMapInstantly);
+
                 const introDuration = 9000;
                 const delayBetweenDots = introDuration / layersToAnimate.length;
 
                 layersToAnimate.forEach((layer, index) => {
-                    setTimeout(() => {
+                    AtlasIntro.schedule(() => {
                         layer.eachLayer(feature => {
                             const finalOpacity = feature.options.className.includes('breathing-halo') ? 0.5 : 0.9;
                             feature.setStyle({ fillOpacity: finalOpacity });
@@ -102,11 +150,11 @@ fetchHikes()
                     }, index * delayBetweenDots);
                 });
 
-                setTimeout(() => {
+                AtlasIntro.schedule(() => {
                     document.documentElement.classList.add('title-visible');
                 }, 5000);
 
-                setTimeout(() => {
+                AtlasIntro.schedule(() => {
                     document.getElementById('intro-stats-overlay').classList.add('visible');
                     animateCountUp('intro-stats-hikes', atlasStats.totalHikes);
                     animateCountUp('intro-stats-trails', atlasStats.totalUniqueTrails);
@@ -114,7 +162,9 @@ fetchHikes()
                     animateCountUp('intro-stats-elevation', atlasStats.totalElevation);
                 }, 6000);
 
-                setTimeout(() => {
+                AtlasIntro.schedule(() => {
+                    AtlasIntro.skipped = true; // natural finish: later skip() is a no-op
+                    document.getElementById('skip-intro-btn')?.remove();
                     document.documentElement.classList.add('intro-finished');
                     sessionStorage.setItem('introShown', 'true');
                     document.getElementById('intro-stats-overlay').classList.add('hiding');
@@ -488,6 +538,25 @@ function startSlideshow(containerSelector, imageIds, interval = 10000) {
     loadingBar.style.display = 'flex';
     mainNav.style.display = 'none';
 
+    // On skip, drop the loading phrases and reveal the real nav at once.
+    AtlasIntro.onSkip(() => {
+        loadingBar.style.display = 'none';
+        mainNav.style.display = 'flex';
+        mainNav.style.opacity = '1';
+    });
+
+    // The skip affordance: a subtle button, plus Escape, to leave the intro.
+    const skipBtn = document.createElement('button');
+    skipBtn.id = 'skip-intro-btn';
+    skipBtn.type = 'button';
+    skipBtn.textContent = 'Skip intro';
+    skipBtn.addEventListener('click', () => AtlasIntro.skip());
+    document.body.appendChild(skipBtn);
+
+    const onEsc = (e) => { if (e.key === 'Escape') AtlasIntro.skip(); };
+    document.addEventListener('keydown', onEsc);
+    AtlasIntro.onSkip(() => document.removeEventListener('keydown', onEsc));
+
     const allPhrases = [
         "Calibrating Compass...", "Drawing Maps...", "Lacing Boots...", "Checking Weather...",
         "Packing Snacks...", "Finding North...", "Rendering Trails...", "Filtering Water...",
@@ -510,7 +579,7 @@ function startSlideshow(containerSelector, imageIds, interval = 10000) {
     loadingText.textContent = phrase1;
 
     // Set timeout to change to the second phrase
-    setTimeout(() => {
+    AtlasIntro.schedule(() => {
         loadingText.style.opacity = 0;
         setTimeout(() => {
             loadingText.textContent = phrase2;
@@ -519,8 +588,8 @@ function startSlideshow(containerSelector, imageIds, interval = 10000) {
     }, 4750); // Change just before the 5-second mark
 
     // Set timeout to transition to the final nav bar
-    const transitionTime = 9500; 
-    setTimeout(() => {
+    const transitionTime = 9500;
+    AtlasIntro.schedule(() => {
         // Fade out loading bar
         loadingBar.style.opacity = '0';
         setTimeout(() => {

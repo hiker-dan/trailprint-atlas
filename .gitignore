@@ -5,3 +5,8 @@
 __pycache__/
 *.pyc
 node_modules/
+
+# Hike-entry pipeline (Phase 3): raw drop-off folder, local secrets, backups
+intake/
+tools/cloudinary-credentials.json
+*.bak

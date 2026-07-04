@@ -152,7 +152,7 @@ Six phases. Each is independently shippable — the site works and looks better 
 ### Phase 3 — Catch Up the Logbook *(data; ongoing sessions, parallelizable with Phase 4)*
 > A living atlas needs its missing years — and a faster pen.
 
-- [ ] **Build the 5-minute hike-entry pipeline** (the PRD promised this; it's why the Atlas went quiet). New workflow: you drop a GPX export + photos + a few quick facts (companions, difficulty, trip tag, a memory line) → a `tools/new-hike` script extracts date/distance/elevation/coords from the GPX, scaffolds the JSON entry, and renames files to convention → I draft description/flora/fauna for your review → you approve, we commit. Target: under 5 minutes of *your* time per hike.
+- [x] **Build the 5-minute hike-entry pipeline** *(shipped July 2026 as `tools/new-hike.py`; maiden voyage: tta_72 Mastodon Peak)* — (the PRD promised this; it's why the Atlas went quiet). The workflow: you drop a GPX export + photos + a few quick facts (companions, difficulty, trip tag, a memory line) → a `tools/new-hike` script extracts date/distance/elevation/coords from the GPX, scaffolds the JSON entry, and renames files to convention → I draft description/flora/fauna for your review → you approve, we commit. Target: under 5 minutes of *your* time per hike.
 - [ ] Backfill **all 2025 and 2026 hikes** (currently absent from both spreadsheet and site) using that pipeline.
 - [ ] Migrate the spreadsheet's role: `hikes.json` becomes the sole source of truth going forward; the spreadsheet is archived as historical input. (One tool, not two, or they'll drift.)
 - [ ] Decide and implement the **Runyon Canyon Record** treatment (see Phase 4's "Local Loop").

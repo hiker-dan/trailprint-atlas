@@ -1,5 +1,40 @@
 [
   {
+    "trail_id": "tta_72",
+    "trail_name": "Mastodon Peak",
+    "date_completed": "2025-02-15",
+    "location": "Joshua Tree National Park",
+    "region": "Twentynine Palms, CA",
+    "primary_geography": "Desert",
+    "miles": 2.54,
+    "elevation_gain": 407,
+    "summit_trail": true,
+    "summit_elevation": 3396,
+    "difficulty": "Medium",
+    "hike_type": "Day Trip",
+    "hike_size": "Duo",
+    "hiked_with": [
+      "Kate C."
+    ],
+    "description": "A rocky loop above the Cottonwood Spring oasis in Joshua Tree's southern reaches — the park's lower Colorado Desert half, where the Joshua trees give way to ocotillo and fan-palm oases. The summit block, whose profile struck 1920s gold miners as mastodon-like, asks a short scramble and pays back with the Eagle Mountains ranged to the east and, on clear winter days, the Salton Sea shimmering far to the south. The loop passes the timbered shaft of the Mastodon Mine itself, worked for gold into the 1930s.",
+    "flora": "Ocotillo (Fouquieria splendens) — Signature wand of the Colorado Desert, standing leafless through drought and flushing green within days of rain; its scarlet late-winter blooms are a torch-tip magnet for hummingbirds.",
+    "fauna": "Costa's hummingbird (Calypte costae) — A tiny desert specialist whose males flash an iridescent violet gorget that flares like a handlebar mustache; late winter is its breeding peak in the desert washes, perfectly timed to the ocotillo bloom.",
+    "notes": null,
+    "trip_tag": "Joshua Tree Day Trip - Feb 2025",
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/mastodon-peak?u=i&sh=yeki4v",
+    "official_trail_url": "https://www.nps.gov/thingstodo/hike-mastodon-peak.htm",
+    "latitude": 33.7369,
+    "longitude": -115.8106,
+    "gpx_file": "Mastodon_Peak_02.15.25.gpx",
+    "images": [
+      "tta_72-mastodon-peak-01",
+      "tta_72-mastodon-peak-02",
+      "tta_72-mastodon-peak-03",
+      "tta_72-mastodon-peak-04"
+    ],
+    "videos": null
+  },
+  {
     "trail_id": "tta_71",
     "trail_name": "Temescal Canyon Trail",
     "date_completed": "2024-11-23",

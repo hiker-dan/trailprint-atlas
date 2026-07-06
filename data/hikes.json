@@ -1,5 +1,73 @@
 [
   {
+    "trail_id": "tta_74",
+    "trail_name": "Hidden Valley",
+    "date_completed": "2025-02-15",
+    "location": "Joshua Tree National Park",
+    "region": "Twentynine Palms, CA",
+    "primary_geography": "Desert",
+    "miles": 1.05,
+    "elevation_gain": 79,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Easy",
+    "hike_type": "Day Trip",
+    "hike_size": "Duo",
+    "hiked_with": [
+      "Kate C."
+    ],
+    "description": "Hidden Valley is a secluded basin encircled by towering granite boulders, offering a textbook example of Mojave Desert microhabitats with rich geological and ecological interplay. The area’s isolation once made it a hideout for cattle rustlers, now it's a corridor for wildlife and native vegetation.",
+    "flora": "Joshua tree (Yucca brevifolia) As the iconic sentinel of the Mojave Desert and Joshua Tree National Park, this tree‑like yucca species shapes the skyline here.",
+    "fauna": "Cactus wren (Campylorhynchus brunneicapillus) This vibrant, ground-foraging bird is emblematic of the desert scrub ecosystem and frequently observed amid rock crevices.",
+    "notes": null,
+    "trip_tag": "Joshua Tree Day Trip - Feb 2025",
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/hidden-valley--3?u=i&sh=yeki4v",
+    "official_trail_url": "https://www.nps.gov/places/hidden-valley-trailhead.htm",
+    "latitude": 34.0128,
+    "longitude": -116.169,
+    "gpx_file": "Hidden_Valley_02.15.25.gpx",
+    "images": [
+      "tta_74-hidden-valley-01",
+      "tta_74-hidden-valley-02",
+      "tta_74-hidden-valley-03"
+    ],
+    "videos": null
+  },
+  {
+    "trail_id": "tta_73",
+    "trail_name": "Split Rock Loop",
+    "date_completed": "2025-02-15",
+    "location": "Joshua Tree National Park",
+    "region": "Twentynine Palms, CA",
+    "primary_geography": "Desert",
+    "miles": 2.3,
+    "elevation_gain": 279,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Easy",
+    "hike_type": "Day Trip",
+    "hike_size": "Duo",
+    "hiked_with": [
+      "Kate C."
+    ],
+    "description": "An easy loop through the boulder mazes of Joshua Tree's high Mojave half, where monzogranite weathers into the park's signature heaps of rounded stone. The namesake boulder waits at the trailhead — a house-sized granite egg cracked cleanly in two by water and frost prying at a hairline seam — before the path threads sandy washes and rock corridors near Jumbo Rocks and Skull Rock.",
+    "flora": "Parry's nolina (Nolina parryi) — A yucca impersonator that thrives on Joshua Tree's granite slopes, actually a giant relative of asparagus; in spring, mature plants hoist a flower plume like a cream-colored torch several feet above the rock.",
+    "fauna": "Rock wren (Salpinctes obsoletus) — A pale, bobbing songbird of bare stone that hunts insects deep in the boulder cracks; it famously paves a small walkway of flat pebbles leading to its hidden nest, a stonemason among the granite.",
+    "notes": null,
+    "trip_tag": "Joshua Tree Day Trip - Feb 2025",
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/split-rock-loop--4?u=i&sh=yeki4v",
+    "official_trail_url": "https://www.nps.gov/places/split-rock-trailhead.htm",
+    "latitude": 34.00972,
+    "longitude": -116.05587,
+    "gpx_file": "Split_Rock_Loop_02.15.25.gpx",
+    "images": [
+      "tta_73-split-rock-loop-01",
+      "tta_73-split-rock-loop-02",
+      "tta_73-split-rock-loop-03"
+    ],
+    "videos": null
+  },
+  {
     "trail_id": "tta_72",
     "trail_name": "Mastodon Peak",
     "date_completed": "2025-02-15",

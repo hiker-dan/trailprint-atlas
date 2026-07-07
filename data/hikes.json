@@ -1,5 +1,105 @@
 [
   {
+    "trail_id": "tta_77",
+    "trail_name": "Tee Pee Trail",
+    "date_completed": "2025-05-17",
+    "location": "Angeles National Forest",
+    "region": "La Canada Flintridge, CA",
+    "primary_geography": "Chaparral",
+    "miles": 5.63,
+    "elevation_gain": 1158,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Medium",
+    "hike_type": "Day Hike",
+    "hike_size": "Duo",
+    "hiked_with": [
+      "Luke R."
+    ],
+    "description": "",
+    "flora": "",
+    "fauna": "",
+    "notes": null,
+    "trip_tag": null,
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
+    "official_trail_url": null,
+    "latitude": 34.23397,
+    "longitude": -118.18448,
+    "gpx_file": "Tee_Pee_Trail_05.17.25.gpx",
+    "images": [
+      "tta_77-tee-pee-trail-01",
+      "tta_77-tee-pee-trail-02",
+      "tta_77-tee-pee-trail-03"
+    ],
+    "videos": null
+  },
+  {
+    "trail_id": "tta_76",
+    "trail_name": "Ferndell to the West Observatory Loop Trail to Griffith Observatory",
+    "date_completed": "2025-03-30",
+    "location": "Griffith Park",
+    "region": "Los Angeles, CA",
+    "primary_geography": "Urban Edge",
+    "miles": 2.74,
+    "elevation_gain": 623,
+    "summit_trail": true,
+    "summit_elevation": 1138,
+    "difficulty": "Easy",
+    "hike_type": "Day Hike",
+    "hike_size": "Group",
+    "hiked_with": [
+      "Luke R.",
+      "Shauna R."
+    ],
+    "description": "",
+    "flora": "",
+    "fauna": "",
+    "notes": null,
+    "trip_tag": null,
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/ferndell-to-the-west-observatory-loop-trail-to-griffith-observatory?u=i&sh=yeki4v",
+    "official_trail_url": "https://recreation.parks.lacity.gov/griffithpark/",
+    "latitude": 34.10892,
+    "longitude": -118.30776,
+    "gpx_file": "Ferndell_to_the_West_Observatory_Loop_Trail_to_Griffith_Observatory_03.30.25.gpx",
+    "images": [
+      "tta_76-ferndell-to-the-west-observatory-loop-trail-to-griffith-observatory-01"
+    ],
+    "videos": null
+  },
+  {
+    "trail_id": "tta_75",
+    "trail_name": "Hastain Trail Outer Loop",
+    "date_completed": "2025-03-22",
+    "location": "Franklin Canyon Park",
+    "region": "Beverly Hills, CA",
+    "primary_geography": "Urban Edge",
+    "miles": 2.26,
+    "elevation_gain": 525,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Easy",
+    "hike_type": "Day Hike",
+    "hike_size": "Duo",
+    "hiked_with": [
+      "Luke R."
+    ],
+    "description": "",
+    "flora": "",
+    "fauna": "",
+    "notes": null,
+    "trip_tag": null,
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/hastain-trail-outer-loop?u=i&sh=yeki4v",
+    "official_trail_url": "https://mrca.ca.gov/parks/park-listing/franklin-canyon-park/",
+    "latitude": 34.11138,
+    "longitude": -118.41509,
+    "gpx_file": "Hastain_Trail_Outer_Loop_03.22.25.gpx",
+    "images": [
+      "tta_75-hastain-trail-outer-loop-01",
+      "tta_75-hastain-trail-outer-loop-02"
+    ],
+    "videos": null
+  },
+  {
     "trail_id": "tta_74",
     "trail_name": "Hidden Valley",
     "date_completed": "2025-02-15",

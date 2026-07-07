@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!track || !viewport) return;
 
         // 1. Sort hikes and get the full time range of all adventures
-        const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+        const sortedHikes = [...allHikes].sort(compareHikesChrono);
         const firstHikeTime = new Date(sortedHikes[0].date_completed + 'T00:00:00Z').getTime();
         const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed + 'T00:00:00Z').getTime();
         const totalTimeSpan = lastHikeTime - firstHikeTime;
@@ -288,7 +288,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const requiredWidth = (numDots - 1) * GUARANTEED_SPACING_PX;
                 const expandedBarWidth = bar.offsetWidth;
                 const clusterStartPosition = (expandedBarWidth / 2) - (requiredWidth / 2);
-                const sortedDots = dotsInBar.sort((a, b) => new Date(a.dataset.date + 'T00:00:00Z') - new Date(b.dataset.date + 'T00:00:00Z'));
+                // Same-day trip hikes share a date, so break ties by tta number
+                // (mirrors compareHikesChrono, but for the dot elements).
+                const dotNumber = (dot) => parseInt(dot.dataset.hikeId.split('_')[1], 10);
+                const sortedDots = dotsInBar.sort((a, b) =>
+                    (new Date(a.dataset.date + 'T00:00:00Z') - new Date(b.dataset.date + 'T00:00:00Z'))
+                    || (dotNumber(a) - dotNumber(b)));
                 sortedDots.forEach((dot, index) => {
                     // Add leftShift to the dot's position to counteract the parent bar's leftward movement.
                     dot.style.left = `${clusterStartPosition + (index * GUARANTEED_SPACING_PX) + leftShift}px`;
@@ -347,7 +352,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const globalTooltip = document.getElementById('timeline-global-tooltip');
         if (!viewport || !track || !dateDisplay || !floatingMonth || !floatingYear || !globalTooltip || !landscapeContainer || !timelineNavContainer) return;
 
-        const sortedHikes = [...allHikes].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+        const sortedHikes = [...allHikes].sort(compareHikesChrono);
         const firstHikeTime = new Date(sortedHikes[0].date_completed + 'T00:00:00Z').getTime();
         const lastHikeTime = new Date(sortedHikes[sortedHikes.length - 1].date_completed + 'T00:00:00Z').getTime();
         const totalTimeSpan = lastHikeTime - firstHikeTime;
@@ -1034,7 +1039,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const logbookContainer = logbookSection.querySelector('#logbook-container');
                         
                         // Sort hikes by date, most recent first
-                        hikeGroup.sort((a, b) => new Date(b.date_completed + 'T00:00:00Z') - new Date(a.date_completed + 'T00:00:00Z'));
+                        hikeGroup.sort(compareHikesChronoDesc);
 
                         logbookContainer.innerHTML = hikeGroup.map(log => {
                             const isCurrent = log.trail_id === hike.trail_id;

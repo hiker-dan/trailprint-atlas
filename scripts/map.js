@@ -132,7 +132,7 @@ function generatePopupHtml(hikesForTrail) {
     if (hikesForTrail.length > 1) {
         // If hiked more than once, make each date a link
         const dateList = hikesForTrail
-            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+            .sort(compareHikesChronoDesc)
             .map(h => {
                 const dateStr = formatHikeDate(h.date_completed);
                 return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
@@ -181,7 +181,7 @@ function generateListDetailsHtml(hikesForTrail) {
     if (hikesForTrail.length > 1) {
         // If hiked more than once, make each date a link
         const dateList = hikesForTrail
-            .sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))
+            .sort(compareHikesChronoDesc)
             .map(h => {
                 const dateStr = formatHikeDate(h.date_completed);
                 return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;

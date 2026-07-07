@@ -88,6 +88,27 @@ function formatHikeDate(dateStr, options = { year: 'numeric', month: 'long', day
     return new Date(dateStr).toLocaleDateString('en-US', { ...options, timeZone: 'UTC' });
 }
 
+/** The numeric part of a trail_id ("tta_43" -> 43). Ids are assigned in the
+ * order hikes happened, so they order same-day hikes (multi-hike trip days). */
+function hikeNumber(hike) {
+    return parseInt(hike.trail_id.split('_')[1], 10);
+}
+
+/**
+ * THE canonical chronological comparators. Always sort hikes with these —
+ * never by date alone: same-day hikes (trip days) would land in file order,
+ * which is newest-first, i.e. backwards.
+ */
+function compareHikesChrono(a, b) {
+    return (new Date(a.date_completed) - new Date(b.date_completed))
+        || (hikeNumber(a) - hikeNumber(b));
+}
+
+/** Newest first; same-day hikes: latest of the day first. */
+function compareHikesChronoDesc(a, b) {
+    return compareHikesChrono(b, a);
+}
+
 /**
  * The canonical headline stats. Miles and elevation count EVERY hike,
  * including repeats of the same trail (Danny's Part V decision #1).

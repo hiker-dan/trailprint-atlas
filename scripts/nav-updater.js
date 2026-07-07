@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     latestHikeLink.style.display = 'none';
                     return;
                 }
-                const mostRecentHike = [...hikes].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+                const mostRecentHike = [...hikes].sort(compareHikesChronoDesc)[0];
                 if (mostRecentHike && mostRecentHike.trail_id) {
                     latestHikeLink.href = `hike.html?id=${mostRecentHike.trail_id}`;
                 }

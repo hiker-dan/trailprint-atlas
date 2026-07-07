@@ -229,7 +229,7 @@ fetchHikes()
 
             // First/Most Recent Hikes
             if (data.length > 0) {
-                const sortedHikes = [...data].sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed));
+                const sortedHikes = [...data].sort(compareHikesChrono);
                 const firstHike = sortedHikes[0];
                 const mostRecentHike = sortedHikes[sortedHikes.length - 1];
                 document.getElementById('first-hike-date').innerText = formatHikeDate(firstHike.date_completed);
@@ -245,14 +245,14 @@ fetchHikes()
             const trips = groupByTrip(data);
             const hikesWithTripTag = data.filter(hike => hike.trip_tag);
             if (hikesWithTripTag.length > 0) {
-                const latestTripHike = hikesWithTripTag.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+                const latestTripHike = hikesWithTripTag.sort(compareHikesChronoDesc)[0];
                 const latestTripTag = latestTripHike.trip_tag;
                 const adventureHikes = trips.get(latestTripTag);
                 document.getElementById('featured-trip-title').innerText = latestTripTag;
                 const hikesListContainer = document.getElementById('featured-trip-hikes-list');
                 hikesListContainer.innerHTML = '';
                 adventureHikes
-                    .sort((a, b) => new Date(a.date_completed) - new Date(b.date_completed))
+                    .sort(compareHikesChrono)
                     .forEach(hike => {
                         hikesListContainer.innerHTML += `
                             <div class="featured-trip-hike-item">
@@ -281,12 +281,12 @@ fetchHikes()
             for (const trailName in trailCounts) { if (trailCounts[trailName] > maxHikes) { maxHikes = trailCounts[trailName]; mostHikedTrailName = trailName; } }
             if (mostHikedTrailName) {
                 const mostHikedHikes = data.filter(h => h.trail_name === mostHikedTrailName);
-                const representativeHike = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed))[0];
+                const representativeHike = mostHikedHikes.sort(compareHikesChronoDesc)[0];
                 const totalMiles = mostHikedHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
                 const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
                 document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
                 document.getElementById('goto-trail-description').innerHTML = formatHikeText(representativeHike.description);
-                const datesHtml = mostHikedHikes.sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).map(h => `<li>${formatHikeDate(h.date_completed)}</li>`).join('');
+                const datesHtml = mostHikedHikes.sort(compareHikesChronoDesc).map(h => `<li>${formatHikeDate(h.date_completed)}</li>`).join('');
                 document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
                 document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
                 document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
@@ -300,7 +300,7 @@ fetchHikes()
             (function createTrailLog() {
                 const trailLogContainer = document.getElementById('trail-log-section');
                 if (!trailLogContainer) return;
-                const recentHikes = [...data].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed)).slice(0, 3);
+                const recentHikes = [...data].sort(compareHikesChronoDesc).slice(0, 3);
                 if (recentHikes.length === 0) { trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>'; return; }
                 const cardsHtml = recentHikes.map(hike => `
                     <div class="trail-log-card">

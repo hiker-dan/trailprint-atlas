@@ -62,7 +62,7 @@ there is fine, with his review.
 | `index.html` | Homepage shell. Logic lives in `scripts/home.js`, styles in `styles/home.css`; a 5-line sessionStorage intro check stays inline by design (must run before first paint). |
 | `404.html` | Branded "Off the Trail" page (GitHub Pages serves it for bad URLs). Self-contained on purpose — no relative assets. |
 | `scripts/config.js` | `ATLAS_CONFIG` (Cloudinary cloud + `cloudinaryUrl()`, year colors, type icons, seasons). Load before all other Atlas scripts. |
-| `scripts/atlas-data.js` | Data layer: cached `fetchHikes()`, `groupByTrail`/`groupByTrip`, `hikeYear`/`hikeMonth`, `formatHikeDate`, `getAtlasStats`. |
+| `scripts/atlas-data.js` | Data layer: cached `fetchHikes()`/`fetchTrailGeometries()`, `groupByTrail`/`groupByTrip`, `hikeYear`/`hikeMonth`, `formatHikeDate`, `compareHikesChrono`/`Desc`, `getAtlasStats`. |
 | `scripts/nav.js` | Injects the single shared nav structure (synchronously) + the site footer on every page. |
 | `scripts/home.js` | All homepage logic: showcase map + intro choreography, stats, state map, seasonal chart, slideshows, loading-bar phrases. |
 | `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. |
@@ -131,8 +131,11 @@ needs new per-hike information, the first step is always to add the field to the
 
 - **UTC dates, always.** `date_completed` parses as UTC midnight; reading it with local-time
   getters shifts hikes a day for anyone west of UTC. Use `getUTCFullYear()` / `getUTCMonth()`
-  etc. — never the local variants — when deriving year/month/day from hike dates. (Sorting via
-  `new Date(a) - new Date(b)` is fine.)
+  etc. — never the local variants — when deriving year/month/day from hike dates.
+- **Sort hikes with `compareHikesChrono` / `compareHikesChronoDesc`** (atlas-data.js) — never
+  by `date_completed` alone. Multi-hike trip days share a date; the comparators break ties by
+  tta number (assigned in the order hiked), so same-day hikes display in the order they
+  happened instead of file order (which is newest-first, i.e. backwards).
 - **Long-form text** (`description`, `notes`, `flora`, `fauna`) renders through
   `formatHikeText()` in `trail-renderer.js` — it converts `**bold**` → `<strong>` and
   newlines → `<br>`.

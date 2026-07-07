@@ -22,7 +22,7 @@ function renderTrailGroup(hikesForTrail, options = {}) {
 
     // Sort hikes by date to easily identify the most recent one for styling.
     // This is safer than assuming the input array is pre-sorted.
-    const sortedHikes = [...hikesForTrail].sort((a, b) => new Date(b.date_completed) - new Date(a.date_completed));
+    const sortedHikes = [...hikesForTrail].sort(compareHikesChronoDesc);
     const representativeHike = sortedHikes[0]; // The most recent hike represents the group.
 
     // --- Icon Logic ---

@@ -110,7 +110,7 @@ needs new per-hike information, the first step is always to add the field to the
 | `summit_trail` | bool | If true, `summit_elevation` (ft) should be set; else it's `null`. |
 | `summit_elevation` | number\|null | |
 | `difficulty` | string | Easy / Medium / Hard. |
-| `hike_type` | string | Day Hike / Backpacking / Day Trip / Overnight Trip / Car Camping / Viewpoint. Drives map icons. |
+| `hike_type` | string | Day Hike / Backpacking / Day Trip / Overnight Trip / Car Camping / Viewpoint. Drives map icons. **Describes the outing style — essentially how you slept — not the individual walk** (decided June 2026). Pick by: slept on the trail → Backpacking; tent/campground → Car Camping; lodging (hotel/Airbnb) → Overnight Trip; home the same day, no overnight → Day Trip; standalone outing from home → Day Hike; a scenic stop that isn't a real hike → Viewpoint (overrides the rest). So a relaxed day hike taken *during* a lodging trip is **Overnight Trip**, not Day Hike. This is independent of `trip_tag` (icon category vs. specific-trip grouping): every hike on a given trip shares one core type, and it's the norm for a trip's members to all carry it. |
 | `hike_size` | string | Solo / Duo / Group. |
 | `hiked_with` | string[] | Names as `"First L."` (e.g. "Luke R."). Empty for solo. |
 | `description` | string | AI-drafted field-guide text. May contain `**bold**` — render via `formatHikeText()`. |

@@ -1,5 +1,43 @@
 [
   {
+    "trail_id": "tta_78",
+    "trail_name": "Mishe Mokwa Trail to Split Rock",
+    "date_completed": "2025-06-07",
+    "location": "Santa Monica Mountains National Recreation Area",
+    "region": "Malibu, CA",
+    "primary_geography": "Coastal Chaparral",
+    "miles": 3.3,
+    "elevation_gain": 629,
+    "summit_trail": false,
+    "summit_elevation": null,
+    "difficulty": "Medium",
+    "hike_type": "Day Hike",
+    "hike_size": "Group",
+    "hiked_with": [
+      "Max M.",
+      "Mila R.",
+      "Rachel G.",
+      "Robby G."
+    ],
+    "description": "",
+    "flora": "",
+    "fauna": "",
+    "notes": null,
+    "trip_tag": null,
+    "all_trails_url": "https://www.alltrails.com/trail/us/california/mishe-mokwa-trail-to-split-rock?u=i&sh=yeki4v",
+    "official_trail_url": "https://www.nps.gov/thingstodo/mishe-mokwa-trail-to-split-rock.htm",
+    "latitude": 34.11432,
+    "longitude": -118.91821,
+    "gpx_file": "Mishe_Mokwa_Trail_to_Split_Rock_06.07.25.gpx",
+    "images": [
+      "tta_78-mishe-mokwa-trail-to-split-rock-01",
+      "tta_78-mishe-mokwa-trail-to-split-rock-02",
+      "tta_78-mishe-mokwa-trail-to-split-rock-03",
+      "tta_78-mishe-mokwa-trail-to-split-rock-04"
+    ],
+    "videos": null
+  },
+  {
     "trail_id": "tta_77",
     "trail_name": "Tee Pee Trail",
     "date_completed": "2025-05-17",
@@ -16,9 +54,9 @@
     "hiked_with": [
       "Luke R."
     ],
-    "description": "",
-    "flora": "",
-    "fauna": "",
+    "description": "A canyon ascent through mixed oak-chaparral to ridgelines, this frequently hiked route showcases panoramic views of San Gabriel Mountains on one side and urban LA sprawl on the other.",
+    "flora": "Sticky monkeyflower (Diplacus aurantiacus) — Apricot-orange trumpets at their May peak along the chaparral edges; the resinous leaves that give the plant its name help it hold water through the long dry season.",
+    "fauna": "Western fence lizard (Sceloporus occidentalis) — The push-up artist of every sun-warmed trailside rock, flashing a blue belly at rivals; a protein in its blood even scrubs Lyme bacteria from the ticks that bite it.",
     "notes": null,
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/tee-pee-trail?u=i&sh=yeki4v",
@@ -51,9 +89,9 @@
       "Luke R.",
       "Shauna R."
     ],
-    "description": "",
-    "flora": "",
-    "fauna": "",
+    "description": "From the spring-fed grotto of Ferndell — planted as a public fern garden in the 1910s and still dripping green — a steady climb through Griffith Park chaparral to the copper domes of the 1935 Observatory. The terrace delivers one of Los Angeles's defining views: the skyline, the basin, and on clear days the Pacific, with the Hollywood Sign over one shoulder.",
+    "flora": "Giant chain fern (Woodwardia fimbriata) — North America's largest native fern, unfurling fronds up to six feet along Ferndell's stream; the chain-like rows of spore cases stitched under each frond give it its name.",
+    "fauna": "Mountain lion (Puma concolor) — Griffith Park was the decade-long home of P-22, the celebrity cougar who crossed two freeways to claim this island of urban wilderness; his story helped launch the world's largest wildlife crossing over the 101.",
     "notes": null,
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/ferndell-to-the-west-observatory-loop-trail-to-griffith-observatory?u=i&sh=yeki4v",
@@ -83,9 +121,9 @@
     "hiked_with": [
       "Luke R."
     ],
-    "description": "",
-    "flora": "",
-    "fauna": "",
+    "description": "A fire-road loop through a pocket of wild canyon wedged between Beverly Hills and the San Fernando Valley, once oil baron Edward Doheny's ranch retreat. The Hastain grade climbs to a chaparral ridgeline with views from downtown to the ocean, then drops back toward the canyon's famous pond — the fishing hole from The Andy Griffith Show's opening credits.",
+    "flora": "Wild cucumber (Marah macrocarpa) — Late-winter vines that drape the chaparral, grown from an underground tuber that can outweigh a hiker; its spiky golf-ball fruit is strictly ornamental — “manroot” is inedible despite the name.",
+    "fauna": "Red-shouldered hawk (Buteo lineatus) — The canyon's loudest resident in early spring, wheeling over the oaks with insistent kee-aah cries as pairs return to the same nesting groves year after year.",
     "notes": null,
     "trip_tag": null,
     "all_trails_url": "https://www.alltrails.com/trail/us/california/hastain-trail-outer-loop?u=i&sh=yeki4v",

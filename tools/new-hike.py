@@ -10,7 +10,22 @@ that hike's photos), then run:
 The wizard reads what a machine can know (date, coordinates, distance and
 climb estimates, the next tta_NN id), asks only the human questions — each
 with a default you can accept with Enter — and then does all the mechanical
-work exactly to the Atlas's conventions:
+work exactly to the Atlas's conventions.
+
+It also mines the GPX and the Atlas's own history so you rarely type at all:
+  - suggests the trail name from the GPX's embedded title (stripping
+    AllTrails' "Afternoon hike at ..." prefix; boilerplate titles ignored)
+  - recognizes a REPEAT — a start point at a trailhead you've logged before,
+    or a matching name — and pre-fills last time's answers (name, location,
+    region, geography, difficulty, type, summit, URLs). Miles and climb are
+    NOT copied: every outing differs, so their default is this GPX's estimate.
+  - for new trails, offers the locations/regions previous hikes near these
+    coordinates used, so spellings never drift from the record.
+
+Launch it from the terminal as above, by double-clicking "New Hike.command"
+in the project folder, or in VS Code: Terminal menu -> Run Task -> New Hike.
+
+The mechanical work, exactly to the Atlas's conventions:
 
   - renames the GPX to Trail_Name_MM.DD.YY.gpx and files it in data/trails/
   - renames photos to tta_NN-trail-name-## and uploads them to Cloudinary
@@ -180,6 +195,98 @@ def local_date_from_gpx(points):
     offset_hours = round(points[0][1] / 15)  # 15 degrees of longitude per hour
     local = first_time.astimezone(timezone.utc) + timedelta(hours=offset_hours)
     return local.date().isoformat()
+
+
+# ----------------------------------------------------------------------------
+# Smart suggestions from the GPX + the Atlas's own history
+# ----------------------------------------------------------------------------
+
+# Boilerplate titles AllTrails sometimes embeds instead of a trail name.
+JUNK_GPX_NAMES = {"trail planner map", "park and trailhead",
+                  "phone service available", "map", "custom map"}
+
+# "Afternoon hike at ...", "Early morning walk in ..." — strip the diary prefix.
+TIME_PREFIX_RE = re.compile(r"^(?:[a-z]+ )*?(?:hike|walk|run) (?:at|in|on|to)\s+",
+                            re.IGNORECASE)
+
+
+def gpx_embedded_name(path):
+    """The recording's title from <metadata><name> (AllTrails always sets one)."""
+    root = ET.parse(path).getroot()
+    for el in root.iter():
+        if local_name(el.tag) == "name" and el.text and el.text.strip():
+            return el.text.strip()
+    return None
+
+
+def suggest_trail_name(raw):
+    """'Afternoon hike at Tee Pee Trail' -> 'Tee Pee Trail'; junk titles -> None.
+    Also drops AllTrails' status tags like 'Eaton Canyon Trail [CLOSED]'."""
+    if not raw or raw.strip().lower() in JUNK_GPX_NAMES:
+        return None
+    name = TIME_PREFIX_RE.sub("", raw.strip())
+    name = re.sub(r"\s*\[[^\]]*\]\s*$", "", name)
+    return name or None
+
+
+def normalize_name(s):
+    return re.sub(r"[^a-z0-9]", "", s.lower())
+
+
+def dedupe(items):
+    seen, out = set(), []
+    for x in items:
+        if x not in seen:
+            seen.add(x)
+            out.append(x)
+    return out
+
+
+def hikes_near(hikes, lat, lon, radius_mi):
+    """Previous hikes whose trailhead lies within radius_mi, nearest first."""
+    found = []
+    for h in hikes:
+        if h.get("latitude") is None or h.get("longitude") is None:
+            continue
+        d = haversine_miles((lat, lon), (h["latitude"], h["longitude"]))
+        if d <= radius_mi:
+            found.append((d, h))
+    found.sort(key=lambda pair: pair[0])
+    return found
+
+
+def latest_record(records):
+    """Most recent record of a trail; same-date ties break by tta number."""
+    return max(records, key=lambda h: (h["date_completed"],
+                                       int(h["trail_id"].split("_")[1])))
+
+
+REPEAT_RADIUS_MI = 0.35   # same trailhead, allowing for GPS wobble
+NEARBY_RADIUS_MI = 40     # "same corner of the world" for location suggestions
+
+
+def repeat_candidates(hikes, lat, lon, gpx_name):
+    """Trails this GPX plausibly repeats: any previous trail starting within
+    REPEAT_RADIUS_MI of this start, plus any trail whose name matches the
+    GPX's embedded title. Returns [(trail_name, times_hiked, latest_record)],
+    best guess first (a name match outranks a merely-nearby trailhead)."""
+    scores = {}
+    if lat is not None:
+        for d, h in hikes_near(hikes, lat, lon, REPEAT_RADIUS_MI):
+            if d < scores.get(h["trail_name"], float("inf")):
+                scores[h["trail_name"]] = d
+    if gpx_name:
+        want = normalize_name(gpx_name)
+        for h in hikes:
+            have = normalize_name(h["trail_name"])
+            if want and have and (want == have or want in have or have in want):
+                scores[h["trail_name"]] = -1.0
+    ranked = sorted(scores, key=lambda name: scores[name])
+    out = []
+    for name in ranked:
+        records = [h for h in hikes if h["trail_name"] == name]
+        out.append((name, len(records), latest_record(records)))
+    return out
 
 
 # ----------------------------------------------------------------------------
@@ -363,49 +470,157 @@ def run_wizard(hikes, gpxs, photos):
             print("  Drop the GPX into intake/ and run me again. Nothing was changed.")
             sys.exit(0)
 
+    name_suggestion = None
+    repeat_of = None
     if gpx_source:
-        points = parse_gpx(os.path.join(INTAKE_DIR, gpx_source))
+        gpx_path = os.path.join(INTAKE_DIR, gpx_source)
+        points = parse_gpx(gpx_path)
         est_miles, est_gain = gpx_estimates(points)
         derived_date = local_date_from_gpx(points)
         lat, lon = points[0][0], points[0][1]
         print(f"  GPX says: ~{est_miles} mi, ~{est_gain} ft of climb, "
               f"{len(points)} track points, starts at {lat:.5f}, {lon:.5f}")
+
+        # What does the GPX + the Atlas's own history already tell us?
+        name_suggestion = suggest_trail_name(gpx_embedded_name(gpx_path))
+        candidates = repeat_candidates(hikes, lat, lon, name_suggestion)
+        if len(candidates) == 1:
+            name, count, latest = candidates[0]
+            times = f"hiked {count} time{'s' if count != 1 else ''}, last {latest['date_completed']}"
+            if yes_no(f'This looks like a repeat of "{name}" ({times}) — same trail?',
+                      default_no=False):
+                repeat_of = latest
+        elif candidates:
+            options = [f'{name} — hiked {count}x, last {latest["date_completed"]}'
+                       for name, count, latest in candidates]
+            options.append("None of these — it's a new trail")
+            choice = pick("This start point matches previous hikes:", options,
+                          default_index=0)
+            chosen = options.index(choice)
+            if chosen < len(candidates):
+                repeat_of = candidates[chosen][2]
+        if repeat_of:
+            print("  (last time's answers are pre-filled below — Enter accepts, or type to change)")
     else:
         est_miles = est_gain = None
         derived_date = None
         lat = lon = None
 
     print("\n--- The facts only you know ---")
-    trail_name = ask("Trail name (exactly as it should appear)")
+    default_name = repeat_of["trail_name"] if repeat_of else name_suggestion
+    trail_name = ask("Trail name (exactly as it should appear)", default=default_name)
     # Repeat hikes group by exact trail_name — snap to the existing spelling.
     existing_names = {h["trail_name"].lower(): h["trail_name"] for h in hikes}
     canonical = existing_names.get(trail_name.lower())
     if canonical and canonical != trail_name:
         print(f'  (matching existing trail "{canonical}" — using that exact spelling so repeats group)')
         trail_name = canonical
-    elif canonical:
+    elif canonical and not repeat_of:
         print("  (repeat of an existing trail — the Atlas will group them together)")
-    date_completed = ask("Date completed", default=derived_date, validate=validate_date)
-    location = ask("Location (park / natural area)")
-    region = ask('Region ("City, ST")', validate=validate_region)
-    geography = pick("Primary geography:", GEOGRAPHIES)
+    date_prompt = ("Date completed" if derived_date
+                   else "Date completed (YYYY-MM-DD, like 2026-02-15)")
+    date_completed = ask(date_prompt, default=derived_date, validate=validate_date)
 
-    miles_hint = f" (GPX estimate: ~{est_miles})" if est_miles is not None else ""
-    miles = ask(f"Miles — AllTrails' listed distance{miles_hint}", validate=validate_number)
-    gain_hint = f" (GPX estimate: ~{est_gain})" if est_gain is not None else ""
-    elevation_gain = ask(f"Elevation gain in feet — AllTrails' number{gain_hint}",
-                         validate=validate_int)
+    # Backfill insurance: the same GPX wandering into intake/ twice would
+    # otherwise become a second record and double-count everywhere.
+    already = [h for h in hikes
+               if h["trail_name"] == trail_name and h["date_completed"] == date_completed]
+    if already:
+        print(f'  WHOA: {already[0]["trail_id"]} is already "{trail_name}" on {date_completed} —')
+        print("  this hike looks like it's in the Atlas already (a backfill double-entry?).")
+        if not yes_no("Really log it a second time?"):
+            print("  Good catch — nothing was changed.")
+            sys.exit(0)
 
-    summit_trail = yes_no("Is this a summit trail?")
+    # Location + region: pre-filled for repeats; otherwise offer what previous
+    # hikes near these coordinates used, so spellings never drift.
+    location = region = None
+    if repeat_of:
+        location = ask("Location (park / natural area)", default=repeat_of["location"])
+        region = ask('Region ("City, ST")', default=repeat_of["region"],
+                     validate=validate_region)
+    elif lat is not None:
+        nearby = hikes_near(hikes, lat, lon, NEARBY_RADIUS_MI)
+        somewhere_new = "Somewhere new — type it"
+        locations = dedupe(h["location"] for _, h in nearby)[:6]
+        if locations:
+            choice = pick("Location (park / natural area) — used near here before:",
+                          locations + [somewhere_new], default_index=0)
+            if choice != somewhere_new:
+                location = choice
+                regions = dedupe(h["region"] for _, h in nearby
+                                 if h["location"] == location)[:5]
+                choice = pick(f'Region ("City, ST") — previously paired with {location}:',
+                              regions + [somewhere_new], default_index=0)
+                if choice != somewhere_new:
+                    region = choice
+    if location is None:
+        location = ask('Location — the park / natural area (like "Angeles National Forest")')
+    if region is None:
+        region = ask('Region — nearest town as "City, ST" (like "La Canada Flintridge, CA")',
+                     validate=validate_region)
+
+    geo_default = (GEOGRAPHIES.index(repeat_of["primary_geography"])
+                   if repeat_of and repeat_of["primary_geography"] in GEOGRAPHIES
+                   else None)
+    geography = pick("Primary geography:", GEOGRAPHIES, default_index=geo_default)
+
+    # Miles + climb: every outing differs, so even on repeats the default is
+    # THIS hike's GPX estimate — Enter takes it, or type AllTrails' number.
+    last_logged = (f" (last time you logged {repeat_of['miles']} mi, "
+                   f"{repeat_of['elevation_gain']} ft)" if repeat_of else "")
+    if est_miles is not None:
+        miles = ask(f"Miles — Enter for the GPX estimate, or type AllTrails' number{last_logged}",
+                    default=est_miles, validate=validate_number)
+        elevation_gain = ask("Elevation gain in feet — Enter for the GPX estimate "
+                             "(GPS gain often reads high), or type AllTrails'",
+                             default=est_gain, validate=validate_int)
+    else:
+        miles = ask("Miles — AllTrails' listed distance (a number, like 3.2)",
+                    validate=validate_number)
+        elevation_gain = ask("Elevation gain in feet — AllTrails' number (like 850)",
+                             validate=validate_int)
+
+    was_summit = bool(repeat_of and repeat_of.get("summit_trail"))
+    summit_trail = yes_no("Is this a summit trail?", default_no=not was_summit)
     summit_elevation = None
     if summit_trail:
-        summit_elevation = ask("Summit elevation (feet)", validate=validate_int)
+        # Best default: the official number logged last time; failing that,
+        # the track's own high point (GPS altitude, so AllTrails' number wins).
+        prev_summit = repeat_of.get("summit_elevation") if repeat_of else None
+        if prev_summit is not None:
+            summit_elevation = ask("Summit elevation in feet", default=prev_summit,
+                                   validate=validate_int)
+        else:
+            track_high = None
+            if points:
+                elevations = [p[2] for p in points if p[2] is not None]
+                if elevations:
+                    track_high = int(round(max(elevations) * 3.28084))
+            if track_high:
+                summit_elevation = ask("Summit elevation in feet — Enter for the track's "
+                                       "high point, or type AllTrails' number",
+                                       default=track_high, validate=validate_int)
+            else:
+                summit_elevation = ask("Summit elevation in feet (like 5712)",
+                                       validate=validate_int)
 
-    difficulty = pick("Difficulty:", DIFFICULTIES)
-    hike_type = pick("Hike type:", HIKE_TYPES,
-                     default_index=None if gpx_source else HIKE_TYPES.index("Viewpoint"))
+    diff_default = (DIFFICULTIES.index(repeat_of["difficulty"])
+                    if repeat_of and repeat_of["difficulty"] in DIFFICULTIES else None)
+    difficulty = pick("Difficulty:", DIFFICULTIES, default_index=diff_default)
+    if repeat_of and repeat_of["hike_type"] in HIKE_TYPES:
+        type_default = HIKE_TYPES.index(repeat_of["hike_type"])
+    else:
+        type_default = None if gpx_source else HIKE_TYPES.index("Viewpoint")
+    hike_type = pick("Hike type:", HIKE_TYPES, default_index=type_default)
 
-    companions_raw = ask('Hiked with (names like "Max M.", comma-separated; Enter if solo)',
+    tally = {}
+    for h in hikes:
+        for name in h.get("hiked_with") or []:
+            tally[name] = tally.get(name, 0) + 1
+    frequent = sorted(tally, key=lambda n: -tally[n])[:5]
+    usual = f' (the usual suspects: {", ".join(frequent)})' if frequent else ""
+    companions_raw = ask(f'Hiked with — names like "Max M.", comma-separated; Enter if solo{usual}',
                          default="", allow_empty=True)
     hiked_with = [n.strip() for n in companions_raw.split(",") if n.strip()]
     for name in hiked_with:
@@ -418,14 +633,24 @@ def run_wizard(hikes, gpxs, photos):
     # (Single-day outings count too — a "trip" is any tagged group of hikes.)
     trip_tag = None
     if yes_no("Part of a trip (day trip or multi-day)?"):
-        existing_tags = sorted({h["trip_tag"] for h in hikes if h.get("trip_tag")})
+        latest_use = {}
+        for h in hikes:
+            if h.get("trip_tag"):
+                latest_use[h["trip_tag"]] = max(latest_use.get(h["trip_tag"], ""),
+                                                h["date_completed"])
+        # Newest trips first — the one you're mid-backfill on is always option 1.
+        existing_tags = sorted(latest_use, key=lambda t: latest_use[t], reverse=True)
         if existing_tags and yes_no("Reuse an existing trip tag?", default_no=False):
             trip_tag = pick("Which trip?", existing_tags)
         else:
-            trip_tag = ask('New trip tag ("Trip Name - Mon YYYY")')
+            trip_tag = ask('New trip tag — "Trip Name - Mon YYYY" (like "Joshua Tree Day Trip - Feb 2025")')
 
-    all_trails_url = ask("AllTrails URL (or 'none')", default="none", validate=validate_url)
-    official_trail_url = ask("Official trail URL (or 'none')", default="none", validate=validate_url)
+    at_default = (repeat_of.get("all_trails_url") or "none") if repeat_of else "none"
+    all_trails_url = ask("AllTrails URL (or 'none')", default=at_default,
+                         validate=validate_url)
+    official_default = (repeat_of.get("official_trail_url") or "none") if repeat_of else "none"
+    official_trail_url = ask("Official trail URL (or 'none')", default=official_default,
+                             validate=validate_url)
 
     if lat is None:
         lat, lon = ask('Trailhead coordinates — paste "lat, lon" from Google Maps',

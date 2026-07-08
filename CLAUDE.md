@@ -76,7 +76,7 @@ there is fine, with his review.
 | `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. Never served to visitors. |
 | `data/trails.geojson` | **Generated — don't hand-edit.** All trails, simplified, in one file for the map page. Rebuild with `python3 tools/build-trails.py` whenever a GPX is added or changed. |
 | `tools/build-trails.py` | The GPX → trails.geojson build script (stdlib-only Python; runs locally, never ships). Warns if hikes.json and data/trails/ disagree. |
-| `tools/new-hike.py` | **The hike-entry pipeline** (Phase 3). Drop a GPX + photos into `intake/` (git-ignored), run `python3 tools/new-hike.py`, answer the wizard. It derives what it can from the GPX, writes the record at the top of hikes.json (textual splice — existing records stay byte-identical), files the GPX, uploads photos to Cloudinary — flat public IDs, auto-filed into the Media Library's `trailprint-atlas/tta_NN-trail-name` folder per hike (needs `tools/cloudinary-credentials.json`, git-ignored; copy the `.example` file) — rebuilds trails.geojson, and verifies everything. `--dry-run` rehearses without writing. Leaves description/flora/fauna empty — Claude drafts those in-session. Supports GPX-less viewpoint entries. |
+| `tools/new-hike.py` | **The hike-entry pipeline** (Phase 3). Drop a GPX + photos into `intake/` (git-ignored), launch the wizard — double-click `New Hike.command`, or VS Code: Terminal menu → Run Task → "New Hike" (tasks in `.vscode/tasks.json`), or `python3 tools/new-hike.py` — and answer it. It derives what it can from the GPX and pre-fills the rest from the Atlas's own history (Phase 3.2): suggests the trail name from the GPX's embedded title, detects repeats by trailhead proximity/name and defaults last time's answers (miles/elevation still default to *this* GPX's estimate — outings differ), and offers location/region used by previous hikes near the coordinates so spellings never drift. Then it writes the record at the top of hikes.json (textual splice — existing records stay byte-identical), files the GPX, uploads photos to Cloudinary — flat public IDs, auto-filed into the Media Library's `trailprint-atlas/tta_NN-trail-name` folder per hike (needs `tools/cloudinary-credentials.json`, git-ignored; copy the `.example` file) — rebuilds trails.geojson, and verifies everything. `--dry-run` rehearses without writing. Leaves description/flora/fauna empty — Claude drafts those in-session. Supports GPX-less viewpoint entries. |
 | `assets/` | Icons, the US map SVG, the timeline mountainscape. |
 | `docs/` | The roadmap (`STATE_OF_THE_ATLAS.md`) and historical documents (original PRD). |
 
@@ -85,9 +85,10 @@ there is fine, with his review.
 ### Adding a hike (the Phase 3 pipeline)
 
 New hikes enter through `tools/new-hike.py` — see its file-map row above. The ritual:
-Danny drops the AllTrails GPX export + photos into `intake/` → runs the wizard (he types
-AllTrails' listed miles/elevation; the GPX estimates are shown as sanity checks) → Claude
-drafts `description`/`flora`/`fauna` for review → check the page in Live Server → commit.
+Danny drops the AllTrails GPX export + photos into `intake/` → launches the wizard
+(double-click `New Hike.command`, or the "New Hike" VS Code task) → mostly presses Enter
+(miles/elevation default to the GPX estimate; he can type AllTrails' numbers instead) →
+Claude drafts `description`/`flora`/`fauna` for review → check the page in Live Server → commit.
 Records land in the exact format below; the wizard leaves the three prose fields empty,
 so a record with an empty `description` means "drafting still owed."
 

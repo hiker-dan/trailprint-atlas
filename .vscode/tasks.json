@@ -1,0 +1,31 @@
+{
+  // VS Code launchers for the hike-entry pipeline:
+  // Terminal menu -> Run Task -> "New Hike" (or "New Hike (dry run)").
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "New Hike",
+      "type": "shell",
+      "command": "python3 tools/new-hike.py",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "New Hike (dry run)",
+      "type": "shell",
+      "command": "python3 tools/new-hike.py --dry-run",
+      "options": { "cwd": "${workspaceFolder}" },
+      "presentation": {
+        "focus": true,
+        "panel": "dedicated",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

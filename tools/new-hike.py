@@ -642,15 +642,22 @@ def run_wizard(hikes, gpxs, photos):
     # hike_type = the outing's style (how you slept), which drives the map icon.
     # Default to the trip's established style first (consistency), then to last
     # time's for a repeat, then to a plain guess.
+    # A GPX-less entry defaults to Viewpoint, which wins even inside a trip:
+    # Viewpoint is the orthogonal "not a real hike" type, so a scenic stop
+    # stays a Viewpoint on a camping/overnight trip rather than inheriting its
+    # style. Otherwise default to the trip's established style (consistency),
+    # then to last time's for a repeat, then to no default.
     trip_core = trip_core_type(hikes, trip_tag) if trip_tag else None
-    if trip_core and trip_core in HIKE_TYPES:
+    if not gpx_source:
+        type_default = HIKE_TYPES.index("Viewpoint")
+    elif trip_core and trip_core in HIKE_TYPES:
         type_default = HIKE_TYPES.index(trip_core)
         print(f'  (this trip\'s other hikes are logged as "{trip_core}" — '
               "matching keeps the map icons consistent)")
     elif repeat_of and repeat_of["hike_type"] in HIKE_TYPES:
         type_default = HIKE_TYPES.index(repeat_of["hike_type"])
     else:
-        type_default = None if gpx_source else HIKE_TYPES.index("Viewpoint")
+        type_default = None
     hike_type = pick("Hike type:", HIKE_TYPES, default_index=type_default)
 
     tally = {}

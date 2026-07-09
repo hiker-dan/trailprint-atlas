@@ -289,6 +289,18 @@ def repeat_candidates(hikes, lat, lon, gpx_name):
     return out
 
 
+def trip_core_type(hikes, tag):
+    """A trip's established hike_type — the non-Viewpoint style its members
+    already share. Used to default a new hike on that trip to the same style,
+    so a trip's map icons stay consistent (see hike_type rule in CLAUDE.md).
+    Returns None for a brand-new tag with no members yet."""
+    counts = {}
+    for h in hikes:
+        if h.get("trip_tag") == tag and h["hike_type"] != "Viewpoint":
+            counts[h["hike_type"]] = counts.get(h["hike_type"], 0) + 1
+    return max(counts, key=lambda t: counts[t]) if counts else None
+
+
 # ----------------------------------------------------------------------------
 # Naming conventions
 # ----------------------------------------------------------------------------
@@ -608,7 +620,34 @@ def run_wizard(hikes, gpxs, photos):
     diff_default = (DIFFICULTIES.index(repeat_of["difficulty"])
                     if repeat_of and repeat_of["difficulty"] in DIFFICULTIES else None)
     difficulty = pick("Difficulty:", DIFFICULTIES, default_index=diff_default)
-    if repeat_of and repeat_of["hike_type"] in HIKE_TYPES:
+
+    # Trip tag comes BEFORE hike_type on purpose: knowing the trip lets us
+    # default the type to the trip's established style, keeping a trip's map
+    # icons consistent. (Single-day outings count too — a "trip" is any tagged
+    # group of hikes.) Offer existing tags so spellings never drift.
+    trip_tag = None
+    if yes_no("Part of a trip (day trip or multi-day)?"):
+        latest_use = {}
+        for h in hikes:
+            if h.get("trip_tag"):
+                latest_use[h["trip_tag"]] = max(latest_use.get(h["trip_tag"], ""),
+                                                h["date_completed"])
+        # Newest trips first — the one you're mid-backfill on is always option 1.
+        existing_tags = sorted(latest_use, key=lambda t: latest_use[t], reverse=True)
+        if existing_tags and yes_no("Reuse an existing trip tag?", default_no=False):
+            trip_tag = pick("Which trip?", existing_tags)
+        else:
+            trip_tag = ask('New trip tag — "Trip Name - Mon YYYY" (like "Joshua Tree Day Trip - Feb 2025")')
+
+    # hike_type = the outing's style (how you slept), which drives the map icon.
+    # Default to the trip's established style first (consistency), then to last
+    # time's for a repeat, then to a plain guess.
+    trip_core = trip_core_type(hikes, trip_tag) if trip_tag else None
+    if trip_core and trip_core in HIKE_TYPES:
+        type_default = HIKE_TYPES.index(trip_core)
+        print(f'  (this trip\'s other hikes are logged as "{trip_core}" — '
+              "matching keeps the map icons consistent)")
+    elif repeat_of and repeat_of["hike_type"] in HIKE_TYPES:
         type_default = HIKE_TYPES.index(repeat_of["hike_type"])
     else:
         type_default = None if gpx_source else HIKE_TYPES.index("Viewpoint")
@@ -628,22 +667,6 @@ def run_wizard(hikes, gpxs, photos):
             print(f'    (heads-up: "{name}" doesn\'t match the usual "First L." style — keeping it as typed)')
     hike_size = {0: "Solo", 1: "Duo"}.get(len(hiked_with), "Group")
     print(f"  -> hike_size: {hike_size}")
-
-    # Trip tag: offer existing tags so repeats never drift on spelling.
-    # (Single-day outings count too — a "trip" is any tagged group of hikes.)
-    trip_tag = None
-    if yes_no("Part of a trip (day trip or multi-day)?"):
-        latest_use = {}
-        for h in hikes:
-            if h.get("trip_tag"):
-                latest_use[h["trip_tag"]] = max(latest_use.get(h["trip_tag"], ""),
-                                                h["date_completed"])
-        # Newest trips first — the one you're mid-backfill on is always option 1.
-        existing_tags = sorted(latest_use, key=lambda t: latest_use[t], reverse=True)
-        if existing_tags and yes_no("Reuse an existing trip tag?", default_no=False):
-            trip_tag = pick("Which trip?", existing_tags)
-        else:
-            trip_tag = ask('New trip tag — "Trip Name - Mon YYYY" (like "Joshua Tree Day Trip - Feb 2025")')
 
     at_default = (repeat_of.get("all_trails_url") or "none") if repeat_of else "none"
     all_trails_url = ask("AllTrails URL (or 'none')", default=at_default,

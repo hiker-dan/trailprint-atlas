@@ -184,9 +184,35 @@ function renderMapLayers(trailGroupsToRender) {
             layerReferences[trailName] = layer;
             // The popup lifecycle drives the spotlight: open = focus this
             // trail, close = restore everyone (unless another popup took over).
-            layer.on('popupopen', () => { spotlightTrailName = trailName; applySpotlight(); });
+            layer.on('popupopen', (e) => {
+                spotlightTrailName = trailName;
+                applySpotlight();
+                // Blur-up: fade the banner photo in the moment it finishes
+                // loading (or immediately, if the preloader already cached it).
+                const photo = e.popup.getElement()?.querySelector('.popup-banner-photo');
+                if (photo) {
+                    if (photo.complete) {
+                        photo.classList.add('loaded');
+                    } else {
+                        photo.addEventListener('load', () => photo.classList.add('loaded'), { once: true });
+                    }
+                }
+            });
             layer.on('popupclose', () => {
                 if (spotlightTrailName === trailName) { spotlightTrailName = null; applySpotlight(); }
+            });
+
+            // Warm the postcard photo the first time the pointer touches this
+            // trail — by the time it's clicked, the banner is usually cached.
+            let bannerWarmed = false;
+            layer.on('mouseover', () => {
+                if (bannerWarmed) return;
+                bannerWarmed = true;
+                const photoId = popupBannerPhotoId([...hikesForTrail].sort(compareHikesChronoDesc));
+                if (photoId) {
+                    new Image().src = cloudinaryUrl(photoId, POPUP_BANNER_TRANSFORM);
+                    new Image().src = cloudinaryUrl(photoId, POPUP_BLUR_TRANSFORM);
+                }
             });
         }
     });
@@ -219,53 +245,80 @@ function renderTrailList(trailGroupsToRender) {
     });
 }
 
+// The postcard banner's Cloudinary transforms — shared by the popup HTML and
+// the hover preloader so they always hit the same cached URLs.
+const POPUP_BANNER_TRANSFORM = 'w_600,h_240,c_fill,q_auto,f_auto';
+const POPUP_BLUR_TRANSFORM = 'w_40,h_16,c_fill,q_auto:low,e_blur:300,f_auto';
+
+/** The banner photo for a trail's popup: the most recent visit with photos. */
+function popupBannerPhotoId(sortedHikes) {
+    const withPhoto = sortedHikes.find(h => h.images && h.images.length > 0);
+    return withPhoto ? withPhoto.images[0] : null;
+}
+
 function generatePopupHtml(hikesForTrail) {
-    const representativeHike = hikesForTrail[0]; // For shared info like name, miles, etc.
+    // The popup is a postcard from the trail: photo banner (or a year-colored
+    // icon band when there are no photos), a spine in the same year color as
+    // the trail line it belongs to, display-type stats, and one date "stamp"
+    // per visit — the stamps are the links to each hike's page.
+    const sorted = [...hikesForTrail].sort(compareHikesChronoDesc);
+    const rep = sorted[0];
+    const yearColor = ATLAS_CONFIG.COLOR_MAP[hikeYear(rep).toString()] || ATLAS_CONFIG.DEFAULT_COLOR;
 
-    let datesSectionHtml = '';
-    if (hikesForTrail.length > 1) {
-        // If hiked more than once, make each date a link
-        const dateList = hikesForTrail
-            .sort(compareHikesChronoDesc)
-            .map(h => {
-                const dateStr = formatHikeDate(h.date_completed);
-                return `<li><a href="hike.html?id=${h.trail_id}">${dateStr}</a></li>`;
-            }).join('');
-        const verb = representativeHike.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
-        datesSectionHtml = `<p><strong>${verb} ${hikesForTrail.length} times (click date for details):</strong></p><ul>${dateList}</ul>`;
+    // Prefer the most recent visit that has photos for the banner. The tiny
+    // blurred stand-in (~1 KB) paints instantly; the real photo fades in over
+    // it once loaded (class added on popupopen) — the "blur-up" pattern.
+    const bannerPhotoId = popupBannerPhotoId(sorted);
+    let bannerHtml;
+    if (bannerPhotoId) {
+        const photoUrl = cloudinaryUrl(bannerPhotoId, POPUP_BANNER_TRANSFORM);
+        const blurUrl = cloudinaryUrl(bannerPhotoId, POPUP_BLUR_TRANSFORM);
+        // The year color paints the banner area instantly (zero network), the
+        // blur stand-in covers it as soon as it arrives, then the photo fades in.
+        bannerHtml = `
+            <div class="popup-banner" style="background-color: ${yearColor};">
+                <img class="popup-banner-blur" src="${blurUrl}" alt="" aria-hidden="true">
+                <img class="popup-banner-photo" src="${photoUrl}" alt="${rep.trail_name}">
+            </div>`;
     } else {
-        // If hiked only once, use the single "View Full Details" link
-        const singleHike = hikesForTrail[0];
-        const dateStr = formatHikeDate(singleHike.date_completed);
-        const verb = singleHike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
-        datesSectionHtml = `
-            <p><strong>${verb}:</strong> ${dateStr}</p>
-            <p style="margin-top: 10px; text-align: center;"><a href="hike.html?id=${singleHike.trail_id}" style="font-weight: bold;">View Full Details</a></p>
-        `;
+        const iconFile = ATLAS_CONFIG.ICON_MAP[rep.hike_type] || 'day-hike-icon.png';
+        bannerHtml = `
+            <div class="popup-banner popup-banner-fallback" style="background-color: ${yearColor};">
+                <img src="assets/icons/${iconFile}" alt="${rep.hike_type}" class="hike-icon">
+            </div>`;
     }
 
-    if (representativeHike.hike_type === 'Viewpoint') {
-        return `
-            <h3>${representativeHike.trail_name}</h3>
-            <p><strong>Recreation or Natural Area:</strong> ${representativeHike.location}</p>
-            <p><strong>Near:</strong> ${representativeHike.region}</p>
-            ${datesSectionHtml}
-        `;
-    } else {
-        let summitHtml = '';
-        if (representativeHike.summit_trail && representativeHike.summit_elevation) {
-            summitHtml = `<p><strong>Summit Elevation:</strong> ${representativeHike.summit_elevation.toLocaleString()} ft</p>`;
-        }
-        return `
-            <h3>${representativeHike.trail_name}</h3>
-            <p><strong>Recreation or Natural Area:</strong> ${representativeHike.location}</p>
-            <p><strong>Near:</strong> ${representativeHike.region}</p>
-            <p><strong>Distance:</strong> ${representativeHike.miles} miles</p>
-            <p><strong>Elevation Gain:</strong> ${representativeHike.elevation_gain.toLocaleString()} ft</p>
-            ${summitHtml}
-            ${datesSectionHtml}
-        `;
+    let statsHtml = '';
+    if (rep.hike_type !== 'Viewpoint') {
+        statsHtml = `
+            <div class="popup-stats">
+                <div class="popup-stat"><span class="num">${rep.miles}</span><span class="cap">Miles</span></div>
+                <div class="popup-stat"><span class="num">${rep.elevation_gain.toLocaleString()}</span><span class="cap">Ft Gain</span></div>
+                <div class="popup-stat"><span class="num">${rep.difficulty}</span><span class="cap">Difficulty</span></div>
+            </div>`;
     }
+
+    const verb = rep.hike_type === 'Viewpoint' ? 'Visited' : 'Hiked';
+    // "pick a day" tells newcomers the stamps are doors, not decoration.
+    const visitsLabel = sorted.length > 1 ? `${verb} ${sorted.length} times &mdash; pick a day` : `${verb} on`;
+    const stampsHtml = sorted.map(h =>
+        `<a class="popup-stamp" href="hike.html?id=${h.trail_id}">${formatHikeDate(h.date_completed, { month: 'short', day: 'numeric', year: 'numeric' })}</a>`
+    ).join('');
+
+    return `
+        <div class="popup-card" style="border-left-color: ${yearColor};">
+            ${bannerHtml}
+            <div class="popup-body">
+                <div class="popup-title">${rep.trail_name}</div>
+                <div class="popup-loc">${rep.location} &bull; ${rep.region}</div>
+                ${statsHtml}
+                <div class="popup-visits">
+                    <span class="popup-visits-label">${visitsLabel}</span>
+                    <div class="popup-stamps">${stampsHtml}</div>
+                </div>
+                <a class="popup-open-log" href="hike.html?id=${rep.trail_id}">Open the Field Log &rarr;</a>
+            </div>
+        </div>`;
 }
 
 function generateListDetailsHtml(hikesForTrail) {

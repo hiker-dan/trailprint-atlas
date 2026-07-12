@@ -9,15 +9,26 @@
     flex-grow: 1; /* Allow map to take up remaining space */
 }
 
-body { margin: 0; font-family: sans-serif; }
+body { margin: 0; font-family: var(--font-body); }
 
 /* Page heading above the map */
 .map-page-title {
     text-align: center;
     margin-top: 20px;
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    color: var(--evergreen);
 }
 .map-page-subtitle {
     text-align: center;
+    color: var(--stone);
+    font-style: italic;
+}
+
+/* Leaflet pins its own Helvetica on the map container; the Atlas's written
+   voice takes over everything inside the map (popups, controls, attribution). */
+.leaflet-container {
+    font-family: var(--font-body);
 }
 
 /* Style for our custom hike icons */
@@ -132,10 +143,20 @@ body { margin: 0; font-family: sans-serif; }
     top: 50px;
 }
 .filter-control-container {
-    background-color: white;
+    background-color: #fdfdfd;
     padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+}
+#filter-panel h4 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--evergreen);
+    border-bottom: 2px solid var(--mist);
+    padding-bottom: 8px;
 }
 #filter-panel {
     display: none; /* Hidden by default */
@@ -150,8 +171,12 @@ body { margin: 0; font-family: sans-serif; }
 }
 .filter-group label {
     display: block;
-    margin-bottom: 5px;
-    font-weight: bold;
+    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--gravel);
 }
 .filter-group select {
     width: 100%;
@@ -162,6 +187,30 @@ body { margin: 0; font-family: sans-serif; }
     padding: 8px;
     cursor: pointer;
     margin-top: 5px;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-radius: 6px;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+#filter-toggle-btn {
+    background-color: var(--trail-green);
+    color: #fff;
+    border: none;
+}
+#filter-toggle-btn:hover {
+    background-color: #3d684a; /* trail-green, one shade deeper */
+}
+#reset-filters-btn {
+    background-color: transparent;
+    color: var(--stone);
+    border: 1px solid #ccc;
+}
+#reset-filters-btn:hover {
+    border-color: var(--stone);
+    color: var(--charcoal);
 }
 
 /* --- New Tag-Based Filter Styles --- */
@@ -171,52 +220,74 @@ body { margin: 0; font-family: sans-serif; }
     gap: 5px;
 }
 .filter-tag {
-    background-color: #f0f0f0;
-    border: 1px solid #ccc;
+    background-color: var(--paper);
+    border: 1px solid #d5d0c8;
     border-radius: 15px;
     padding: 5px 10px;
     cursor: pointer;
     font-size: 12px;
+    font-family: var(--font-body);
+    color: var(--stone);
     transition: all 0.2s ease-in-out;
 }
 .filter-tag:hover {
-    background-color: #e0e0e0;
+    border-color: var(--trail-green);
+    color: var(--trail-green);
 }
 .filter-tag.active {
-    background-color: #3498db;
+    background-color: var(--trail-green);
     color: white;
-    border-color: #3498db;
+    border-color: var(--trail-green);
 }
 #active-filters-display {
     margin-top: 15px;
     padding-top: 10px;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--mist);
+}
+#active-filters-display h5 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--gravel);
+}
+.active-filter-tag {
+    display: inline-block;
+    background-color: var(--evergreen);
+    color: #fff;
+    border-radius: 12px;
+    padding: 3px 10px;
+    font-size: 12px;
+    margin: 3px 4px 0 0;
 }
 .remove-filter-btn {
-    margin-left: 8px;
-    color: #ffcccc;
+    margin-left: 6px;
+    color: #b8c6bd;
     font-weight: bold;
+    cursor: pointer;
 }
 
 /* --- Legend Styles --- */
 #legend-container {
     padding: 20px;
-    background-color: #f9f9f9;
-    border-top: 1px solid #ddd;
+    background-color: var(--paper);
+    border-top: 1px solid var(--mist);
     display: flex;
     justify-content: space-around;
     flex-wrap: wrap;
-    font-family: sans-serif;
+    font-family: var(--font-body);
 }
 .legend-section {
     margin: 10px 20px;
 }
 .legend-section h3 {
     text-align: center;
-    font-size: 16px;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    font-size: 19px;
     margin-bottom: 15px;
-    color: #333;
-    border-bottom: 2px solid #eee;
+    color: var(--evergreen);
+    border-bottom: 2px solid var(--mist);
     padding-bottom: 5px;
 }
 .legend-item {
@@ -224,7 +295,7 @@ body { margin: 0; font-family: sans-serif; }
     align-items: center;
     margin-bottom: 8px;
     font-size: 14px;
-    color: #555;
+    color: var(--stone);
 }
 .legend-trail-segment {
     display: inline-block;
@@ -275,9 +346,12 @@ body { margin: 0; font-family: sans-serif; }
 #trail-list-header h2 {
     margin: 0;
     padding: 15px;
-    background-color: #f9f9f9;
+    background-color: var(--paper);
     border-bottom: 1px solid #ddd;
-    font-size: 18px;
+    font-family: var(--font-display);
+    letter-spacing: 0.04em;
+    font-size: 21px;
+    color: var(--evergreen);
 }
 #trail-search-container {
     padding: 10px 15px;
@@ -288,8 +362,15 @@ body { margin: 0; font-family: sans-serif; }
     width: 100%;
     padding: 8px;
     box-sizing: border-box; /* Important for 100% width */
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    border: 1px solid #d5d0c8;
+    border-radius: 6px;
+    font-family: var(--font-body);
+    font-size: 14px;
+}
+#trail-search-input:focus {
+    outline: none;
+    border-color: var(--trail-green);
+    box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.15);
 }
 #trail-list-container {
     overflow-y: auto; /* Add scrollbar if list is long */
@@ -302,14 +383,15 @@ body { margin: 0; font-family: sans-serif; }
     transition: background-color 0.2s ease;
 }
 .trail-list-item:hover {
-    background-color: #f0f8ff; /* A light blue on hover */
+    background-color: #f1f5f1; /* a breath of green on hover */
 }
 .trail-list-item.active {
-    background-color: #eaf5ff; /* A slightly darker blue to indicate active state */
+    background-color: #eaf2ec; /* deeper green tint for the active trail */
+    box-shadow: inset 3px 0 0 var(--trail-green);
 }
 .trail-list-item.active h4 {
     font-size: 16px; /* Make title larger on selection */
-    color: #0056b3;  /* Darken the color for emphasis */
+    color: var(--trail-green); /* Emphasis in the Atlas's own green */
 }
 .trail-list-item.active p {
     font-size: 13px; /* Make location text slightly larger */
@@ -319,9 +401,17 @@ body { margin: 0; font-family: sans-serif; }
 
 .trail-details-panel {
     padding: 15px;
-    background-color: #fafafa;
-    border-bottom: 1px solid #eee;
+    background-color: var(--paper);
+    border-bottom: 1px solid var(--mist);
     animation: fadeIn 0.3s ease-in-out;
+}
+.trail-details-panel a {
+    color: var(--trail-green);
+    font-weight: 700;
+    text-decoration: none;
+}
+.trail-details-panel a:hover {
+    text-decoration: underline;
 }
 .trail-details-panel h3 { margin: 0 0 10px 0; }
 .trail-details-panel p { margin: 0 0 5px 0; font-size: 13px; }
@@ -331,4 +421,171 @@ body { margin: 0; font-family: sans-serif; }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(-10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Trail popups: postcards from the trail --- */
+/* The wrapper loses Leaflet's padding so the photo banner bleeds to the
+   card's rounded edges; the left spine is colored per trail year in JS. */
+.leaflet-popup-content-wrapper {
+    background: #fdfdfd;
+    color: var(--charcoal);
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+    padding: 0;
+    overflow: hidden;
+}
+.leaflet-popup-tip {
+    background: #fdfdfd;
+}
+.leaflet-popup-content {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+/* The close button floats over the photo banner */
+.leaflet-popup-close-button {
+    color: #fff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    font-size: 18px !important;
+    top: 4px !important;
+    right: 6px !important;
+}
+
+.popup-card {
+    width: 262px;
+    border-left: 5px solid var(--trail-green); /* JS overrides with the year color */
+}
+.popup-banner {
+    position: relative;
+    height: 118px;
+    overflow: hidden;
+    background-color: var(--mist); /* neutral base under the blur stand-in */
+}
+/* The ~1 KB blurred stand-in paints instantly beneath the real photo.
+   Slightly oversized so its blurred edges never show. */
+.popup-banner .popup-banner-blur {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(10px);
+    transform: scale(1.12);
+}
+.popup-banner .popup-banner-photo {
+    position: relative; /* stacks above the blur layer */
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.35s ease-in-out;
+}
+.popup-banner .popup-banner-photo.loaded {
+    opacity: 1;
+}
+/* No photos: a year-colored band with the hike-type icon puck */
+.popup-banner-fallback {
+    height: 82px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.popup-banner-fallback img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+    padding: 4px;
+}
+.popup-body {
+    padding: 12px 16px 14px;
+}
+.popup-title {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 20px;
+    line-height: 1.15;
+    color: var(--evergreen);
+    margin-bottom: 2px;
+}
+.popup-loc {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--stone);
+    margin-bottom: 10px;
+}
+.popup-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+.popup-stat .num {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--trail-green);
+}
+.popup-stat .cap {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gravel);
+}
+.popup-visits-label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--gravel);
+    margin-bottom: 5px;
+}
+.popup-stamps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+/* Visit stamps: dashed like a passport stamp, each one a link to that log */
+a.popup-stamp {
+    display: inline-block;
+    border: 1.5px dashed var(--trail-green);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--trail-green);
+    text-decoration: none;
+    transform: rotate(-1.2deg);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+a.popup-stamp:nth-child(even) {
+    transform: rotate(1deg);
+}
+a.popup-stamp:hover {
+    background-color: var(--trail-green);
+    color: #fff;
+}
+/* The card's front door: an unmistakable action bar. Repeat trails open
+   the most recent visit; the stamps above pick a specific day. */
+a.popup-open-log {
+    display: block;
+    margin-top: 12px;
+    padding: 8px 10px;
+    background-color: var(--trail-green);
+    color: #fff;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+}
+a.popup-open-log:hover {
+    background-color: #3d684a; /* trail-green, one shade deeper */
+    text-decoration: none;
 }

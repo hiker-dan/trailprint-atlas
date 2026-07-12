@@ -96,6 +96,31 @@ body { margin: 0; font-family: sans-serif; }
     display: none;
 }
 
+/* --- Zoom-aware icon reveal --- */
+/* Zoomed out, the trailprints own the view: trail-start icons fade away and
+   only reappear once you zoom into a region. Viewpoint markers are exempt —
+   without a trail line they'd otherwise vanish entirely. */
+.leaflet-marker-icon.hike-icon {
+    transition: opacity 0.3s ease-in-out;
+}
+/* Restate Leaflet's zoom transform animation alongside our opacity fade.
+   This sheet loads after leaflet.css, so the rule above would otherwise
+   replace Leaflet's transition entirely and markers would snap instead of
+   gliding while the map zooms. */
+.leaflet-zoom-anim .leaflet-marker-icon.hike-icon {
+    transition: opacity 0.3s ease-in-out, transform 0.25s cubic-bezier(0, 0, 0.25, 1);
+}
+#map.icons-zoomed-out .leaflet-marker-icon.trail-start-icon {
+    opacity: 0 !important; /* must outweigh the inline opacity the spotlight sets */
+    pointer-events: none;
+}
+
+/* --- Trail spotlight --- */
+/* Selecting a trail dims all the others; the fade rides on the SVG strokes. */
+#map .leaflet-overlay-pane path {
+    transition: stroke-opacity 0.3s ease-in-out;
+}
+
 /* Style for fading tile layers */
 .fadeable-tile-layer {
     transition: opacity 0.4s ease-in-out !important;
@@ -221,6 +246,13 @@ body { margin: 0; font-family: sans-serif; }
     width: 30px;
     border-radius: 3px;
     margin-right: 10px;
+}
+.legend-note {
+    font-size: 12px;
+    font-style: italic;
+    color: #888;
+    margin: 10px 0 0 0;
+    max-width: 220px;
 }
 
 /* --- Main Layout & Trail List Styles --- */

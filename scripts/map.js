@@ -7,6 +7,17 @@ const map = L.map('map').setView([39.82, -98.58], 5);
 map.createPane('mainTrailPane');
 map.getPane('mainTrailPane').style.zIndex = 450; // Above default polylines (400), but below markers (600).
 
+// --- Zoom-aware icon reveal ---
+// Below this zoom, trail-start icons fade out (via CSS) so the trailprints
+// own the view; the line dash patterns still tell the outing style. The class
+// lives on the container, so markers added by later re-renders inherit it.
+const ICON_REVEAL_ZOOM = 10;
+const updateIconVisibility = () => {
+    map.getContainer().classList.toggle('icons-zoomed-out', map.getZoom() < ICON_REVEAL_ZOOM);
+};
+map.on('zoomend', updateIconVisibility);
+updateIconVisibility();
+
 // --- Define Base Map Tile Layers ---
 const esriTopoMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
 	attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
@@ -46,6 +57,7 @@ let allHikesData = []; // Will hold the full, original dataset
 let allTrailGeometries = {}; // trail_id -> [lat,lng] segments, from trails.geojson
 const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for our trails
 let layerReferences = {}; // To store references to map layers by trail_id
+let iconNudges = {}; // trail_name -> pixel offset for icons that share a trailhead
 
 // Keep track of the currently active base layer for the icon toggle functionality.
 let activeBaseLayer = esriTopoMap; // Default to the initial layer
@@ -70,6 +82,7 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
         // Group hikes by trail_name (shared helper) so repeat hikes of a trail stay together.
         allHikesData = Object.values(groupByTrail(data)); // Store the grouped data
         allTrailGeometries = trailGeometries;
+        iconNudges = computeIconNudges(allHikesData);
         populateFilters(allHikesData);
         renderMapLayers(allHikesData); // Initial render with all data
         setupEventListeners();
@@ -77,9 +90,82 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
     })
     .catch(error => console.error('Error loading map data:', error));
 
+/**
+ * Trailheads that share a parking lot (e.g. Lost Palms Oasis and Mastodon
+ * Peak) would stack their icons exactly on top of each other. This finds
+ * trail groups whose start coordinates sit within a short walk of each other
+ * and fans their icons apart by a constant pixel offset, so each stays
+ * visible and clickable at every zoom.
+ */
+function computeIconNudges(trailGroups) {
+    const NEIGHBOR_RADIUS_M = 150; // "same parking lot" distance
+    const SPACING_PX = 36;         // icons are 32px wide, so this clears them
+
+    // An icon stands at the first point of the group's journey-starting GPX
+    // track (mirroring trail-renderer.js), or at the recorded coordinates for
+    // viewpoints. Measure from there — the recorded trailhead coords can sit
+    // a parking lot away from where the track actually begins.
+    const iconPosition = (group) => {
+        const sorted = [...group].sort(compareHikesChronoDesc);
+        const rep = sorted[0];
+        const journey = rep.trip_tag ? sorted.filter(h => h.trip_tag === rep.trip_tag) : [rep];
+        const firstLegSegments = allTrailGeometries[journey[journey.length - 1].trail_id];
+        if (firstLegSegments) return firstLegSegments[0][0];
+        return (rep.latitude && rep.longitude) ? [rep.latitude, rep.longitude] : null;
+    };
+
+    const trailheads = trailGroups
+        .map(group => ({ name: group[0].trail_name, latlng: iconPosition(group) }))
+        .filter(trailhead => trailhead.latlng);
+
+    const nudges = {};
+    const clustered = new Set();
+    trailheads.forEach((trailhead, i) => {
+        if (clustered.has(trailhead.name)) return;
+        const cluster = [trailhead, ...trailheads.slice(i + 1).filter(other =>
+            !clustered.has(other.name) &&
+            map.distance(trailhead.latlng, other.latlng) < NEIGHBOR_RADIUS_M
+        )];
+        if (cluster.length > 1) {
+            // Fan the cluster out symmetrically around the shared trailhead.
+            cluster.sort((a, b) => a.name.localeCompare(b.name));
+            cluster.forEach((entry, index) => {
+                clustered.add(entry.name);
+                nudges[entry.name] = (index - (cluster.length - 1) / 2) * SPACING_PX;
+            });
+        }
+    });
+    return nudges;
+}
+
+// --- Trail Spotlight ---
+// Opening a trail's popup dims every other trail, so where two routes share a
+// trailhead or overlap on the ground, the selected trailprint reads instantly.
+let spotlightTrailName = null;
+
+function applySpotlight() {
+    for (const name in layerReferences) {
+        const focused = !spotlightTrailName || name === spotlightTrailName;
+        const group = layerReferences[name];
+        const members = [];
+        if (group.eachLayer) { group.eachLayer(l => members.push(l)); } else { members.push(group); }
+        members.forEach(l => {
+            if (l instanceof L.Marker) {
+                l.setOpacity(focused ? 1 : 0.2);
+            } else if (l.setStyle) {
+                const base = l.options.baseOpacity ?? l.options.opacity;
+                l.setStyle({ opacity: focused ? base : base * 0.15 });
+                // Raise the chosen trail above neighbors it overlaps with.
+                if (focused && spotlightTrailName && l.bringToFront) l.bringToFront();
+            }
+        });
+    }
+}
+
 function renderMapLayers(trailGroupsToRender) {
     allTrailsGroup.clearLayers(); // Clear all previous layers
     layerReferences = {}; // Reset references to prevent memory leaks and bugs
+    spotlightTrailName = null; // Fresh layers come in at full strength
 
     renderTrailList(trailGroupsToRender);
 
@@ -88,12 +174,20 @@ function renderMapLayers(trailGroupsToRender) {
         const layer = renderTrailGroup(hikesForTrail, {
             isInteractive: true,
             popupHtmlGenerator: generatePopupHtml, // Pass the function to generate popups
-            trailGeometries: allTrailGeometries
+            trailGeometries: allTrailGeometries,
+            iconNudges: iconNudges
         });
 
         if (layer) {
             allTrailsGroup.addLayer(layer);
-            layerReferences[hikesForTrail[0].trail_name] = layer;
+            const trailName = hikesForTrail[0].trail_name;
+            layerReferences[trailName] = layer;
+            // The popup lifecycle drives the spotlight: open = focus this
+            // trail, close = restore everyone (unless another popup took over).
+            layer.on('popupopen', () => { spotlightTrailName = trailName; applySpotlight(); });
+            layer.on('popupclose', () => {
+                if (spotlightTrailName === trailName) { spotlightTrailName = null; applySpotlight(); }
+            });
         }
     });
 
@@ -388,6 +482,8 @@ function setupEventListeners() {
                 } else if (layer.getLatLng) { // It's a Marker
                     map.setView(layer.getLatLng(), 15);
                 }
+                // Open the trail's popup, which also turns on the spotlight.
+                if (layer.openPopup) layer.openPopup();
             }
         }
     });
@@ -518,6 +614,7 @@ function renderLegend() {
         const labelText = (type === 'Viewpoint') ? `${type} (No Trail Path)` : type;
         iconHtml += `<div class="legend-item"><img src="assets/icons/${iconFile}" class="legend-icon hike-icon" /> ${labelText}</div>`;
     }
+    iconHtml += `<p class="legend-note">Icons appear as you zoom into a region.</p>`;
 
     // Section 3: Special Indicators
     let specialHtml = '<h3>Special Indicators</h3>';

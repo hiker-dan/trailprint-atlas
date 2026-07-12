@@ -99,9 +99,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         const tripBar = activeDot.closest('.timeline-trip-bar');
 
         if (tripBar) {
-            // For dots inside a trip, their offsetLeft is relative to the bar.
-            // We calculate the absolute position on the track by adding the bar's offset.
-            scrollTarget = (tripBar.offsetLeft + activeDot.offsetLeft) - (viewport.clientWidth / 2);
+            // Center on the capsule itself, not the day dot inside it: the
+            // red "you are here" line sits smack in the middle of the trip,
+            // and switching days within one trip never nudges the timeline
+            // (the scroll target is identical for every day of the trip).
+            scrollTarget = (tripBar.offsetLeft + tripBar.offsetWidth / 2) - (viewport.clientWidth / 2);
         } else {
             // For solo dots, offsetLeft is already relative to the track.
             scrollTarget = activeDot.offsetLeft - (viewport.clientWidth / 2);
@@ -110,6 +112,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         viewport.scrollTo({
             left: scrollTarget,
             behavior: behavior
+        });
+    }
+
+    /**
+     * Moves the timeline's "you are here" marks: the active dot, plus the
+     * green glow on the trip capsule that contains the current hike (the
+     * dots inside a capsule are invisible, so the capsule carries the mark).
+     */
+    function setActiveTimelineDot(hikeId) {
+        const track = document.getElementById('timeline-track');
+        if (!track) return;
+        track.querySelector('.timeline-dot.active')?.classList.remove('active');
+        track.querySelector(`.timeline-dot[data-hike-id="${hikeId}"]`)?.classList.add('active');
+        track.querySelectorAll('.timeline-trip-bar').forEach(bar => {
+            bar.classList.toggle('contains-active', Boolean(bar.querySelector(`.timeline-dot[data-hike-id="${hikeId}"]`)));
         });
     }
 
@@ -138,7 +155,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         let timelineHtml = '';
 
         // --- NEW: Group hikes by trip_tag ---
-        const trips = groupByTrip(sortedHikes);
+        // groupByTrip returns a Map; the timeline wants a plain array so each
+        // trip gets a numeric index the capsules can carry (data-trip-index).
+        const trips = [...groupByTrip(sortedHikes).values()];
         const soloHikes = sortedHikes.filter(hike => !hike.trip_tag);
 
         // --- Render Solo Hikes (as individual dots) ---
@@ -151,7 +170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // --- Render Trips (as bars containing dots) ---
-        trips.forEach(hikesInTrip => {
+        trips.forEach((hikesInTrip, tripIndex) => {
             // Find the start and end time for this trip
             const tripTimes = hikesInTrip.map(h => new Date(h.date_completed + 'T00:00:00Z').getTime());
             const tripStartTime = Math.min(...tripTimes);
@@ -164,14 +183,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const barRight = (endPercent * (totalWidth - PADDING_PX)) + (PADDING_PX / 2);
             const barWidth = Math.max(50, barRight - barLeft); // Enforce a wider minimum width for the capsule
 
-            // --- NEW: Pre-calculate expansion needs for dynamic spacing ---
-            const DOT_SPACING_PX = 40; // The ideal space for each dot when expanded.
-            const requiredWidthForDots = (hikesInTrip.length > 1) ? ((hikesInTrip.length - 1) * DOT_SPACING_PX) : 0;
-            const expansionDelta = Math.max(0, requiredWidthForDots - barWidth);
-            const leftShift = expansionDelta / 2; // The amount the bar needs to shift left for centered expansion.
-            const expansionAttr = expansionDelta > 0 ? `data-expansion-delta="${expansionDelta}" data-left-shift="${leftShift}"` : '';
-
-            // Generate the dots that will live *inside* the bar
+            // Generate the dots that will live *inside* the bar. They stay
+            // invisible — the trip journal card is how you reach a trip's
+            // hikes — but they remain the positional anchors that
+            // centerTimelineOn and the active-hike highlight rely on.
             let tripDotsHtml = '';
             const hikesByDate = new Map();
             hikesInTrip.forEach(h => {
@@ -199,11 +214,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 tripDotsHtml += `<div class="timeline-dot ${isActive}" style="left: ${finalDotPosition}px;" data-hike-id="${hike.trail_id}" data-date="${hike.date_completed}"></div>`;
             });
 
-            // NEW: Add the label inside the capsule
-            const labelText = 'Trip';
+            // The capsule: labeled, indexed for the journal card, and glowing
+            // green when it holds the hike currently on the page.
+            const containsActive = hikesInTrip.some(h => h.trail_id === currentHikeId);
             timelineHtml += `
-                <div class="timeline-trip-bar" style="left: ${barLeft}px; width: ${barWidth}px;" ${expansionAttr}>
-                    <span class="trip-bar-label">${labelText}</span>
+                <div class="timeline-trip-bar${containsActive ? ' contains-active' : ''}" style="left: ${barLeft}px; width: ${barWidth}px;" data-trip-index="${tripIndex}">
+                    <span class="trip-bar-label">Trip</span>
                     ${tripDotsHtml}
                 </div>`;
         });
@@ -219,123 +235,140 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (hikeToDisplay) {
                     displayHike(hikeToDisplay, allHikes);
                     history.pushState({ hikeId: newHikeId }, '', `hike.html?id=${newHikeId}`);
-                    track.querySelector('.timeline-dot.active')?.classList.remove('active');
-                    dot.classList.add('active');
+                    setActiveTimelineDot(newHikeId);
                     centerTimelineOn(newHikeId);
                 }
             });
         });
 
-        // --- NEW: "Hover Priority" Logic for Trip Bars ---
-        // This system uses a delayed collapse to create an "invisible bridge"
-        // for the mouse, and gives the hovered bar priority with z-index.
-        const expandTripBar = (bar) => {
-            if (bar.dataset.collapseTimeoutId) {
-                clearTimeout(bar.dataset.collapseTimeoutId);
-                bar.dataset.collapseTimeoutId = null;
-            }
-            if (bar.classList.contains('trip-bar-hover')) return;
+        // --- The Trip Journal Card ---
+        // Hovering a trip capsule opens a stable, fixed-position card beneath
+        // it: the trip's name, its dates, and one dot per hike. The track
+        // itself never stretches or shifts — the card is the way in.
+        const tripCard = document.getElementById('timeline-trip-card');
+        let openTripBar = null;      // the capsule whose card is showing
+        let cardCloseTimeout = null; // grace period so the mouse can cross the gap
 
-            bar.classList.add('trip-bar-hover');
-
-            // --- NEW: Dynamic expansion logic ---
-            const expansionDelta = parseFloat(bar.dataset.expansionDelta || 0);
-            const leftShift = parseFloat(bar.dataset.leftShift || 0);
-
-            if (expansionDelta > 0) {
-                // Store original styles if they haven't been stored yet
-                if (!bar.dataset.originalLeft) {
-                    bar.dataset.originalLeft = bar.style.left;
-                }
-                if (!bar.dataset.originalWidth) {
-                    bar.dataset.originalWidth = bar.style.width;
-                }
-
-                const originalLeft = parseFloat(bar.dataset.originalLeft);
-                const originalWidth = parseFloat(bar.dataset.originalWidth);
-                
-                // Expand the bar itself, shifting it left to keep it centered
-                bar.style.left = `${originalLeft - leftShift}px`;
-                bar.style.width = `${originalWidth + expansionDelta}px`;
-
-                // Shift adjacent elements
-                const barCenter = originalLeft + (originalWidth / 2);
-                const allTimelineElements = track.querySelectorAll('.timeline-dot, .timeline-trip-bar');
-                const shiftRightAmount = expansionDelta - leftShift;
-
-                allTimelineElements.forEach(el => {
-                    // Don't shift the bar itself or the dots inside it
-                    if (el === bar || bar.contains(el)) return;
-                    
-                    const elCenter = el.offsetLeft + (el.offsetWidth / 2);
-                    const isDot = el.classList.contains('timeline-dot');
-                    const baseTransform = isDot ? 'translate(-50%, -50%)' : 'translateY(-50%)';
-
-                    if (elCenter < barCenter) {
-                        el.style.transform = `translateX(-${leftShift}px) ${baseTransform}`;
-                    } else {
-                        el.style.transform = `translateX(${shiftRightAmount}px) ${baseTransform}`;
-                    }
-                });
-            }
-
-            // --- Dot spreading logic (now works in the new space) ---
-            const dotsInBar = Array.from(bar.querySelectorAll('.timeline-dot'));
-            dotsInBar.forEach(dot => { if (!dot.dataset.originalLeft) dot.dataset.originalLeft = dot.style.left; });
-            const numDots = dotsInBar.length;
-            if (numDots > 1) {
-                const GUARANTEED_SPACING_PX = 40;
-                const requiredWidth = (numDots - 1) * GUARANTEED_SPACING_PX;
-                const expandedBarWidth = bar.offsetWidth;
-                const clusterStartPosition = (expandedBarWidth / 2) - (requiredWidth / 2);
-                // Same-day trip hikes share a date, so break ties by tta number
-                // (mirrors compareHikesChrono, but for the dot elements).
-                const dotNumber = (dot) => parseInt(dot.dataset.hikeId.split('_')[1], 10);
-                const sortedDots = dotsInBar.sort((a, b) =>
-                    (new Date(a.dataset.date + 'T00:00:00Z') - new Date(b.dataset.date + 'T00:00:00Z'))
-                    || (dotNumber(a) - dotNumber(b)));
-                sortedDots.forEach((dot, index) => {
-                    // Add leftShift to the dot's position to counteract the parent bar's leftward movement.
-                    dot.style.left = `${clusterStartPosition + (index * GUARANTEED_SPACING_PX) + leftShift}px`;
-                });
-            }
+        const stickyHeader = document.getElementById('sticky-header-wrapper');
+        const positionTripCard = () => {
+            if (!openTripBar) return;
+            const barRect = openTripBar.getBoundingClientRect();
+            const PADDING = 15; // keep clear of the window edges
+            const cardWidth = tripCard.offsetWidth;
+            const barCenter = barRect.left + barRect.width / 2;
+            let cardLeft = barCenter - cardWidth / 2;
+            cardLeft = Math.max(PADDING, Math.min(cardLeft, window.innerWidth - PADDING - cardWidth));
+            tripCard.style.left = `${cardLeft}px`;
+            // The card hangs flush from the header's bottom edge like a
+            // drawer — a consistent, designed spot rather than floating at
+            // whatever height the capsule happens to sit.
+            tripCard.style.top = `${stickyHeader.getBoundingClientRect().bottom}px`;
         };
 
-        const collapseTripBar = (bar) => {
-            const timeoutId = setTimeout(() => {
-                bar.classList.remove('trip-bar-hover');
-                bar.querySelectorAll('.timeline-dot').forEach(dot => { if (dot.dataset.originalLeft) dot.style.left = dot.dataset.originalLeft; });
+        // The caption line inside the card: the hovered day's trail name, or
+        // the selected day's when the mouse isn't on a day. Replaces the old
+        // floating tooltip so nothing stacks on top of the card.
+        const resetCardTrailName = () => {
+            const nameEl = tripCard.querySelector('.trip-card-trailname');
+            if (!nameEl) return;
+            const activeId = tripCard.querySelector('.trip-card-day.active')?.dataset.hikeId;
+            const activeHike = activeId && allHikes.find(h => h.trail_id === activeId);
+            nameEl.textContent = activeHike ? activeHike.trail_name : '';
+        };
 
-                // --- NEW: Reverse the expansion ---
-                const expansionDelta = parseFloat(bar.dataset.expansionDelta || 0);
-                if (expansionDelta > 0) {
-                    // Reset the bar's own size and position from stored data
-                    if (bar.dataset.originalLeft) {
-                        bar.style.left = bar.dataset.originalLeft;
-                    }
-                    if (bar.dataset.originalWidth) {
-                        bar.style.width = bar.dataset.originalWidth;
-                    }
+        const openTripCard = (bar) => {
+            clearTimeout(cardCloseTimeout);
+            if (openTripBar === bar) return;
 
-                    // Reset all other shifted elements
-                    const allTimelineElements = track.querySelectorAll('.timeline-dot, .timeline-trip-bar');
-                    allTimelineElements.forEach(el => {
-                        if (el !== bar && !bar.contains(el)) el.style.transform = '';
-                    });
-                }
-            }, 200); // 200ms grace period before collapsing.
-            bar.dataset.collapseTimeoutId = timeoutId;
+            const hikesInTrip = trips[parseInt(bar.dataset.tripIndex, 10)];
+            if (!hikesInTrip) return;
+            openTripBar = bar;
+
+            // trip_tag reads "Trip Name - Mon YYYY"; the card shows the name
+            // and derives the date range from the hikes themselves.
+            const tag = hikesInTrip[0].trip_tag || 'Trip';
+            const splitAt = tag.lastIndexOf(' - ');
+            const tripName = splitAt > 0 ? tag.slice(0, splitAt) : tag;
+
+            const firstHike = hikesInTrip[0];
+            const lastHike = hikesInTrip[hikesInTrip.length - 1];
+            const rangeEnd = formatHikeDate(lastHike.date_completed, { month: 'short', day: 'numeric', year: 'numeric' });
+            const dateRange = firstHike.date_completed === lastHike.date_completed
+                ? rangeEnd
+                : `${formatHikeDate(firstHike.date_completed, { month: 'short', day: 'numeric' })} – ${rangeEnd}`;
+            const hikeCount = `${hikesInTrip.length} hike${hikesInTrip.length > 1 ? 's' : ''}`;
+
+            const activeHikeId = track.querySelector('.timeline-dot.active')?.dataset.hikeId;
+            const daysHtml = hikesInTrip.map(h => `
+                <button class="trip-card-day${h.trail_id === activeHikeId ? ' active' : ''}" data-hike-id="${h.trail_id}">
+                    <span class="trip-card-dot"></span>
+                    <span class="trip-card-date">${formatHikeDate(h.date_completed, { month: 'numeric', day: 'numeric' })}</span>
+                </button>`).join('');
+
+            tripCard.innerHTML = `
+                <div class="trip-card-title">${tripName}</div>
+                <div class="trip-card-subtitle">${dateRange} &bull; ${hikeCount}</div>
+                <div class="trip-card-days">${daysHtml}</div>
+                <div class="trip-card-trailname"></div>`;
+            resetCardTrailName();
+            tripCard.classList.add('visible');
+            positionTripCard();
+        };
+
+        const scheduleTripCardClose = () => {
+            clearTimeout(cardCloseTimeout);
+            cardCloseTimeout = setTimeout(() => {
+                tripCard.classList.remove('visible');
+                openTripBar = null;
+            }, 250);
         };
 
         track.addEventListener('mouseover', (e) => {
             const bar = e.target.closest('.timeline-trip-bar');
-            if (bar) expandTripBar(bar);
+            if (bar) openTripCard(bar);
         });
-
         track.addEventListener('mouseout', (e) => {
             const bar = e.target.closest('.timeline-trip-bar');
-            if (bar) collapseTripBar(bar);
+            if (bar) scheduleTripCardClose();
         });
+        // The card itself keeps the card alive; leaving it starts the countdown.
+        tripCard.addEventListener('mouseenter', () => clearTimeout(cardCloseTimeout));
+        tripCard.addEventListener('mouseleave', scheduleTripCardClose);
+
+        // Hovering a day fills the caption line with that day's trail name.
+        tripCard.addEventListener('mouseover', (e) => {
+            const day = e.target.closest('.trip-card-day');
+            if (!day) return;
+            const hike = allHikes.find(h => h.trail_id === day.dataset.hikeId);
+            const nameEl = tripCard.querySelector('.trip-card-trailname');
+            if (hike && nameEl) nameEl.textContent = hike.trail_name;
+        });
+        tripCard.addEventListener('mouseout', (e) => {
+            if (e.target.closest('.trip-card-day')) resetCardTrailName();
+        });
+
+        // Clicking a day in the card navigates, exactly like a timeline dot.
+        tripCard.addEventListener('click', (e) => {
+            const day = e.target.closest('.trip-card-day');
+            if (!day) return;
+            const newHikeId = day.dataset.hikeId;
+            const hikeToDisplay = allHikes.find(h => h.trail_id === newHikeId);
+            if (!hikeToDisplay) return;
+
+            displayHike(hikeToDisplay, allHikes);
+            history.pushState({ hikeId: newHikeId }, '', `hike.html?id=${newHikeId}`);
+            setActiveTimelineDot(newHikeId);
+            tripCard.querySelector('.trip-card-day.active')?.classList.remove('active');
+            day.classList.add('active');
+            resetCardTrailName();
+            centerTimelineOn(newHikeId);
+        });
+
+        // The card is fixed-position, so it follows its capsule while the
+        // timeline scrolls (e.g. the recentering after choosing a day).
+        viewport.addEventListener('scroll', positionTripCard);
+        // Page scroll moves the sticky header until it docks — just let go.
+        window.addEventListener('scroll', scheduleTripCardClose, { passive: true });
     }
 
     /**
@@ -431,50 +464,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, { passive: false }); // We must set passive: false to be able to preventDefault()
 
         // --- NEW: Global Tooltip Hover Logic ---
+        // Shared by the timeline dots and the trip journal card's day dots.
+        const showTimelineTooltip = (anchorEl, hike) => {
+            const formattedDate = formatHikeDate(hike.date_completed, { year: 'numeric', month: 'short', day: 'numeric' });
+            globalTooltip.innerHTML = `${hike.trail_name}<br><small>${formattedDate}</small>`;
+
+            // To calculate the correct position, we need the tooltip's width.
+            // We make it visible but transparent to measure it without a flicker.
+            globalTooltip.style.opacity = '0';
+            globalTooltip.classList.add('visible'); // Temporarily add to measure
+            const tooltipWidth = globalTooltip.offsetWidth;
+            globalTooltip.classList.remove('visible'); // Remove before animation
+            globalTooltip.style.opacity = ''; // Reset opacity
+
+            const anchorRect = anchorEl.getBoundingClientRect();
+            const PADDING = 15; // 15px padding from the window edges
+
+            // Reset alignment classes
+            globalTooltip.classList.remove('edge-left');
+
+            const idealCenter = anchorRect.left + (anchorRect.width / 2);
+            const idealLeft = idealCenter - (tooltipWidth / 2);
+
+            // Check for edge collisions and apply the correct class and position
+            if (idealLeft < PADDING) {
+                globalTooltip.classList.add('edge-left');
+                globalTooltip.style.left = `${PADDING}px`;
+            } else if (idealCenter + (tooltipWidth / 2) > window.innerWidth - PADDING) {
+                globalTooltip.classList.add('edge-left'); // Use the same alignment style
+                // But calculate the left position to align the *right* edge of the tooltip
+                globalTooltip.style.left = `${window.innerWidth - PADDING - tooltipWidth}px`;
+            } else {
+                // Default centered case
+                globalTooltip.style.left = `${idealCenter}px`;
+            }
+
+            const tooltipTop = anchorRect.bottom + 10; // 10px below the anchor
+            globalTooltip.style.top = `${tooltipTop}px`;
+            globalTooltip.classList.add('visible'); // Trigger the animation
+        };
+
         track.addEventListener('mouseover', (e) => {
             if (e.target.classList.contains('timeline-dot')) {
-                const dot = e.target;
-                const hikeId = dot.dataset.hikeId;
-                const hike = allHikes.find(h => h.trail_id === hikeId);
-
-                if (hike) {
-                    const formattedDate = formatHikeDate(hike.date_completed, { year: 'numeric', month: 'short', day: 'numeric' });
-                    globalTooltip.innerHTML = `${hike.trail_name}<br><small>${formattedDate}</small>`;
-                    
-                    // To calculate the correct position, we need the tooltip's width.
-                    // We make it visible but transparent to measure it without a flicker.
-                    globalTooltip.style.opacity = '0';
-                    globalTooltip.classList.add('visible'); // Temporarily add to measure
-                    const tooltipWidth = globalTooltip.offsetWidth;
-                    globalTooltip.classList.remove('visible'); // Remove before animation
-                    globalTooltip.style.opacity = ''; // Reset opacity
-                    
-                    const dotRect = dot.getBoundingClientRect();
-                    const PADDING = 15; // 15px padding from the window edges
-
-                    // Reset alignment classes
-                    globalTooltip.classList.remove('edge-left');
-
-                    const idealCenter = dotRect.left + (dotRect.width / 2);
-                    const idealLeft = idealCenter - (tooltipWidth / 2);
-
-                    // Check for edge collisions and apply the correct class and position
-                    if (idealLeft < PADDING) {
-                        globalTooltip.classList.add('edge-left');
-                        globalTooltip.style.left = `${PADDING}px`;
-                    } else if (idealCenter + (tooltipWidth / 2) > window.innerWidth - PADDING) {
-                        globalTooltip.classList.add('edge-left'); // Use the same alignment style
-                        // But calculate the left position to align the *right* edge of the tooltip
-                        globalTooltip.style.left = `${window.innerWidth - PADDING - tooltipWidth}px`;
-                    } else {
-                        // Default centered case
-                        globalTooltip.style.left = `${idealCenter}px`;
-                    }
-
-                    const tooltipTop = dotRect.bottom + 10; // 10px below the dot
-                    globalTooltip.style.top = `${tooltipTop}px`;
-                    globalTooltip.classList.add('visible'); // Trigger the animation
-                }
+                const hike = allHikes.find(h => h.trail_id === e.target.dataset.hikeId);
+                if (hike) showTimelineTooltip(e.target, hike);
             }
         });
 
@@ -1083,13 +1116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (hikeToDisplay) {
                 // Update the main page content
                 displayHike(hikeToDisplay, allHikes);
-                // Update the active dot on the timeline
-                document.querySelector('#timeline-nav-container .timeline-dot.active')?.classList.remove('active');
-                const newActiveDot = document.querySelector(`#timeline-track .timeline-dot[data-hike-id="${event.state.hikeId}"]`);
-                if (newActiveDot) {
-                    newActiveDot.classList.add('active');
-                    centerTimelineOn(event.state.hikeId);
-                }
+                // Update the active dot + trip capsule glow on the timeline
+                setActiveTimelineDot(event.state.hikeId);
+                centerTimelineOn(event.state.hikeId);
             }
         }
     });

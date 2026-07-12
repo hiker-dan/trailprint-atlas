@@ -205,28 +205,115 @@ body {
     white-space: nowrap;
     pointer-events: none; /* So it doesn't interfere with hover */
 }
-/* The dots inside a trip bar are hidden by default */
+/* The dots inside a trip bar stay hidden — they're positional anchors for
+   scroll-centering and the active highlight; the trip journal card is the
+   way to reach a trip's hikes. */
 .timeline-trip-bar .timeline-dot {
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out, left 0.3s ease-in-out;
 }
-/* --- NEW: Class-based hover state for JS control --- */
-.trip-bar-hover {
-    z-index: 1005; /* Highest z-index when active */
-    height: 20px; /* Slightly taller on hover */
-    background-color: #3498db; /* A slightly brighter blue on hover */
+/* Light hover feedback; the journal card opens beneath */
+.timeline-trip-bar:hover {
+    height: 20px;
+    background-color: #3498db;
 }
-.trip-bar-hover .trip-bar-label {
-    opacity: 0; /* Hide the label when dots are expanded */
+/* "You are here": the capsule holding the current hike glows green */
+.timeline-trip-bar.contains-active {
+    background-color: var(--trail-green);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.3);
 }
-.trip-bar-hover .timeline-dot {
+
+/* --- The Trip Journal Card --- */
+/* A drawer hanging from the timeline header's bottom edge: square top
+   corners, flush fit, and it slides out from *under* the header (its
+   z-index sits just below the sticky header's 1001). */
+#timeline-trip-card {
+    position: fixed;
+    z-index: 1000;
+    background-color: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-top: none; /* blends into the header edge it hangs from */
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+    padding: 12px 18px 10px;
+    max-width: 480px;
+    text-align: center;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px); /* starts tucked up behind the header */
+    transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out, visibility 0.2s;
+}
+#timeline-trip-card.visible {
     opacity: 1;
-    pointer-events: all;
-    transform: translate(-50%, -50%) scale(1.4);
+    visibility: visible;
+    transform: translateY(0);
 }
-.trip-bar-hover .timeline-dot:hover {
-    transform: translate(-50%, -50%) scale(1.8); /* Enlarge even more on individual dot hover */
+.trip-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--evergreen);
+}
+.trip-card-subtitle {
+    font-size: 12px;
+    color: #7f8c8d;
+    margin: 2px 0 10px;
+}
+.trip-card-days {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 14px;
+}
+.trip-card-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    font: inherit;
+}
+.trip-card-dot {
+    width: 12px;
+    height: 12px;
+    background-color: #a0a0a0;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px #d0d0d0;
+    transition: transform 0.15s ease-in-out, background-color 0.15s ease-in-out;
+}
+.trip-card-day:hover .trip-card-dot {
+    transform: scale(1.5);
+}
+.trip-card-day.active .trip-card-dot {
+    background-color: var(--trail-green);
+    transform: scale(1.5);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.3);
+}
+.trip-card-date {
+    font-size: 10px;
+    color: #7f8c8d;
+}
+.trip-card-day.active .trip-card-date {
+    color: var(--trail-green);
+    font-weight: 700;
+}
+/* The caption line: shows the hovered (or selected) day's trail name inside
+   the card, replacing the old floating tooltip. Height is reserved so the
+   card never resizes while browsing days. */
+.trip-card-trailname {
+    margin-top: 8px;
+    min-height: 16px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--evergreen);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Style for our custom hike icons (to match the main map) */

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip - The Trailprint Atlas</title>
+    <meta name="description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Trailprint Atlas">
+    <meta property="og:title" content="A Trip — The Trailprint Atlas">
+    <meta property="og:description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
+    <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/trip.html">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="A Trip — The Trailprint Atlas">
+    <meta name="twitter:description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <link rel="stylesheet" href="styles/base.css"/>
+    <link rel="stylesheet" href="styles/timeline-nav.css"/>
+    <link rel="stylesheet" href="styles/trip.css"/>
+</head>
+<body>
+    <!-- Shared nav: structure injected by scripts/nav.js (one copy for all pages) -->
+    <nav id="top-bar-container"></nav>
+    <script src="scripts/nav.js"></script>
+
+    <!-- The shared timeline navigation strip (logic in scripts/timeline-nav.js) -->
+    <div id="sticky-header-wrapper">
+        <div id="timeline-nav-container">
+            <div id="timeline-mountainscape"></div>
+            <div id="timeline-viewport">
+                <div id="timeline-track">
+                    <!-- Dots and trip capsules injected by AtlasTimeline -->
+                </div>
+            </div>
+            <div id="timeline-date-display">
+                <span id="timeline-floating-month"></span>
+                <span id="timeline-floating-year"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timeline companions: both fixed-position, outside the main flow -->
+    <div id="timeline-global-tooltip"></div>
+    <div id="timeline-trip-card"></div>
+
+    <!-- Trip hero: the chapter heading -->
+    <div id="trip-hero">
+        <p id="trip-eyebrow">A Chapter of the Atlas</p>
+        <h1 id="trip-title">Loading...</h1>
+        <p id="trip-dates"></p>
+        <p id="trip-regions"></p>
+    </div>
+
+    <div class="trip-container">
+        <!-- The trip's headline numbers -->
+        <div id="trip-stats" class="trip-stats"></div>
+
+        <!-- The combined journey map (next build step) -->
+        <div class="info-section">
+            <h3>The Journey Map</h3>
+            <div id="trip-map"></div>
+        </div>
+
+        <!-- The day-by-day itinerary (build step after the map) -->
+        <div class="info-section">
+            <h3>Day by Day</h3>
+            <div id="trip-days"></div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
+    <script src="scripts/config.js"></script>
+    <script src="scripts/atlas-data.js"></script>
+    <script src="scripts/trail-renderer.js"></script>
+    <!-- The shared timeline navigation strip -->
+    <script src="scripts/timeline-nav.js"></script>
+    <!-- This page's script -->
+    <script src="scripts/trip.js"></script>
+    <!-- Shared script to update the 'Logbook' nav link -->
+    <script src="scripts/nav-updater.js"></script>
+</body>
+</html>

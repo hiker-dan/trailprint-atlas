@@ -26,6 +26,7 @@
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
+    <link rel="stylesheet" href="styles/timeline-nav.css"/>
     <link rel="stylesheet" href="styles/hike.css"/>
 </head>
 <body>
@@ -64,6 +65,7 @@
         <h1 id="hike-title">Loading...</h1>
         <p id="hike-location"></p>
         <p id="hike-date"></p>
+        <p id="hike-trip-link" class="hike-trip-link"></p>
     </div>
 
     <div class="hike-detail-container">
@@ -160,6 +162,8 @@
     <script src="scripts/atlas-data.js"></script>
     <!-- Our shared trail renderer -->
     <script src="scripts/trail-renderer.js"></script>
+    <!-- The shared timeline navigation strip -->
+    <script src="scripts/timeline-nav.js"></script>
     <!-- The new script for this page -->
     <script src="scripts/hike-detail.js"></script>
     <!-- Shared script to update the 'Latest Hike' nav link -->

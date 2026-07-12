@@ -1,0 +1,296 @@
+/* =====================================================================
+   The Trailprint Atlas — Trip page styles
+   One chapter of the Atlas: hero, headline numbers, journey map,
+   day-by-day itinerary. Shares the palette + fonts from base.css.
+   ===================================================================== */
+
+body {
+    margin: 0;
+    font-family: var(--font-body);
+    background-color: #fdfdfd;
+    color: var(--charcoal);
+}
+
+/* --- Trip hero: the chapter heading --- */
+#trip-hero {
+    background-color: var(--evergreen);
+    /* The living cover: trip.js layers a random trip photo (behind a dark
+       gradient) over this base color on every visit. */
+    background-size: cover;
+    background-position: center;
+    color: #fff;
+    text-align: center;
+    /* Extra bottom padding: the stat cards overlap this edge from below */
+    padding: 60px 24px 95px;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+#trip-eyebrow {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    opacity: 0.75;
+}
+#trip-hero h1 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 3.5em;
+    line-height: 1.1;
+    margin: 0 0 12px;
+}
+#trip-dates {
+    margin: 0 0 6px;
+    font-size: 18px;
+    opacity: 0.95;
+}
+#trip-regions {
+    margin: 0;
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* --- Page layout --- */
+.trip-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+}
+
+/* --- Headline numbers --- */
+.trip-stats {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin: -75px auto 35px; /* the stat cards overlap the hero's bottom edge */
+    position: relative;
+}
+.trip-stat {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    padding: 18px 30px;
+    text-align: center;
+    min-width: 110px;
+}
+.trip-stat .num {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 34px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--trail-green);
+}
+.trip-stat .cap {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--gravel);
+}
+
+/* --- Shared section shell (mirrors the hike page's info sections) --- */
+.info-section {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+.info-section h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 1.6em;
+    color: var(--trail-green);
+    border-bottom: 3px solid #e0e8e2;
+    padding-bottom: 8px;
+    margin-top: 0;
+    margin-bottom: 25px;
+    display: inline-block;
+}
+
+/* Temporary note style while sections await their build steps */
+.section-placeholder {
+    font-style: italic;
+    color: var(--gravel);
+}
+
+/* --- The Journey Map --- */
+#trip-map {
+    height: 480px;
+    border-radius: 8px;
+}
+/* Leaflet pins its own Helvetica; the Atlas voice takes over inside the map */
+.leaflet-container {
+    font-family: var(--font-body);
+}
+/* Numbered stop markers — the numbers match the itinerary below */
+.trip-leg-marker {
+    background-color: var(--evergreen);
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 13px;
+    /* opacity: the hover fade; margin-left: the de-overlap fan sliding */
+    transition: opacity 0.2s ease, margin-left 0.25s ease;
+}
+.trip-leg-marker:hover {
+    background-color: var(--trail-green);
+    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.35), 0 0 5px rgba(0, 0, 0, 0.5);
+}
+/* While one stop is hovered, its siblings step back */
+.trip-leg-marker.stop-dimmed {
+    opacity: 0.25;
+}
+/* Stops folded into a cluster bubble step out of view entirely */
+.trip-leg-marker.stop-hidden {
+    display: none;
+}
+/* Cluster bubbles: N stacked stops, zoomed out. Click dives in. */
+.trip-cluster-marker {
+    background-color: var(--trail-green);
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body);
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* --- Day by Day itinerary --- */
+.trip-day {
+    margin-bottom: 34px;
+}
+.trip-day:last-child {
+    margin-bottom: 0;
+}
+.trip-day-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 1px solid var(--mist);
+    padding-bottom: 8px;
+    margin-bottom: 18px;
+}
+.trip-day-chip {
+    background-color: var(--trail-green);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 10px;
+    border-radius: 12px;
+    white-space: nowrap;
+}
+.trip-day-date {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 20px;
+    color: var(--evergreen);
+}
+.trip-stop {
+    display: flex;
+    gap: 16px;
+    padding: 14px 0 18px;
+}
+.trip-stop + .trip-stop {
+    border-top: 1px dashed var(--mist);
+}
+/* The badge matches the journey map's stop markers, tying list to map */
+.trip-stop-badge {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    background-color: var(--evergreen);
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+.trip-stop-body {
+    flex: 1;
+    min-width: 0;
+}
+.trip-stop-name {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 22px;
+    color: var(--evergreen);
+    text-decoration: none;
+    line-height: 1.2;
+}
+.trip-stop-name:hover {
+    color: var(--trail-green);
+}
+.trip-stop-meta {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--gravel);
+    margin: 3px 0 10px;
+}
+.trip-stop-desc {
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--charcoal);
+    margin: 0 0 12px;
+}
+.trip-stop-photos {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.trip-stop-photos img {
+    height: 110px;
+    width: auto;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+.trip-stop-log {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--trail-green);
+    text-decoration: none;
+}
+.trip-stop-log:hover {
+    text-decoration: underline;
+}
+/* Small field-card popups for each stop */
+.trip-leg-popup .leg-title {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 17px;
+    color: var(--evergreen);
+}
+.trip-leg-popup .leg-date {
+    font-size: 12px;
+    color: var(--stone);
+    margin-bottom: 6px;
+}
+.trip-leg-popup a {
+    color: var(--trail-green);
+    font-weight: 700;
+    text-decoration: none;
+}
+.trip-leg-popup a:hover {
+    text-decoration: underline;
+}

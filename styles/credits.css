@@ -1,7 +1,7 @@
 /* General Body Styles */
 body {
     margin: 0;
-    font-family: sans-serif;
+    font-family: var(--font-body);
     background-color: #f4f4f4;
     color: #333;
 }
@@ -100,6 +100,8 @@ nav#top-bar-container a {
 }
 
 .story h1 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 3em;
     margin-bottom: 20px;
 }
@@ -111,6 +113,8 @@ nav#top-bar-container a {
 }
 
 .credits h2 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 2.5em;
     margin-bottom: 40px;
     border-bottom: 2px solid #ddd;
@@ -123,6 +127,8 @@ nav#top-bar-container a {
 }
 
 .credit-category h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 1.8em;
     color: var(--evergreen);
     margin-bottom: 20px;

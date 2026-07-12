@@ -5,6 +5,49 @@
    footer components (injected by scripts/nav.js) are styled here too.
    ===================================================================== */
 
+/* --- The Atlas typefaces, self-hosted in assets/fonts (chosen July 2026,
+   "Trail Sign × Memoir" pairing from docs/type-specimen.html) ---
+   National Park is the display voice: modeled on the routed lettering of
+   park signage. It goes soft below ~18px, so it ONLY sets heroes, section
+   headings, and big stat numbers — never small text or labels.
+   Alegreya Sans is the written voice: all body text, links, and labels
+   (tiny labels wear uppercase + letter-spacing, which it handles well). */
+@font-face {
+    font-family: 'National Park';
+    src: url('../assets/fonts/national-park-variable.woff2') format('woff2');
+    font-weight: 200 800; /* variable font: one file, every weight */
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('../assets/fonts/alegreya-sans-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('../assets/fonts/alegreya-sans-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('../assets/fonts/alegreya-sans-italic-400.woff2') format('woff2');
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Alegreya Sans';
+    src: url('../assets/fonts/alegreya-sans-italic-700.woff2') format('woff2');
+    font-weight: 700;
+    font-style: italic;
+    font-display: swap;
+}
+
 /* --- The earthy palette, defined once --- */
 :root {
     --trail-green: #4a7c59;  /* signature green: accents, record cards, links */
@@ -15,10 +58,8 @@
     --paper: #f9f9f9;        /* card and panel backgrounds */
     --mist: #eee;            /* light borders and dividers */
 
-    /* System font stack used by the hike page; future pages adopt it as
-       they're polished (swapping a page off plain sans-serif changes its
-       look, so that happens deliberately, not in passing). */
-    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-display: 'National Park', 'Trebuchet MS', sans-serif;
+    --font-body: 'Alegreya Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* --- Navigation bar (one component, injected by scripts/nav.js) --- */
@@ -31,6 +72,7 @@ nav#top-bar-container {
     display: flex;
     justify-content: center;
     align-items: center;
+    font-family: var(--font-body);
 }
 nav#top-bar-container a {
     color: white;
@@ -57,6 +99,7 @@ nav#top-bar-container a:hover {
     padding: 25px 20px;
     font-size: 0.9em;
     line-height: 1.8;
+    font-family: var(--font-body);
 }
 .atlas-footer p {
     margin: 0;

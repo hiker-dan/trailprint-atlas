@@ -5,7 +5,7 @@
 
 body { 
     margin: 0; 
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: var(--font-body);
     /* NEW: Subtle textured background for the entire page */
     background-color: #fdfdfd;
     background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23f0f0f0" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');
@@ -187,7 +187,7 @@ body {
     top: 50%;
     transform: translateY(-50%);
     height: 16px; /* Make it more substantial */
-    background-color: #2980b9; /* A distinct, sophisticated blue */
+    background-color: var(--evergreen); /* deep slate, from the Atlas palette */
     border-radius: 8px; /* Pill shape */
     cursor: pointer;
     transition: width 0.3s ease-in-out, height 0.3s ease-in-out, background-color 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -215,7 +215,7 @@ body {
 /* Light hover feedback; the journal card opens beneath */
 .timeline-trip-bar:hover {
     height: 20px;
-    background-color: #3498db;
+    background-color: #3e5871; /* evergreen, one shade lifted */
 }
 /* "You are here": the capsule holding the current hike glows green */
 .timeline-trip-bar.contains-active {
@@ -402,7 +402,8 @@ body {
     text-shadow: 0 2px 8px rgba(0,0,0,0.7);
 }
 #hike-hero #hike-title {
-    font-family: 'Georgia', serif;
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 3.5em;
     margin: 0 0 10px 0;
     line-height: 1.1;
@@ -422,6 +423,8 @@ body {
 
 /* --- Header --- */
 #hike-header #hike-title {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 2.5em;
     margin: 0 0 10px 0;
     color: var(--evergreen);
@@ -483,6 +486,7 @@ body {
     height: 28px;
 }
 .vital-text .value {
+    font-family: var(--font-display);
     font-size: 2em;
     font-weight: 600;
     color: var(--evergreen);
@@ -497,7 +501,8 @@ body {
 
 /* --- Section Headers --- */
 .info-section h3 {
-    font-family: 'Georgia', serif;
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
     font-size: 1.6em;
     color: var(--trail-green); /* Match homepage green */
     border-bottom: 3px solid #e0e8e2; /* A softer green underline */
@@ -545,6 +550,7 @@ body {
     color: var(--evergreen);
 }
 .snapshot-main-value {
+    font-family: var(--font-display);
     font-size: 2em;
     font-weight: 600;
     color: var(--evergreen);
@@ -905,7 +911,12 @@ a.log-entry:hover {
     transition: opacity 1.5s ease-in-out !important;
 }
 
-#hike-description p { line-height: 1.6; }
+/* Alegreya Sans runs small at the browser default, so the reading text
+   gets an explicit, comfortable size. */
+#hike-description p {
+    font-size: 17.5px;
+    line-height: 1.65;
+}
 
 /* Responsive adjustments */
 @media (max-width: 900px) {

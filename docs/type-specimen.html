@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Type Tasting — The Trailprint Atlas</title>
+<!-- Design tool, not a site page: self-contained on purpose, and it uses the
+     Google Fonts CDN only for this tasting. The chosen pairing gets
+     self-hosted in assets/fonts before it touches the real site. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=National+Park:wght@400;600;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,500&family=Nunito+Sans:ital,wght@0,400;0,700;1,400&family=Alegreya:ital,wght@0,500;0,700;1,500&family=Alegreya+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --trail-green: #4a7c59;
+        --evergreen: #2c3e50;
+        --charcoal: #333;
+        --stone: #555;
+        --gravel: #777;
+        --paper: #f9f9f9;
+        --mist: #eee;
+        --desert: #b88a5b;
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        background: #e9e6df;
+        color: var(--charcoal);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        padding: 40px 20px 80px;
+    }
+    .intro {
+        max-width: 720px;
+        margin: 0 auto 50px;
+        text-align: center;
+    }
+    .intro h1 { font-size: 26px; color: var(--evergreen); margin-bottom: 8px; }
+    .intro p { color: var(--stone); line-height: 1.5; }
+
+    /* Each option sets its two families as variables; everything below inherits. */
+    .option-a { --display: 'National Park', sans-serif; --body: 'Source Sans 3', sans-serif; }
+    .option-b { --display: 'Fraunces', serif;           --body: 'Nunito Sans', sans-serif; }
+    .option-c { --display: 'Alegreya', serif;           --body: 'Alegreya Sans', sans-serif; }
+    .option-d { --display: 'National Park', sans-serif; --body: 'Alegreya Sans', sans-serif; }
+
+    .specimen {
+        max-width: 860px;
+        margin: 0 auto 70px;
+        background: #fdfdfd;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+        overflow: hidden;
+    }
+    .option-label {
+        background: var(--evergreen);
+        color: #fff;
+        padding: 14px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .option-label .name { font-size: 18px; font-weight: 700; letter-spacing: 0.04em; }
+    .option-label .faces { font-size: 13px; opacity: 0.85; }
+
+    /* Mock nav */
+    .mock-nav {
+        background: var(--charcoal);
+        color: #fff;
+        padding: 14px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .mock-nav .wordmark { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: 0.03em; }
+    .mock-nav .links { font-family: var(--body); font-size: 13px; display: flex; gap: 22px; color: #ddd; }
+
+    /* Mock hero */
+    .mock-hero {
+        background: var(--desert);
+        color: #fff;
+        text-align: center;
+        padding: 46px 24px 40px;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    }
+    .mock-hero h2 {
+        font-family: var(--display);
+        font-size: 42px;
+        font-weight: 700;
+        margin: 0 0 10px;
+        line-height: 1.1;
+    }
+    .mock-hero .loc { font-family: var(--body); font-size: 16px; opacity: 0.95; margin-bottom: 4px; }
+    .mock-hero .date { font-family: var(--body); font-size: 13px; font-style: italic; opacity: 0.85; }
+
+    /* Content row: field notes + vitals */
+    .mock-content {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 30px;
+        padding: 30px 30px 34px;
+    }
+    .mock-content h3 {
+        font-family: var(--display);
+        color: var(--evergreen);
+        font-size: 21px;
+        margin: 0 0 12px;
+        border-bottom: 2px solid var(--mist);
+        padding-bottom: 8px;
+    }
+    .mock-content p {
+        font-family: var(--body);
+        font-size: 15px;
+        line-height: 1.65;
+        color: var(--charcoal);
+        margin: 0 0 14px;
+    }
+    .flora {
+        font-family: var(--body);
+        background: var(--paper);
+        border-left: 3px solid var(--trail-green);
+        padding: 10px 14px;
+        font-size: 13.5px;
+        line-height: 1.55;
+        color: var(--stone);
+    }
+    .flora .label {
+        display: block;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        font-size: 11px;
+        color: var(--trail-green);
+        margin-bottom: 3px;
+    }
+    .vitals { display: flex; flex-direction: column; gap: 12px; }
+    .vital {
+        background: var(--paper);
+        border: 1px solid var(--mist);
+        border-radius: 8px;
+        padding: 12px 16px;
+    }
+    .vital .num { font-family: var(--display); font-size: 26px; font-weight: 700; color: var(--trail-green); }
+    .vital .cap {
+        font-family: var(--body);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--gravel);
+        margin-top: 2px;
+    }
+
+    /* Mock map popup */
+    .mock-popup-row {
+        padding: 0 30px 36px;
+        display: flex;
+        gap: 26px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+    .mock-popup {
+        background: #fff;
+        border-radius: 10px;
+        box-shadow: 0 3px 14px rgba(0,0,0,0.25);
+        padding: 16px 18px;
+        width: 270px;
+    }
+    .mock-popup h4 { font-family: var(--display); font-size: 17px; color: var(--evergreen); margin: 0 0 8px; }
+    .mock-popup .row { font-family: var(--body); font-size: 13px; color: var(--stone); margin-bottom: 4px; }
+    .mock-popup .row strong { color: var(--charcoal); }
+    .mock-popup a { font-family: var(--body); font-size: 13px; font-weight: 700; color: var(--trail-green); text-decoration: none; }
+    .big-stats { flex: 1; min-width: 260px; display: flex; gap: 14px; }
+    .big-stat { text-align: center; flex: 1; }
+    .big-stat .num { font-family: var(--display); font-size: 34px; font-weight: 800; color: var(--evergreen); }
+    .big-stat .cap { font-family: var(--body); font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--gravel); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+    <h1>Type Tasting — three faces for the Atlas</h1>
+    <p>Same real content three times: the only thing that changes is the type.
+       Squint at each one and ask: which feels like <em>Danny's hiking memoir</em> —
+       not a template, not an app? You can also mix (headings from one, body from another).</p>
+</div>
+
+<!-- ============ OPTION A ============ -->
+<div class="specimen option-a">
+    <div class="option-label">
+        <span class="name">OPTION A — “Trail Sign”</span>
+        <span class="faces">National Park (headings) + Source Sans 3 (body) — the routed-wood lettering of park signage; friendly, outdoorsy, unmistakably trail</span>
+    </div>
+    <div class="mock-nav">
+        <span class="wordmark">The Trailprint Atlas</span>
+        <span class="links"><span>Home</span><span>The Map</span><span>Logbook</span><span>Achievements</span><span>The Overlook</span></span>
+    </div>
+    <div class="mock-hero">
+        <h2>Scout Lookout via West Rim Trail</h2>
+        <div class="loc">Zion National Park &bull; Springdale, UT</div>
+        <div class="date">Hiked on June 26, 2025</div>
+    </div>
+    <div class="mock-content">
+        <div>
+            <h3>Field Notes</h3>
+            <p>A steep, paved climb from the canyon floor into cool Refrigerator Canyon, then up Walter's Wiggles, a set of twenty-one tight switchbacks engineered into the cliff, to the sandy perch of Scout Lookout. From here the knife-edge spine of Angels Landing rises just beyond, and the West Rim and Zion Canyon fall away in every direction.</p>
+            <div class="flora"><span class="label">Flora Spotlight</span>Bigtooth maple (Acer grandidentatum) — the tree that sets Refrigerator Canyon ablaze each fall, thriving in the cool shade where the sun rarely reaches.</div>
+        </div>
+        <div class="vitals">
+            <div class="vital"><div class="num">4.1</div><div class="cap">Miles</div></div>
+            <div class="vital"><div class="num">1,385</div><div class="cap">Elevation (ft)</div></div>
+            <div class="vital"><div class="num">Hard</div><div class="cap">Difficulty</div></div>
+        </div>
+    </div>
+    <div class="mock-popup-row">
+        <div class="mock-popup">
+            <h4>Sturtevant Falls Trail</h4>
+            <div class="row"><strong>Area:</strong> Angeles National Forest</div>
+            <div class="row"><strong>Near:</strong> Arcadia, CA</div>
+            <div class="row"><strong>Distance:</strong> 4.2 miles</div>
+            <a href="#">View Full Details →</a>
+        </div>
+        <div class="big-stats">
+            <div class="big-stat"><div class="num">94</div><div class="cap">Hikes</div></div>
+            <div class="big-stat"><div class="num">323</div><div class="cap">Miles</div></div>
+            <div class="big-stat"><div class="num">60,666</div><div class="cap">Feet Climbed</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ OPTION B ============ -->
+<div class="specimen option-b">
+    <div class="option-label">
+        <span class="name">OPTION B — “Field Guide”</span>
+        <span class="faces">Fraunces (headings) + Nunito Sans (body) — a warm vintage-naturalist serif, like a beloved old Sierra Club guidebook</span>
+    </div>
+    <div class="mock-nav">
+        <span class="wordmark">The Trailprint Atlas</span>
+        <span class="links"><span>Home</span><span>The Map</span><span>Logbook</span><span>Achievements</span><span>The Overlook</span></span>
+    </div>
+    <div class="mock-hero">
+        <h2>Scout Lookout via West Rim Trail</h2>
+        <div class="loc">Zion National Park &bull; Springdale, UT</div>
+        <div class="date">Hiked on June 26, 2025</div>
+    </div>
+    <div class="mock-content">
+        <div>
+            <h3>Field Notes</h3>
+            <p>A steep, paved climb from the canyon floor into cool Refrigerator Canyon, then up Walter's Wiggles, a set of twenty-one tight switchbacks engineered into the cliff, to the sandy perch of Scout Lookout. From here the knife-edge spine of Angels Landing rises just beyond, and the West Rim and Zion Canyon fall away in every direction.</p>
+            <div class="flora"><span class="label">Flora Spotlight</span>Bigtooth maple (Acer grandidentatum) — the tree that sets Refrigerator Canyon ablaze each fall, thriving in the cool shade where the sun rarely reaches.</div>
+        </div>
+        <div class="vitals">
+            <div class="vital"><div class="num">4.1</div><div class="cap">Miles</div></div>
+            <div class="vital"><div class="num">1,385</div><div class="cap">Elevation (ft)</div></div>
+            <div class="vital"><div class="num">Hard</div><div class="cap">Difficulty</div></div>
+        </div>
+    </div>
+    <div class="mock-popup-row">
+        <div class="mock-popup">
+            <h4>Sturtevant Falls Trail</h4>
+            <div class="row"><strong>Area:</strong> Angeles National Forest</div>
+            <div class="row"><strong>Near:</strong> Arcadia, CA</div>
+            <div class="row"><strong>Distance:</strong> 4.2 miles</div>
+            <a href="#">View Full Details →</a>
+        </div>
+        <div class="big-stats">
+            <div class="big-stat"><div class="num">94</div><div class="cap">Hikes</div></div>
+            <div class="big-stat"><div class="num">323</div><div class="cap">Miles</div></div>
+            <div class="big-stat"><div class="num">60,666</div><div class="cap">Feet Climbed</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ OPTION C ============ -->
+<div class="specimen option-c">
+    <div class="option-label">
+        <span class="name">OPTION C — “Memoir”</span>
+        <span class="faces">Alegreya (headings) + Alegreya Sans (body) — a literary serif designed for books; quiet, personal, made-to-pair siblings</span>
+    </div>
+    <div class="mock-nav">
+        <span class="wordmark">The Trailprint Atlas</span>
+        <span class="links"><span>Home</span><span>The Map</span><span>Logbook</span><span>Achievements</span><span>The Overlook</span></span>
+    </div>
+    <div class="mock-hero">
+        <h2>Scout Lookout via West Rim Trail</h2>
+        <div class="loc">Zion National Park &bull; Springdale, UT</div>
+        <div class="date">Hiked on June 26, 2025</div>
+    </div>
+    <div class="mock-content">
+        <div>
+            <h3>Field Notes</h3>
+            <p>A steep, paved climb from the canyon floor into cool Refrigerator Canyon, then up Walter's Wiggles, a set of twenty-one tight switchbacks engineered into the cliff, to the sandy perch of Scout Lookout. From here the knife-edge spine of Angels Landing rises just beyond, and the West Rim and Zion Canyon fall away in every direction.</p>
+            <div class="flora"><span class="label">Flora Spotlight</span>Bigtooth maple (Acer grandidentatum) — the tree that sets Refrigerator Canyon ablaze each fall, thriving in the cool shade where the sun rarely reaches.</div>
+        </div>
+        <div class="vitals">
+            <div class="vital"><div class="num">4.1</div><div class="cap">Miles</div></div>
+            <div class="vital"><div class="num">1,385</div><div class="cap">Elevation (ft)</div></div>
+            <div class="vital"><div class="num">Hard</div><div class="cap">Difficulty</div></div>
+        </div>
+    </div>
+    <div class="mock-popup-row">
+        <div class="mock-popup">
+            <h4>Sturtevant Falls Trail</h4>
+            <div class="row"><strong>Area:</strong> Angeles National Forest</div>
+            <div class="row"><strong>Near:</strong> Arcadia, CA</div>
+            <div class="row"><strong>Distance:</strong> 4.2 miles</div>
+            <a href="#">View Full Details →</a>
+        </div>
+        <div class="big-stats">
+            <div class="big-stat"><div class="num">94</div><div class="cap">Hikes</div></div>
+            <div class="big-stat"><div class="num">323</div><div class="cap">Miles</div></div>
+            <div class="big-stat"><div class="num">60,666</div><div class="cap">Feet Climbed</div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============ OPTION D ============ -->
+<div class="specimen option-d">
+    <div class="option-label">
+        <span class="name">OPTION D — “Trail Sign × Memoir”</span>
+        <span class="faces">National Park (headings) + Alegreya Sans (body) — the routed-sign voice up top, a warm literary hand below</span>
+    </div>
+    <div class="mock-nav">
+        <span class="wordmark">The Trailprint Atlas</span>
+        <span class="links"><span>Home</span><span>The Map</span><span>Logbook</span><span>Achievements</span><span>The Overlook</span></span>
+    </div>
+    <div class="mock-hero">
+        <h2>Scout Lookout via West Rim Trail</h2>
+        <div class="loc">Zion National Park &bull; Springdale, UT</div>
+        <div class="date">Hiked on June 26, 2025</div>
+    </div>
+    <div class="mock-content">
+        <div>
+            <h3>Field Notes</h3>
+            <p>A steep, paved climb from the canyon floor into cool Refrigerator Canyon, then up Walter's Wiggles, a set of twenty-one tight switchbacks engineered into the cliff, to the sandy perch of Scout Lookout. From here the knife-edge spine of Angels Landing rises just beyond, and the West Rim and Zion Canyon fall away in every direction.</p>
+            <div class="flora"><span class="label">Flora Spotlight</span>Bigtooth maple (Acer grandidentatum) — the tree that sets Refrigerator Canyon ablaze each fall, thriving in the cool shade where the sun rarely reaches.</div>
+        </div>
+        <div class="vitals">
+            <div class="vital"><div class="num">4.1</div><div class="cap">Miles</div></div>
+            <div class="vital"><div class="num">1,385</div><div class="cap">Elevation (ft)</div></div>
+            <div class="vital"><div class="num">Hard</div><div class="cap">Difficulty</div></div>
+        </div>
+    </div>
+    <div class="mock-popup-row">
+        <div class="mock-popup">
+            <h4>Sturtevant Falls Trail</h4>
+            <div class="row"><strong>Area:</strong> Angeles National Forest</div>
+            <div class="row"><strong>Near:</strong> Arcadia, CA</div>
+            <div class="row"><strong>Distance:</strong> 4.2 miles</div>
+            <a href="#">View Full Details →</a>
+        </div>
+        <div class="big-stats">
+            <div class="big-stat"><div class="num">94</div><div class="cap">Hikes</div></div>
+            <div class="big-stat"><div class="num">323</div><div class="cap">Miles</div></div>
+            <div class="big-stat"><div class="num">60,666</div><div class="cap">Feet Climbed</div></div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

@@ -423,6 +423,43 @@ a.log-entry:hover {
     border-left: 4px solid var(--trail-green); /* Add a hover accent color */
 }
 
+/* --- Fire memorial: an archival plate for trails that burned after the hike.
+   No card — hairline rules top and bottom, centered, a hand-drawn ember and a
+   display small-caps eyebrow. Deliberately stands apart from the white cards
+   around it, like a specimen label pressed onto the record. JS unhides it
+   (display:block) only when a hike carries a memorial. --- */
+.fire-memorial {
+    text-align: center;
+    max-width: 620px;
+    margin: 4px auto 30px;
+    padding: 30px 20px;
+    border-top: 1px solid #c9beb0;
+    border-bottom: 1px solid #c9beb0;
+}
+.fire-memorial-mark {
+    display: block;
+    margin: 0 auto 14px;
+}
+.fire-memorial-eyebrow {
+    font-family: var(--font-display);
+    font-size: 15px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #8c4a2b;
+    margin: 0 0 10px;
+}
+.fire-memorial-line {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--stone);
+    margin: 0 auto;
+    max-width: 470px;
+}
+.fire-memorial-line strong {
+    color: var(--charcoal);
+    font-weight: 700;
+}
+
 /* --- The field desk: map + photos + elevation profile, one card --- */
 .top-visuals-card {
     background-color: #fff;

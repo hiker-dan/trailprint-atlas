@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fire Memorial — Wording Tasting</title>
+    <!-- Design record: the fire memorial banner (Concept A visual, chosen
+         July 2026). Five wording directions, drawn from Temescal Canyon's
+         real data (tta_71, six weeks before the Palisades Fire). Not linked. -->
+    <link rel="stylesheet" href="../styles/base.css"/>
+    <style>
+        body {
+            margin: 0;
+            font-family: var(--font-body);
+            background-color: #fdfdfd;
+            color: var(--charcoal);
+        }
+        .tasting-header {
+            background-color: var(--evergreen);
+            color: #fff; text-align: center; padding: 40px 24px;
+        }
+        .tasting-header h1 {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 2.3em; margin: 0 0 8px;
+        }
+        .tasting-header p { margin: 0; opacity: 0.85; font-size: 15px; }
+
+        .concept { max-width: 900px; margin: 40px auto 0; padding: 0 24px; }
+        .concept-label { display: flex; align-items: center; gap: 12px; margin-bottom: 2px; }
+        .concept-label .badge {
+            font-family: var(--font-display); font-size: 18px; color: #fff;
+            background-color: var(--trail-green); width: 34px; height: 34px;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0;
+        }
+        .concept-label h2 {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 1.35em; color: var(--evergreen); margin: 0;
+        }
+        .concept-note { font-size: 14px; color: var(--gravel); margin: 2px 0 0 46px; }
+
+        .stage { max-width: 900px; margin: 0 auto; padding: 26px 24px 34px; }
+
+        /* ===== Concept A visual (the chosen treatment) ===== */
+        .mem-a {
+            text-align: center;
+            padding: 26px 20px;
+            border-top: 1px solid #c9beb0;
+            border-bottom: 1px solid #c9beb0;
+            max-width: 620px;
+            margin: 0 auto;
+        }
+        .mem-a .mark { margin: 0 auto 14px; display: block; }
+        .mem-a .eyebrow {
+            font-family: var(--font-display);
+            font-size: 15px; letter-spacing: 0.22em; text-transform: uppercase;
+            color: #8c4a2b; margin: 0 0 10px;
+        }
+        .mem-a .line {
+            font-size: 16px; line-height: 1.65; color: var(--stone);
+            margin: 0 auto; max-width: 460px;
+        }
+        .mem-a .line strong { color: var(--charcoal); font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="tasting-header">
+        <h1>The Fire Memorial — Wording</h1>
+        <p>Concept A, five voices. Temescal Canyon: six weeks before the Palisades Fire, January 2025.</p>
+    </div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">1</span><h2>Archival</h2></div>
+        <p class="concept-note">Spare. The gap does the work; no closing reassurance.</p>
+    </div>
+    <div class="stage"><div class="mem-a">
+        <span class="mark" data-mark></span>
+        <p class="eyebrow">The Trail As It Was</p>
+        <p class="line">Walked <strong>six weeks</strong> before the <strong>Palisades Fire</strong> of January 2025.</p>
+    </div></div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">2</span><h2>Documentary</h2></div>
+        <p class="concept-note">States the loss plainly, then anchors it to the walk.</p>
+    </div>
+    <div class="stage"><div class="mem-a">
+        <span class="mark" data-mark></span>
+        <p class="eyebrow">Before the Fire</p>
+        <p class="line">This trail burned in the <strong>Palisades Fire</strong> of January 2025, <strong>six weeks</strong> after this walk.</p>
+    </div></div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">3</span><h2>Elegiac</h2></div>
+        <p class="concept-note">Fragment first, then a quiet act of keeping.</p>
+    </div>
+    <div class="stage"><div class="mem-a">
+        <span class="mark" data-mark></span>
+        <p class="eyebrow">As Last Walked</p>
+        <p class="line"><strong>Six weeks</strong> before the <strong>Palisades Fire</strong> of January 2025. Kept here as it stood.</p>
+    </div></div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">4</span><h2>The Landscape</h2></div>
+        <p class="concept-note">Names the change to the place, not just the trail.</p>
+    </div>
+    <div class="stage"><div class="mem-a">
+        <span class="mark" data-mark></span>
+        <p class="eyebrow">A Landscape Changed</p>
+        <p class="line">The <strong>Palisades Fire</strong> reached this landscape in January 2025. These steps fell <strong>six weeks</strong> before it.</p>
+    </div></div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">5</span><h2>From Before</h2></div>
+        <p class="concept-note">The most haunting. The whole page reframed as a relic.</p>
+    </div>
+    <div class="stage"><div class="mem-a">
+        <span class="mark" data-mark></span>
+        <p class="eyebrow">From Before</p>
+        <p class="line"><strong>Six weeks</strong> after this hike, the <strong>Palisades Fire</strong> took the trail. All that follows is from before.</p>
+    </div></div>
+
+    <div style="height: 50px;"></div>
+
+    <script>
+    // The chosen mark: a thin, single-weight line-drawn ember (vector, crisp
+    // at any size) — the replacement for the emoji.
+    const EMBER = '#a8552e';
+    const outer = 'M12 1.5 C 9.2 8, 5.2 11.4, 5.2 18.4 a 6.8 6.8 0 0 0 13.6 0 C 18.8 12.6, 15.2 10.6, 14.2 5.6 C 13.3 8.6, 12.4 8.8, 12 1.5 Z';
+    const inner = 'M12 13 C 10.6 15.6, 9.3 16.8, 9.3 19.6 a 2.7 2.7 0 0 0 5.4 0 C 14.7 16.9, 13.2 16, 12.7 14 C 12.4 15, 12 15, 12 13 Z';
+    const svg = `<svg width="21" height="30" viewBox="0 0 24 26" fill="none"
+        stroke="${EMBER}" stroke-width="1.3" stroke-linejoin="round">
+        <path d="${outer}"/><path d="${inner}" stroke-width="1.1" opacity="0.7"/></svg>`;
+    document.querySelectorAll('[data-mark]').forEach(el => { el.innerHTML = svg; });
+    </script>
+</body>
+</html>

@@ -214,6 +214,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
+     * The fire memorial: a muted banner on trails that burned after Danny
+     * walked them. The GPX and photos on those pages are historical documents
+     * now, and the banner says so in one quiet sentence. The time gap is
+     * computed per hike ("six weeks" for Temescal, "eight months" for Sunset
+     * Peak), which is the whole reason the wording lands.
+     */
+    function renderFireMemorial(hike) {
+        const banner = document.getElementById('fire-memorial');
+        if (!hike.fire_memorial) {
+            banner.style.display = 'none';
+            return;
+        }
+        // Both dates are date-only strings: parse as UTC per Atlas convention
+        const fireDate = new Date(`${hike.fire_memorial.date}T00:00:00Z`);
+        const hikeDate = new Date(`${hike.date_completed}T00:00:00Z`);
+        const gap = fireGapText(fireDate - hikeDate);
+        const monthYear = fireDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+        // A thin, single-weight line-drawn ember — vector, crisp at any size,
+        // matching the hand-drawn SVG language of the elevation profile.
+        const flameOuter = 'M12 1.5 C 9.2 8, 5.2 11.4, 5.2 18.4 a 6.8 6.8 0 0 0 13.6 0 C 18.8 12.6, 15.2 10.6, 14.2 5.6 C 13.3 8.6, 12.4 8.8, 12 1.5 Z';
+        const flameInner = 'M12 13 C 10.6 15.6, 9.3 16.8, 9.3 19.6 a 2.7 2.7 0 0 0 5.4 0 C 14.7 16.9, 13.2 16, 12.7 14 C 12.4 15, 12 15, 12 13 Z';
+
+        banner.innerHTML =
+            `<span class="fire-memorial-mark">` +
+                `<svg width="21" height="30" viewBox="0 0 24 26" fill="none" stroke="#a8552e" ` +
+                `stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">` +
+                `<path d="${flameOuter}"/><path d="${flameInner}" stroke-width="1.1" opacity="0.7"/></svg>` +
+            `</span>` +
+            `<p class="fire-memorial-eyebrow">From Before</p>` +
+            `<p class="fire-memorial-line">This trail burned in the <strong>${hike.fire_memorial.fire}</strong> ` +
+            `of ${monthYear}, <strong>${gap}</strong> after this hike. While the land will regrow, ` +
+            `this log preserves it as it once stood.</p>`;
+        banner.style.display = 'block';
+    }
+
+    /** Spells the hike-to-fire gap in plain words: "six weeks", "fourteen months". */
+    function fireGapText(ms) {
+        const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
+            'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
+            'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three'];
+        const spell = (n) => WORDS[n] || String(n);
+        const days = Math.round(ms / 86400000);
+        if (days < 70) {
+            const weeks = Math.max(1, Math.round(days / 7));
+            return weeks === 1 ? 'one week' : `${spell(weeks)} weeks`;
+        }
+        const months = Math.round(days / 30.44);
+        if (months === 12) return 'a year';
+        if (months < 24) return `${spell(months)} months`;
+        const years = Math.round(months / 12);
+        return `${spell(years)} years`;
+    }
+
+    /**
      * The almanac's "On the Trail" card: the day's boots-on and boots-off
      * clock, read from the GPX recording. Each hike record is one day's walk
      * (a backpacking leg ends at camp), so the window never crosses midnight.
@@ -374,6 +429,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         tripLink.style.display = 'none';
                     }
                 }
+
+                // Fire memorial banner (hidden on the unburned majority)
+                renderFireMemorial(hike);
 
                 // --- NEW: Set hero background color based on geography ---
                 const geoType = hike.primary_geography || 'Default';

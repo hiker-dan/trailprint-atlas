@@ -116,6 +116,7 @@ needs new per-hike information, the first step is always to add the field to the
 | `description` | string | AI-drafted field-guide text. May contain `**bold**` — render via `formatHikeText()`. |
 | `flora`, `fauna` | string | One species spotlight each, "Name (Latin) — fact" format. |
 | `notes` | string\|null | **Danny's journal — currently null on all 71.** Phase 4 fills it. His words only. |
+| `fire_memorial` | object | *Absent on most records — always guard.* `{ "fire": "Eaton Fire", "date": "YYYY-MM-DD" }` on trails that burned **after** the hike (5 records: Eaton/Palisades/Bridge fires, verified against real perimeters July 2026). Drives the hike page's muted memorial banner ("Hiked six weeks before the Palisades Fire…"). Hand-added after research — not a wizard question; edge-singed trails (Dawn Mine) get a factual sentence in `description` instead. No map mark, by design. |
 | `trip_tag` | string\|null | Groups multi-day trips: `"Trip Name - Mon YYYY"`. Must match exactly across a trip's hikes. |
 | `all_trails_url`, `official_trail_url` | string\|null | External links. |
 | `latitude`, `longitude` | number | Trailhead coords — used for dots, viewpoint markers, weather. |

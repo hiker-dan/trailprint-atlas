@@ -23,6 +23,10 @@ const ATLAS_CONFIG = {
         "Viewpoint": "viewpoint-icon.png"
     },
 
+    // --- Trail Crew: companions with at least this many shared hikes are
+    // "core crew" — they get a card on crew.html and a member page ---
+    CREW_CORE_MIN_HIKES: 10,
+
     // --- Season per UTC month index (0 = Jan ... 11 = Dec) ---
     SEASON_BY_MONTH: [
         'winter', 'winter',                       // Jan, Feb

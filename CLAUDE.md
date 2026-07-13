@@ -68,11 +68,14 @@ there is fine, with his review.
 | `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. |
 | `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. |
 | `achievements.html` | Personal records (longest hike, biggest climb, highest summit, busiest month). |
+| `crew.html` + `scripts/crew.js` | **Trail Crew**: core-crew field cards (10+ shared hikes, `CREW_CORE_MIN_HIKES` in config.js) + the full trail-register ledger with era bars; rows expand in place. All derived from `hiked_with` at load time. |
+| `crew-member.html` + `scripts/crew-member.js` | One core-crew member (`?name=Will%20R.`): hero, combined map of every shared trail, full chronological list. Companion names on hike pages link here (core crew) or to the register (everyone else). Both crew pages share `styles/crew.css`. |
 | `credits.html` | "The Overlook": hero slideshow + asset credits. Personal statement arrives in Phase 4. |
 | `scripts/trail-renderer.js` | Shared renderer for both maps (`isInteractive` flag), plus `formatHikeText()` for `**bold**`/newline rendering. |
 | `scripts/nav-updater.js` | Points the "Logbook" nav link at the most recent hike; highlights the active page. |
 | `styles/` | `base.css` (the earthy palette as CSS custom properties + nav + footer) and one sheet per page: `home.css`, `map.css`, `hike.css`, `achievements.css`, `credits.css`, plus the `key-stats.css`/`map-stats.css` dashboard sheets. No inline CSS anywhere except `404.html` (self-contained by design). |
 | `data/hikes.json` | **The single source of truth.** All hike data. |
+| `data/crew.json` | Trail Crew portrait registry: `{"Will R.": "crew-will-r"}` — hand-picked Cloudinary photos of core-crew members (face-aware `g_auto` crops). The ritual: Danny drops `Will R.jpg` into `intake/`, Claude uploads it (public ID `crew-will-r`, Media Library folder `trailprint-atlas/trail-crew`) and adds the entry. Missing entries fall back to a landscape from a shared hike. |
 | `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. Never served to visitors. |
 | `data/trails.geojson` | **Generated — don't hand-edit.** All trails, simplified, in one file for the map page. Rebuild with `python3 tools/build-trails.py` whenever a GPX is added or changed. |
 | `tools/build-trails.py` | The GPX → trails.geojson build script (stdlib-only Python; runs locally, never ships). Warns if hikes.json and data/trails/ disagree. |

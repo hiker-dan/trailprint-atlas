@@ -423,6 +423,17 @@ a.log-entry:hover {
     border-left: 4px solid var(--trail-green); /* Add a hover accent color */
 }
 
+/* Companion names link into the Trail Crew — quiet inline links that keep
+   the surrounding text's color until hovered */
+.crew-name-link {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px dotted currentColor;
+}
+.crew-name-link:hover {
+    color: var(--trail-green);
+}
+
 /* --- Fire memorial: an archival plate for trails that burned after the hike.
    No card — hairline rules top and bottom, centered, a hand-drawn ember and a
    display small-caps eyebrow. Deliberately stands apart from the white cards

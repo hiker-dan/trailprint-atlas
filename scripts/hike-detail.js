@@ -214,6 +214,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     /**
+     * Turns companion names into Trail Crew links: core-crew members (10+
+     * shared hikes) go to their member page, everyone else to the register.
+     */
+    function linkifyCrewNames(names, allHikes) {
+        const people = groupByCompanion(allHikes);
+        return names.map(name => {
+            const count = (people.get(name) || []).length;
+            const href = count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES
+                ? `crew-member.html?name=${encodeURIComponent(name)}`
+                : 'crew.html';
+            return `<a class="crew-name-link" href="${href}">${name}</a>`;
+        }).join(', ');
+    }
+
+    /**
      * The fire memorial: a muted banner on trails that burned after Danny
      * walked them. The GPX and photos on those pages are historical documents
      * now, and the banner says so in one quiet sentence. The time gap is
@@ -664,7 +679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
                         crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
                     } else if (hike.hiked_with && hike.hiked_with.length > 0) {
-                        crewHtml = `<div class="crew-details">With <strong>${hike.hiked_with.join(', ')}</strong>.</div>`;
+                        crewHtml = `<div class="crew-details">With <strong>${linkifyCrewNames(hike.hiked_with, allHikes)}</strong>.</div>`;
                     }
 
                     // --- UNIFIED MEDIA GALLERY LOGIC ---
@@ -795,7 +810,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
                             crewDetailsText = 'A Solo Journey';
                         } else if (hike.hiked_with && hike.hiked_with.length > 0) {
-                            crewDetailsText = `With ${hike.hiked_with.join(', ')}`;
+                            crewDetailsText = `With ${linkifyCrewNames(hike.hiked_with, allHikes)}`;
                         }
 
                         // Combine title and details, using a separator if both exist.

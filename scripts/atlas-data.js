@@ -70,6 +70,34 @@ function groupByTrip(hikes) {
     return trips;
 }
 
+let _crewPortraitsPromise = null;
+
+/**
+ * The Trail Crew portrait registry (data/crew.json): hand-picked photos of
+ * each core-crew member, keyed by name ("Will R." -> Cloudinary public ID).
+ * People without an entry fall back to a landscape from a shared hike.
+ */
+function fetchCrewPortraits() {
+    if (!_crewPortraitsPromise) {
+        _crewPortraitsPromise = fetch('data/crew.json')
+            .then(response => (response.ok ? response.json() : {}))
+            .catch(() => ({}));
+    }
+    return _crewPortraitsPromise;
+}
+
+/** Groups hikes by companion: Map("First L." -> [hike, ...]). Solo hikes appear nowhere. */
+function groupByCompanion(hikes) {
+    const people = new Map();
+    hikes.forEach(hike => {
+        (hike.hiked_with || []).forEach(name => {
+            if (!people.has(name)) people.set(name, []);
+            people.get(name).push(hike);
+        });
+    });
+    return people;
+}
+
 // date_completed ("YYYY-MM-DD") parses as UTC midnight, so it must always be
 // read back with UTC getters — local-time getters shift hikes a day west of UTC.
 

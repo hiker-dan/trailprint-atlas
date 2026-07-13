@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trail Crew - The Trailprint Atlas</title>
+    <meta name="description" content="The Trail Crew of the Trailprint Atlas — everyone who has shared the trail, with the hikes, miles, and years walked together.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Trailprint Atlas">
+    <meta property="og:title" content="Trail Crew — The Trailprint Atlas">
+    <meta property="og:description" content="Everyone who has shared the trail — the hikes, miles, and years walked together.">
+    <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/crew.html">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Trail Crew — The Trailprint Atlas">
+    <meta name="twitter:description" content="Everyone who has shared the trail — the hikes, miles, and years walked together.">
+    <link rel="stylesheet" href="styles/base.css"/>
+    <link rel="stylesheet" href="styles/crew.css"/>
+</head>
+<body>
+    <!-- Shared nav: structure injected by scripts/nav.js (one copy for all pages) -->
+    <nav id="top-bar-container"></nav>
+    <script src="scripts/nav.js"></script>
+
+    <!-- Page hero -->
+    <div id="crew-hero">
+        <p id="crew-eyebrow">The People of the Atlas</p>
+        <h1>Trail Crew</h1>
+        <p id="crew-tally"></p>
+    </div>
+
+    <div class="crew-container">
+        <!-- The core crew: everyone in double digits gets a field card -->
+        <div class="info-section">
+            <h3>The Core Crew</h3>
+            <div id="crew-cards" class="crew-cards"></div>
+        </div>
+
+        <!-- The full register: every companion, one ledger line each.
+             Rows expand in place to list the shared hikes. -->
+        <div class="info-section">
+            <h3>The Trail Register</h3>
+            <div id="crew-register"></div>
+            <p id="crew-solo-line" class="crew-solo-line"></p>
+        </div>
+    </div>
+
+    <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
+    <script src="scripts/config.js"></script>
+    <script src="scripts/atlas-data.js"></script>
+    <!-- This page's script -->
+    <script src="scripts/crew.js"></script>
+    <!-- Shared script to update the 'Logbook' nav link -->
+    <script src="scripts/nav-updater.js"></script>
+</body>
+</html>

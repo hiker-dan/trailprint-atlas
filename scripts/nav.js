@@ -26,6 +26,7 @@
             <a href="map.html">Interactive Map</a>
             <a href="#" id="latest-hike-link">Logbook</a>
             <a href="achievements.html">Achievements</a>
+            <a href="crew.html">Trail Crew</a>
             <a href="credits.html">The Overlook</a>
         </div>
     `;

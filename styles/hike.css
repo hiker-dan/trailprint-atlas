@@ -395,12 +395,18 @@ a.log-entry:hover {
     border-left: 4px solid var(--trail-green); /* Add a hover accent color */
 }
 
-/* --- NEW: Top Visuals Grid --- */
+/* --- The field desk: map + photos + elevation profile, one card --- */
+.top-visuals-card {
+    background-color: #fff;
+    padding: 24px;
+    border-radius: 8px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
 .top-visuals-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 30px;
-    margin-bottom: 40px;
 }
 #hike-map {
     height: 500px;
@@ -610,6 +616,56 @@ a.log-entry:hover {
 #hike-description p {
     font-size: 17.5px;
     line-height: 1.65;
+}
+
+/* --- The Shape of the Day (elevation profile) --- */
+/* Lives inside the field desk card, tucked under the map: no section header,
+   just a quiet letterpress label. */
+#shape-section {
+    margin-top: 18px;
+}
+.shape-eyebrow {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gravel);
+}
+/* The SVG's viewBox height varies with the hike's real elevation range, so a
+   big climb towers and a flat stroll stays a low ribbon; width:100% +
+   height:auto lets each chart keep its own honest proportions. */
+.shape-chart {
+    position: relative;
+}
+.shape-chart svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+/* Floating readout that rides the crosshair while scrubbing */
+.shape-readout {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    pointer-events: none;
+    background-color: var(--evergreen);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+.shape-chart:hover .shape-readout {
+    opacity: 1;
+}
+.shape-readout .ro-mile {
+    font-weight: 400;
+    opacity: 0.8;
 }
 
 /* Responsive adjustments */

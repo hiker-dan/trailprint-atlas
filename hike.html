@@ -73,10 +73,18 @@
         <div id="expedition-subtitle-container"></div>
         <!-- Main two-column layout -->
         <div class="hike-layout">
-            <div class="top-visuals-grid">
-                <div id="hike-map"></div>
-                <div id="photo-gallery">
-                    <!-- Photo viewer will be built here by JS -->
+            <!-- The field desk: map, photos, and the elevation profile as one
+                 instrument. The profile hides when a hike has no GPX track. -->
+            <div class="top-visuals-card">
+                <div class="top-visuals-grid">
+                    <div id="hike-map"></div>
+                    <div id="photo-gallery">
+                        <!-- Photo viewer will be built here by JS -->
+                    </div>
+                </div>
+                <div id="shape-section" style="display: none;">
+                    <p class="shape-eyebrow">The Shape of the Day</p>
+                    <div id="shape-chart" class="shape-chart"></div>
                 </div>
             </div>
 
@@ -162,6 +170,8 @@
     <script src="scripts/atlas-data.js"></script>
     <!-- Our shared trail renderer -->
     <script src="scripts/trail-renderer.js"></script>
+    <!-- The Shape of the Day elevation profile -->
+    <script src="scripts/shape-of-day.js"></script>
     <!-- The shared timeline navigation strip -->
     <script src="scripts/timeline-nav.js"></script>
     <!-- The new script for this page -->

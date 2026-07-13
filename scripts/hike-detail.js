@@ -243,6 +243,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     /**
+     * Draws the Shape of the Day: the elevation profile below the map.
+     * Scrubbing the chart glides a dot along the trail line on the map above,
+     * so the shape and the place read as one instrument.
+     */
+    function renderShapeOfDay(gpxText) {
+        const section = document.getElementById('shape-section');
+        const track = AtlasShape.parseGpx(gpxText);
+        if (!track) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+
+        // The scrub dot lives on the trail map; it dies with the map when the
+        // visitor moves to another hike, so no cleanup bookkeeping is needed.
+        const scrubDot = L.circleMarker([track.samples[0].lat, track.samples[0].lon], {
+            radius: 7, color: '#fff', weight: 2.5,
+            fillColor: '#2c3e50', fillOpacity: 0, opacity: 0, interactive: false
+        }).addTo(detailMap);
+
+        AtlasShape.render(document.getElementById('shape-chart'), track, {
+            onScrub: (sample) => {
+                scrubDot.setLatLng([sample.lat, sample.lon]);
+                scrubDot.setStyle({ opacity: 1, fillOpacity: 1 });
+            },
+            onLeave: () => {
+                scrubDot.setStyle({ opacity: 0, fillOpacity: 0 });
+            }
+        });
+    }
+
+    /**
      * Main function to clear and populate the page with a specific hike's details.
      */
     function displayHike(hike, allHikes) {
@@ -346,25 +378,47 @@ document.addEventListener('DOMContentLoaded', async () => {
                     topoLayer.setOpacity(newOpacity);
                 }, cycleDuration);
 
+                const shapeSection = document.getElementById('shape-section');
                 if (hike.gpx_file) {
-                    const gpxLayer = new L.GPX(`data/trails/${hike.gpx_file}`, {
-                        async: true,
-                        polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
-                        marker_options: { 
-                            startIcon: getIcon(hike.hike_type), 
-                            endIconUrl: null, shadowUrl: null }
-                    }).on('addpoint', (e) => {
-                        // This event fires for each point (start, end, waypoint) the plugin finds.
-                        if (e.point_type === 'waypoint') {
-                            // Forcefully apply our custom icon to all waypoints.
-                            e.point.setIcon(waypointIcon);
-                            e.point.bindPopup(`<b>${e.point.options.title}</b>`);
-                        }
-                    }).on('loaded', (e) => {
-                        // Add padding to ensure the trail is never cut off at the edges
-                        detailMap.fitBounds(e.target.getBounds(), { padding: [50, 50] });
-                    }).addTo(detailMap);
+                    // Fetch the GPX text once: L.GPX parses it for the map, and
+                    // the Shape of the Day chart draws its profile from the same text.
+                    const mapForThisRender = detailMap;
+                    fetch(`data/trails/${hike.gpx_file}`)
+                        .then(response => {
+                            if (!response.ok) throw new Error(`GPX fetch failed: ${response.status}`);
+                            return response.text();
+                        })
+                        .then(gpxText => {
+                            // The visitor may have jumped to another hike mid-fetch;
+                            // the old map is gone, so quietly stand down.
+                            if (mapForThisRender !== detailMap) return;
+
+                            const gpxLayer = new L.GPX(gpxText, {
+                                async: true,
+                                polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
+                                marker_options: {
+                                    startIcon: getIcon(hike.hike_type),
+                                    endIconUrl: null, shadowUrl: null }
+                            }).on('addpoint', (e) => {
+                                // This event fires for each point (start, end, waypoint) the plugin finds.
+                                if (e.point_type === 'waypoint') {
+                                    // Forcefully apply our custom icon to all waypoints.
+                                    e.point.setIcon(waypointIcon);
+                                    e.point.bindPopup(`<b>${e.point.options.title}</b>`);
+                                }
+                            }).on('loaded', (e) => {
+                                // Add padding to ensure the trail is never cut off at the edges
+                                detailMap.fitBounds(e.target.getBounds(), { padding: [50, 50] });
+                            }).addTo(detailMap);
+
+                            renderShapeOfDay(gpxText);
+                        })
+                        .catch((err) => {
+                            console.error('Could not load the GPX track:', err);
+                            shapeSection.style.display = 'none';
+                        });
                 } else if (hike.latitude && hike.longitude) {
+                    shapeSection.style.display = 'none';
                     // For hikes without a GPX file (like viewpoints), show a marker with the correct icon
                     L.marker([hike.latitude, hike.longitude], { 
                         icon: getIcon(hike.hike_type) 

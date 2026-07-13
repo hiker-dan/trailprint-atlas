@@ -270,12 +270,93 @@ body {
 }
 
 /* --- Crew member page (crew-member.html) --- */
-#member-map {
-    height: 480px;
-    border-radius: 8px;
-}
 .leaflet-container {
     font-family: var(--font-body);
+}
+
+/* Atlas plates: one legible mini-map per shared region */
+.plates-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 22px;
+}
+/* A lone region plate spreads across the full row */
+.plates-grid > .plate:only-child {
+    grid-column: 1 / -1;
+}
+.plate {
+    border: 1px solid #e4e0d5;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+.plate-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    background-color: #f7f5ef;
+    border-bottom: 1px solid #e4e0d5;
+}
+.plate-name {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 19px;
+    color: var(--evergreen);
+}
+.plate-count {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--trail-green);
+    white-space: nowrap;
+}
+.plate-map {
+    height: 250px;
+}
+
+/* Scattered Trails: far-flung one-offs as line-art trailprints */
+.scattered-plate {
+    margin-top: 22px;
+}
+.trailprints {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+.trailprint {
+    text-align: center;
+    text-decoration: none;
+    border: 1px solid #e4e0d5;
+    border-radius: 10px;
+    padding: 14px 10px 12px;
+    background-color: #fdfcf8;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.trailprint:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+.trailprint svg {
+    display: block;
+    margin: 0 auto 8px;
+}
+.tp-name {
+    font-family: var(--font-display);
+    letter-spacing: 0.02em;
+    font-size: 15px;
+    color: var(--evergreen);
+    line-height: 1.25;
+}
+.trailprint:hover .tp-name {
+    color: var(--trail-green);
+}
+.tp-place {
+    font-size: 11.5px;
+    color: var(--gravel);
+    margin-top: 3px;
 }
 .member-hike-row {
     display: flex;

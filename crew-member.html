@@ -42,10 +42,19 @@
     <div class="crew-container">
         <a class="member-back" href="crew.html">&larr; Back to the Trail Crew</a>
 
-        <!-- Every shared trail on one map -->
+        <!-- Every shared trail, as atlas plates: one mini-map per region so
+             the trails are legible at a glance, plus a "Scattered Trails"
+             row of line-art trailprints for the far-flung one-offs. -->
         <div class="info-section">
             <h3>Trails We've Shared</h3>
-            <div id="member-map"></div>
+            <div id="member-plates" class="plates-grid"></div>
+            <div id="member-scattered" class="plate scattered-plate" style="display: none;">
+                <div class="plate-title">
+                    <span class="plate-name">Scattered Trails</span>
+                    <span class="plate-count" id="scattered-count"></span>
+                </div>
+                <div id="member-prints" class="trailprints"></div>
+            </div>
         </div>
 
         <!-- The full shared history, newest first -->

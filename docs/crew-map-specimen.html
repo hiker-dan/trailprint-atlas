@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crew Map — Concept Tasting</title>
+    <!-- Design record: the crew-member shared-trails map, refined (July 2026).
+         Two live concepts drawn from Will R.'s real shared hikes (the
+         widest-ranging crew member: Big Sur to San Diego). Not linked. -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <link rel="stylesheet" href="../styles/base.css"/>
+    <style>
+        body {
+            margin: 0;
+            font-family: var(--font-body);
+            background-color: #fdfdfd;
+            color: var(--charcoal);
+        }
+        .tasting-header {
+            background-color: var(--evergreen);
+            color: #fff; text-align: center; padding: 40px 24px;
+        }
+        .tasting-header h1 {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 2.3em; margin: 0 0 8px;
+        }
+        .tasting-header p { margin: 0; opacity: 0.85; font-size: 15px; }
+
+        .concept { max-width: 1050px; margin: 44px auto 0; padding: 0 24px; }
+        .concept-label { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+        .concept-label .badge {
+            font-family: var(--font-display); font-size: 19px; color: #fff;
+            background-color: var(--trail-green); width: 36px; height: 36px;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0;
+        }
+        .concept-label h2 {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 1.5em; color: var(--evergreen); margin: 0;
+        }
+        .concept-note { font-size: 14.5px; color: var(--gravel); margin: 2px 0 20px 48px; max-width: 760px; }
+        .stage { max-width: 1050px; margin: 0 auto 20px; padding: 0 24px; }
+
+        .info-section {
+            background-color: #fff; padding: 30px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        }
+        .info-section h3 {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 1.6em; color: var(--trail-green);
+            border-bottom: 3px solid #e0e8e2; padding-bottom: 8px;
+            margin: 0 0 25px; display: inline-block;
+        }
+        .leaflet-container { font-family: var(--font-body); }
+
+        /* ===== Concept A: the Atlas Plates ===== */
+        .plates-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+        .plate {
+            border: 1px solid #e4e0d5;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+        }
+        .plate-title {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 16px;
+            background-color: #f7f5ef;
+            border-bottom: 1px solid #e4e0d5;
+        }
+        .plate-name {
+            font-family: var(--font-display);
+            letter-spacing: 0.02em;
+            font-size: 19px;
+            color: var(--evergreen);
+        }
+        .plate-count {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: var(--trail-green);
+            white-space: nowrap;
+        }
+        .plate-map { height: 230px; }
+
+        /* ===== A-variants: fuller treatments for the one-hike plates ===== */
+        .inset-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            padding: 6px;
+            background-color: #f7f5ef;
+        }
+        .inset-cell {
+            position: relative;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .inset-map { height: 128px; }
+        .inset-label {
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
+            z-index: 500;
+            padding: 3px 8px;
+            background-color: rgba(44, 62, 80, 0.78);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .trailprints {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+        .trailprint {
+            text-align: center;
+            border: 1px solid #e4e0d5;
+            border-radius: 10px;
+            padding: 14px 10px 12px;
+            background-color: #fdfcf8;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.06);
+        }
+        .trailprint svg { display: block; margin: 0 auto 8px; }
+        .tp-name {
+            font-family: var(--font-display);
+            letter-spacing: 0.02em;
+            font-size: 15px;
+            color: var(--evergreen);
+            line-height: 1.25;
+        }
+        .tp-place {
+            font-size: 11.5px;
+            color: var(--gravel);
+            margin-top: 3px;
+        }
+
+        /* ===== Concept B: the Constellation ===== */
+        #constellation-map { height: 500px; border-radius: 8px; }
+        .constellation-bubble {
+            background-color: var(--trail-green);
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 6px rgba(0, 0, 0, 0.45);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-body);
+            font-weight: 700; font-size: 14px;
+            cursor: pointer;
+        }
+        .constellation-popup .cp-title {
+            font-family: var(--font-display); letter-spacing: 0.02em;
+            font-size: 17px; color: var(--evergreen);
+        }
+        .constellation-popup .cp-date { font-size: 12px; color: var(--stone); margin-bottom: 6px; }
+        .constellation-popup a { color: var(--trail-green); font-weight: 700; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="tasting-header">
+        <h1>Trails We've Shared, Refined</h1>
+        <p>Will R.'s real map — Big Sur to San Diego, the hardest case. Two live concepts.</p>
+    </div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">A</span><h2>The Atlas Plates</h2></div>
+        <p class="concept-note">One mini-map per region, each zoomed so its trails are legible immediately —
+            like plates in a printed atlas. No interaction needed to see everything; plate titles carry the counts.</p>
+    </div>
+    <div class="stage">
+        <div class="info-section">
+            <h3>Trails We've Shared</h3>
+            <div id="plates" class="plates-grid"></div>
+        </div>
+    </div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">A2</span><h2>Fuller Plates — the Inset Plate</h2></div>
+        <p class="concept-note">The four one-hike plates fold into a single "Farther Afield" plate, the way
+            printed atlases use inset boxes: one frame, four little windows, each zoomed to its own trail.</p>
+    </div>
+    <div class="stage">
+        <div class="info-section">
+            <div class="plate" style="max-width: 520px;">
+                <div class="plate-title">
+                    <span class="plate-name">Farther Afield</span>
+                    <span class="plate-count" id="inset-count"></span>
+                </div>
+                <div class="inset-grid" id="inset-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">A3</span><h2>Fuller Plates — the Trailprints</h2></div>
+        <p class="concept-note">Or drop the basemap for the scattered one-offs entirely: each far-flung trail
+            drawn as pure line art in its year color — the literal trailprint, the shape of the walk itself.
+            One row holds them all.</p>
+    </div>
+    <div class="stage">
+        <div class="info-section">
+            <div class="plate" style="border: none; box-shadow: none;">
+                <div class="plate-title" style="border: 1px solid #e4e0d5; border-radius: 10px 10px 0 0;">
+                    <span class="plate-name">Farther Afield</span>
+                    <span class="plate-count" id="tp-count"></span>
+                </div>
+                <div class="trailprints" id="trailprints" style="padding-top: 16px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="concept">
+        <div class="concept-label"><span class="badge">B</span><h2>The Constellation</h2></div>
+        <p class="concept-note">One map. Zoomed out, shared hikes gather into count bubbles ("12" over the San
+            Gabriels). Click a bubble or zoom and they split apart, dissolving into the real trail lines.
+            Scroll to zoom, like the trip maps.</p>
+    </div>
+    <div class="stage" style="margin-bottom: 60px;">
+        <div class="info-section">
+            <h3>Trails We've Shared</h3>
+            <div id="constellation-map"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+    (async function () {
+        const NAME = 'Will R.';
+        const COLOR_MAP = { 2022: '#3498db', 2023: '#2ecc71', 2024: '#f1c40f', 2025: '#e67e22', 2026: '#9b59b6' };
+        const TOPO = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+        const ATTR = 'Tiles &copy; Esri';
+
+        const hikes = (await (await fetch('../data/hikes.json')).json())
+            .filter(h => (h.hiked_with || []).includes(NAME));
+        const geojson = await (await fetch('../data/trails.geojson')).json();
+        const geoms = {};
+        geojson.features.forEach(f => {
+            const segs = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+            geoms[f.properties.trail_id] = segs.map(seg => seg.map(c => [c[1], c[0]]));
+        });
+        const yearColor = h => COLOR_MAP[new Date(h.date_completed).getUTCFullYear()] || '#7f8c8d';
+        const popupHtml = h => `
+            <div class="constellation-popup">
+                <div class="cp-title">${h.trail_name}</div>
+                <div class="cp-date">${h.date_completed}</div>
+                <a href="../hike.html?id=${h.trail_id}">Open the Field Log &rarr;</a>
+            </div>`;
+
+        /* ---------- Geographic clustering (shared by both concepts) ----------
+           Greedy: each hike joins the first cluster whose centroid is within
+           RADIUS_KM; clusters ordered by size afterwards. */
+        const RADIUS_KM = 55;
+        const kmBetween = (a, b) => {
+            const R = 6371, dLat = (b.lat - a.lat) * Math.PI / 180, dLon = (b.lon - a.lon) * Math.PI / 180;
+            const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(s));
+        };
+        const clusters = [];
+        hikes.forEach(h => {
+            const pt = { lat: h.latitude, lon: h.longitude };
+            const home = clusters.find(c => kmBetween(c.centroid, pt) < RADIUS_KM);
+            if (home) {
+                home.hikes.push(h);
+                home.centroid.lat = home.hikes.reduce((s, x) => s + x.latitude, 0) / home.hikes.length;
+                home.centroid.lon = home.hikes.reduce((s, x) => s + x.longitude, 0) / home.hikes.length;
+            } else {
+                clusters.push({ hikes: [h], centroid: { ...pt } });
+            }
+        });
+        clusters.sort((a, b) => b.hikes.length - a.hikes.length);
+        // Plate names: the cluster's most common location (a real build could prettify)
+        clusters.forEach(c => {
+            const tally = {};
+            c.hikes.forEach(h => { tally[h.location] = (tally[h.location] || 0) + 1; });
+            c.name = Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
+        });
+
+        /* ---------- Concept A: the Atlas Plates ---------- */
+        const platesEl = document.getElementById('plates');
+        clusters.forEach((c, i) => {
+            const plate = document.createElement('div');
+            plate.className = 'plate';
+            plate.innerHTML = `
+                <div class="plate-title">
+                    <span class="plate-name">${c.name}</span>
+                    <span class="plate-count">${c.hikes.length} hike${c.hikes.length === 1 ? '' : 's'} together</span>
+                </div>
+                <div class="plate-map" id="plate-map-${i}"></div>`;
+            platesEl.appendChild(plate);
+
+            const m = L.map(`plate-map-${i}`, {
+                zoomControl: false, dragging: false, scrollWheelZoom: false,
+                doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false,
+                attributionControl: false
+            });
+            L.tileLayer(TOPO, { attribution: ATTR }).addTo(m);
+            const bounds = L.latLngBounds([]);
+            c.hikes.forEach(h => {
+                const color = yearColor(h);
+                const segs = geoms[h.trail_id];
+                if (segs) {
+                    segs.forEach(seg => {
+                        const line = L.polyline(seg, { color, weight: 3.5, opacity: 0.95 }).addTo(m);
+                        bounds.extend(line.getBounds());
+                    });
+                } else if (h.latitude) {
+                    const dot = L.circleMarker([h.latitude, h.longitude], {
+                        radius: 6, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1
+                    }).addTo(m);
+                    bounds.extend(dot.getLatLng());
+                }
+            });
+            m.fitBounds(bounds, { padding: [26, 26] });
+        });
+
+        /* ---------- A-variants: the singleton clusters, gathered ---------- */
+        const singles = clusters.filter(c => c.hikes.length === 1).map(c => c.hikes[0]);
+        document.getElementById('inset-count').innerText =
+            `${singles.length} far-flung hikes together`;
+        document.getElementById('tp-count').innerText =
+            `${singles.length} far-flung hikes together`;
+
+        // A2: inset plate — one frame, a little window per far-flung trail
+        const insetGrid = document.getElementById('inset-grid');
+        singles.forEach((h, i) => {
+            const cell = document.createElement('div');
+            cell.className = 'inset-cell';
+            cell.innerHTML = `
+                <div class="inset-map" id="inset-map-${i}"></div>
+                <div class="inset-label">${h.location}</div>`;
+            insetGrid.appendChild(cell);
+            const m = L.map(`inset-map-${i}`, {
+                zoomControl: false, dragging: false, scrollWheelZoom: false,
+                doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false,
+                attributionControl: false
+            });
+            L.tileLayer(TOPO, { attribution: ATTR }).addTo(m);
+            const bounds = L.latLngBounds([]);
+            const segs = geoms[h.trail_id];
+            if (segs) segs.forEach(seg => {
+                const line = L.polyline(seg, { color: yearColor(h), weight: 3, opacity: 0.95 }).addTo(m);
+                bounds.extend(line.getBounds());
+            });
+            else if (h.latitude) bounds.extend([h.latitude, h.longitude]);
+            m.fitBounds(bounds, { padding: [14, 14] });
+        });
+
+        // A3: trailprints — the trail's own shape as line art, no basemap
+        const tpEl = document.getElementById('trailprints');
+        singles.forEach(h => {
+            const segs = geoms[h.trail_id];
+            if (!segs) return;
+            const pts = segs.flat();
+            const lats = pts.map(p => p[0]), lons = pts.map(p => p[1]);
+            const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+            const minLon = Math.min(...lons), maxLon = Math.max(...lons);
+            const cosMid = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
+            const w = (maxLon - minLon) * cosMid, hgt = maxLat - minLat;
+            const S = 120, PAD = 10;
+            const scale = (S - 2 * PAD) / Math.max(w, hgt);
+            const offX = (S - w * scale) / 2, offY = (S - hgt * scale) / 2;
+            const paths = segs.map(seg => 'M ' + seg.map(p =>
+                `${(offX + (p[1] - minLon) * cosMid * scale).toFixed(1)},${(offY + (maxLat - p[0]) * scale).toFixed(1)}`
+            ).join(' L ')).join(' ');
+            const card = document.createElement('a');
+            card.className = 'trailprint';
+            card.style.textDecoration = 'none';
+            card.href = `../hike.html?id=${h.trail_id}`;
+            card.innerHTML = `
+                <svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
+                    <path d="${paths}" fill="none" stroke="${yearColor(h)}"
+                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="tp-name">${h.trail_name}</div>
+                <div class="tp-place">${h.location}</div>`;
+            tpEl.appendChild(card);
+        });
+
+        /* ---------- Concept B: the Constellation ---------- */
+        const cmap = L.map('constellation-map', { scrollWheelZoom: true });
+        L.tileLayer(TOPO, { attribution: ATTR }).addTo(cmap);
+        const allBounds = L.latLngBounds([]);
+        hikes.forEach(h => {
+            const color = yearColor(h);
+            const segs = geoms[h.trail_id];
+            if (segs) segs.forEach(seg => {
+                const line = L.polyline(seg, { color, weight: 3.5, opacity: 0.9 }).addTo(cmap);
+                line.bindPopup(popupHtml(h));
+                allBounds.extend(line.getBounds());
+            });
+            if (h.latitude) allBounds.extend([h.latitude, h.longitude]);
+        });
+        cmap.fitBounds(allBounds, { padding: [30, 30] });
+
+        // Zoom-dependent bubbles: cluster by on-screen pixel distance so the
+        // constellation folds and unfolds as the visitor moves
+        let markers = [];
+        function renderConstellation() {
+            markers.forEach(mk => cmap.removeLayer(mk));
+            markers = [];
+            const PIXEL_RADIUS = 52;
+            const groups = [];
+            hikes.forEach(h => {
+                if (!h.latitude) return;
+                const px = cmap.latLngToLayerPoint([h.latitude, h.longitude]);
+                const home = groups.find(g => g.px.distanceTo(px) < PIXEL_RADIUS);
+                if (home) { home.hikes.push(h); }
+                else groups.push({ px, latlng: [h.latitude, h.longitude], hikes: [h] });
+            });
+            groups.forEach(g => {
+                if (g.hikes.length > 1) {
+                    const size = g.hikes.length >= 10 ? 40 : 32;
+                    const bubble = L.marker(g.latlng, {
+                        icon: L.divIcon({
+                            className: 'constellation-bubble',
+                            html: `<span>${g.hikes.length}</span>`,
+                            iconSize: [size, size]
+                        })
+                    }).addTo(cmap);
+                    bubble.bindTooltip(`${g.hikes.length} hikes together here — click to dive in`);
+                    bubble.on('click', () => {
+                        const b = L.latLngBounds(g.hikes.map(h => [h.latitude, h.longitude]));
+                        cmap.fitBounds(b.pad(0.35));
+                    });
+                    markers.push(bubble);
+                } else {
+                    const h = g.hikes[0];
+                    const dot = L.circleMarker(g.latlng, {
+                        radius: 6, color: '#fff', weight: 2,
+                        fillColor: yearColor(h), fillOpacity: 1
+                    }).addTo(cmap);
+                    dot.bindPopup(popupHtml(h));
+                    markers.push(dot);
+                }
+            });
+        }
+        cmap.on('zoomend', renderConstellation);
+        renderConstellation();
+    })();
+    </script>
+</body>
+</html>

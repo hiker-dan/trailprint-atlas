@@ -66,30 +66,51 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>`;
     const hikeColor = (hike) => ATLAS_CONFIG.COLOR_MAP[hikeYear(hike)] || ATLAS_CONFIG.DEFAULT_COLOR;
 
-    // Greedy clustering: a hike joins the first cluster whose centroid sits
-    // within CLUSTER_RADIUS_KM of its trailhead
-    const CLUSTER_RADIUS_KM = 55;
-    const kmBetween = (aLat, aLon, bLat, bLon) => {
+    // Complete-linkage clustering with a diameter cap. Two groups merge only
+    // if EVERY pair of hikes in the union stays within MAX_PLATE_SPAN_KM —
+    // order-independent (no drifting centroids, no orphaned neighbors), and
+    // the cap directly bounds each plate's zoom: a plate can never sprawl
+    // past the span, so its trails stay legible. Always merge the tightest
+    // compatible pair first, so natural regions form before loose ones.
+    const MAX_PLATE_SPAN_KM = 75;
+    const kmBetween = (a, b) => {
         const R = 6371;
-        const dLat = (bLat - aLat) * Math.PI / 180;
-        const dLon = (bLon - aLon) * Math.PI / 180;
+        const dLat = (b.latitude - a.latitude) * Math.PI / 180;
+        const dLon = (b.longitude - a.longitude) * Math.PI / 180;
         const s = Math.sin(dLat / 2) ** 2 +
-            Math.cos(aLat * Math.PI / 180) * Math.cos(bLat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            Math.cos(a.latitude * Math.PI / 180) * Math.cos(b.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
         return 2 * R * Math.asin(Math.sqrt(s));
     };
-    const clusters = [];
-    sorted.forEach(hike => {
-        if (!hike.latitude || !hike.longitude) return;
-        const home = clusters.find(c =>
-            kmBetween(c.lat, c.lon, hike.latitude, hike.longitude) < CLUSTER_RADIUS_KM);
-        if (home) {
-            home.hikes.push(hike);
-            home.lat = home.hikes.reduce((s, h) => s + h.latitude, 0) / home.hikes.length;
-            home.lon = home.hikes.reduce((s, h) => s + h.longitude, 0) / home.hikes.length;
-        } else {
-            clusters.push({ hikes: [hike], lat: hike.latitude, lon: hike.longitude });
+    // Span of a would-be merged group = its farthest-apart pair of hikes
+    const mergedSpan = (a, b) => {
+        let span = 0;
+        const union = [...a.hikes, ...b.hikes];
+        for (let i = 0; i < union.length; i++) {
+            for (let j = i + 1; j < union.length; j++) {
+                span = Math.max(span, kmBetween(union[i], union[j]));
+            }
         }
-    });
+        return span;
+    };
+
+    let clusters = sorted
+        .filter(h => h.latitude && h.longitude)
+        .map(h => ({ hikes: [h] }));
+    while (clusters.length > 1) {
+        let best = null;
+        for (let i = 0; i < clusters.length; i++) {
+            for (let j = i + 1; j < clusters.length; j++) {
+                const span = mergedSpan(clusters[i], clusters[j]);
+                if (span <= MAX_PLATE_SPAN_KM && (!best || span < best.span)) {
+                    best = { i, j, span };
+                }
+            }
+        }
+        if (!best) break; // nothing left that can merge without over-stretching a plate
+        clusters[best.i].hikes.push(...clusters[best.j].hikes);
+        clusters.splice(best.j, 1);
+    }
+    clusters.forEach(c => c.hikes.sort(compareHikesChrono));
     clusters.sort((a, b) => b.hikes.length - a.hikes.length);
 
     // Plate titles come from the cluster's locations: one place names itself;

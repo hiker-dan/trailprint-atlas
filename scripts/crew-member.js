@@ -42,18 +42,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? `On the trail together in ${firstYear}`
         : `On the trail together since ${firstYear}`;
 
-    // Cover: their hand-picked portrait when one exists (face-aware crop);
-    // otherwise the first photo of the longest shared hike with photos
-    const portraits = await fetchCrewPortraits();
-    const withPhotos = shared.filter(h => h.images && h.images.length > 0)
-        .sort((a, b) => b.miles - a.miles);
-    const coverId = portraits[name] || (withPhotos.length > 0 ? withPhotos[0].images[0] : null);
-    if (coverId) {
-        const gravity = portraits[name] ? ',g_auto' : '';
-        const cover = cloudinaryUrl(coverId, `w_1600,h_640,c_fill${gravity},q_auto,f_auto`);
-        document.getElementById('crew-hero').style.backgroundImage =
-            `linear-gradient(rgba(37, 52, 66, 0.55), rgba(44, 62, 80, 0.8)), url('${cover}')`;
-    }
+    // No photo behind this hero, by design: member pages keep the plain
+    // evergreen header (like hike pages) so the photographic hero stays a
+    // trip-page signature. The portrait lives on their crew.html card.
 
     // --- The shared-trails map ---
     const map = L.map('member-map');

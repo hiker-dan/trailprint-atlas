@@ -133,7 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
      * @param {object} hike - The hike data object.
      * @param {Array} allHikes - The array of all hike objects.
      */
-    async function fetchAndDisplayTimeSnapshot(hike, allHikes) {
+    async function fetchAndDisplayTimeSnapshot(hike, trackPromise) {
         const almanacSection = document.getElementById('almanac-section');
         // Reset and hide section before fetching
         almanacSection.style.display = 'none';
@@ -143,6 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('sunset-weather-desc').innerText = 'Loading...';
         document.getElementById('peak-weather-desc').innerText = 'Loading...';
         document.getElementById('peak-weather-temp').innerText = '--';
+        document.getElementById('ontrail-card').style.display = 'none';
 
         if (hike.latitude && hike.longitude && hike.date_completed) {
             const date = hike.date_completed;
@@ -199,12 +200,75 @@ document.addEventListener('DOMContentLoaded', async () => {
                     document.getElementById('peak-weather-temp').innerText = `${peakTemp}°F`;
 
                     almanacSection.style.display = 'block';
+
+                    // The fourth card — "On the Trail" — appears only when the
+                    // GPX was a real recording (a track with a clock).
+                    const track = await trackPromise;
+                    renderOnTrailCard(track, data.utc_offset_seconds, sunriseDate, sunsetDate);
                 }
             } catch (error) {
                 console.error('Error fetching time snapshot data:', error);
                 almanacSection.style.display = 'none';
             }
         }
+    }
+
+    /**
+     * The almanac's "On the Trail" card: the day's boots-on and boots-off
+     * clock, read from the GPX recording. Each hike record is one day's walk
+     * (a backpacking leg ends at camp), so the window never crosses midnight.
+     * The daylight ribbon says the rest without words: the trail-green band is
+     * the walk, laid over that day's actual night-day-night — a band that
+     * starts in the dark IS the alpine start.
+     */
+    function renderOnTrailCard(track, utcOffsetSeconds, sunriseDate, sunsetDate) {
+        const card = document.getElementById('ontrail-card');
+        if (!track || !track.startTime || !track.endTime) return; // card stays hidden
+
+        const durationMs = track.endTime - track.startTime;
+        // A record longer than a waking day means a malformed track — stand down
+        if (durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
+
+        // GPX clocks are UTC. Shifting by the trail's offset (already fetched
+        // with the weather) and reading with getUTC* yields the trail's wall
+        // clock — correct whether the hike was in California or Virginia.
+        const toWall = (d) => new Date(d.getTime() + utcOffsetSeconds * 1000);
+        const wallStart = toWall(track.startTime);
+        const wallEnd = toWall(track.endTime);
+        const fmtTime = (d) => {
+            const h12 = d.getUTCHours() % 12 || 12;
+            const mins = String(d.getUTCMinutes()).padStart(2, '0');
+            return `${h12}:${mins} ${d.getUTCHours() >= 12 ? 'PM' : 'AM'}`;
+        };
+        document.getElementById('ontrail-times').innerHTML =
+            `${fmtTime(wallStart)} <span class="ontrail-arrow">&rarr;</span> ${fmtTime(wallEnd)}`;
+
+        let hrs = Math.floor(durationMs / 3600000);
+        let mins = Math.round((durationMs % 3600000) / 60000);
+        if (mins === 60) { hrs++; mins = 0; }
+        document.getElementById('ontrail-duration').innerText =
+            hrs > 0 ? `${hrs}h ${mins}m on the trail` : `${mins} minutes on the trail`;
+
+        // The daylight ribbon: one bar = that day, midnight to midnight
+        const minuteOfDay = (d) => d.getUTCHours() * 60 + d.getUTCMinutes();
+        // sunrise/sunset arrived as local wall-clock strings (timezone=auto),
+        // so the local getters read their wall-clock components directly
+        const sunriseMin = sunriseDate.getHours() * 60 + sunriseDate.getMinutes();
+        const sunsetMin = sunsetDate.getHours() * 60 + sunsetDate.getMinutes();
+        const pct = (m) => (m / 1440) * 100;
+
+        const ribbon = document.getElementById('ontrail-ribbon');
+        ribbon.style.background = `linear-gradient(90deg,
+            #2c3e50 0%, #2c3e50 ${pct(sunriseMin) - 1.5}%,
+            #f2e3bb ${pct(sunriseMin) + 1.5}%, #f2e3bb ${pct(sunsetMin) - 1.5}%,
+            #2c3e50 ${pct(sunsetMin) + 1.5}%, #2c3e50 100%)`;
+        ribbon.title = `Daylight ${fmtTime(new Date(Date.UTC(2000, 0, 1, sunriseDate.getHours(), sunriseDate.getMinutes())))} – ${fmtTime(new Date(Date.UTC(2000, 0, 1, sunsetDate.getHours(), sunsetDate.getMinutes())))}`;
+
+        const band = document.getElementById('ontrail-band');
+        band.style.left = `${pct(minuteOfDay(wallStart))}%`;
+        band.style.width = `${Math.max(pct(minuteOfDay(wallEnd)) - pct(minuteOfDay(wallStart)), 0.8)}%`;
+
+        card.style.display = 'block';
     }
 
     /**
@@ -252,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const track = AtlasShape.parseGpx(gpxText);
         if (!track) {
             section.style.display = 'none';
-            return;
+            return null;
         }
         section.style.display = 'block';
 
@@ -272,6 +336,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 scrubDot.setStyle({ opacity: 0, fillOpacity: 0 });
             }
         });
+
+        return track;
     }
 
     /**
@@ -379,11 +445,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }, cycleDuration);
 
                 const shapeSection = document.getElementById('shape-section');
+                // Resolves to the parsed GPX track (or null): the almanac's
+                // "On the Trail" card awaits it for the day's start/end clock.
+                let trackPromise = Promise.resolve(null);
                 if (hike.gpx_file) {
                     // Fetch the GPX text once: L.GPX parses it for the map, and
                     // the Shape of the Day chart draws its profile from the same text.
                     const mapForThisRender = detailMap;
-                    fetch(`data/trails/${hike.gpx_file}`)
+                    trackPromise = fetch(`data/trails/${hike.gpx_file}`)
                         .then(response => {
                             if (!response.ok) throw new Error(`GPX fetch failed: ${response.status}`);
                             return response.text();
@@ -411,11 +480,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 detailMap.fitBounds(e.target.getBounds(), { padding: [50, 50] });
                             }).addTo(detailMap);
 
-                            renderShapeOfDay(gpxText);
+                            return renderShapeOfDay(gpxText);
                         })
                         .catch((err) => {
                             console.error('Could not load the GPX track:', err);
                             shapeSection.style.display = 'none';
+                            return null;
                         });
                 } else if (hike.latitude && hike.longitude) {
                     shapeSection.style.display = 'none';
@@ -729,7 +799,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })();
 
                 // --- NEW: Fetch and display the "Trail in Time" data ---
-                fetchAndDisplayTimeSnapshot(hike, allHikes);
+                fetchAndDisplayTimeSnapshot(hike, trackPromise);
     }
 
     // Listen for the browser's back/forward buttons

@@ -249,6 +249,34 @@ body {
     font-weight: 600;
     color: var(--evergreen);
 }
+/* "On the Trail" card: two times don't fit at the single-value size */
+.snapshot-main-value.ontrail-times {
+    font-size: 1.45em;
+    line-height: 1.9;
+}
+.ontrail-arrow {
+    color: var(--trail-green);
+    font-weight: 400;
+}
+/* The daylight ribbon: the day as a bar (midnight to midnight), night in
+   slate and daylight in pale gold; the green band is the walk itself. A band
+   reaching into the dark tells the alpine-start story without a word. */
+.ontrail-ribbon {
+    position: relative;
+    height: 8px;
+    border-radius: 4px;
+    margin: 8px 6px 10px;
+}
+.ontrail-band {
+    position: absolute;
+    top: -2px;
+    height: 12px;
+    background-color: var(--trail-green);
+    border: 1.5px solid #fff;
+    border-radius: 6px;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
 .snapshot-description {
     font-size: 1em;
     color: #777;

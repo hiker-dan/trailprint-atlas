@@ -127,6 +127,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const singles = clusters.filter(c => c.hikes.length === 1).map(c => c.hikes[0]);
     const platesEl = document.getElementById('member-plates');
 
+    // Two passes: all plate frames enter the DOM first, so the grid is in
+    // its final layout before any Leaflet map measures its container.
+    // (Initializing map 1 while it was the grid's temporarily-full-width
+    // only child left its center computed for the wrong size.)
     regions.forEach((cluster, i) => {
         const plate = document.createElement('div');
         plate.className = 'plate';
@@ -137,7 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="plate-map" id="plate-map-${i}"></div>`;
         platesEl.appendChild(plate);
+    });
 
+    const plateFits = []; // each plate's (map, bounds), for post-layout re-fits
+    regions.forEach((cluster, i) => {
         // Static like the hike page's map — but trails stay clickable for
         // their Field Log popups
         const plateMap = L.map(`plate-map-${i}`, {
@@ -168,7 +175,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
         plateMap.fitBounds(bounds, { padding: [24, 24] });
+        plateFits.push({ map: plateMap, bounds });
     });
+
+    // Late layout shifts (web fonts landing, a scrollbar appearing) change
+    // container sizes after init — re-measure and re-center every plate
+    const refitPlates = () => plateFits.forEach(({ map, bounds }) => {
+        map.invalidateSize();
+        map.fitBounds(bounds, { padding: [24, 24] });
+    });
+    setTimeout(refitPlates, 60);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitPlates);
 
     // Scattered Trails: the far-flung one-offs as line-art trailprints
     if (singles.length > 0) {

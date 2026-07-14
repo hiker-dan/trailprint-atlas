@@ -26,8 +26,9 @@
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
-    <link rel="stylesheet" href="styles/map-stats.css"/>
     <link rel="stylesheet" href="styles/key-stats.css"/>
+    <link rel="stylesheet" href="styles/threads.css"/>
+    <link rel="stylesheet" href="styles/observatory.css"/>
     <link rel="stylesheet" href="styles/home.css"/>
 </head>
 <body>
@@ -82,18 +83,8 @@
                     <span class="stat-label">Unique Trails</span>
                 </div>
             </div>
-            <div class="key-stats-cards">
-                <div class="hike-card">
-                    <span class="card-label">First Hike</span>
-                    <span id="first-hike-date" class="card-title">--</span>
-                    <span id="first-hike-name" class="card-subtitle"></span>
-                </div>
-                <div class="hike-card">
-                    <span class="card-label">Latest Hike</span>
-                    <span id="most-recent-hike-date" class="card-title">--</span>
-                    <span id="most-recent-hike-name" class="card-subtitle"></span>
-                </div>
-            </div>
+            <!-- (First/Latest hike cards removed — the Threads of the Trail
+                 section now carries the journey's endpoints.) -->
             <div class="key-stats-headline">
                 <h2 class="eyebrow">The Trailprint Atlas</h2>
                 <p class="headline-text">An ever-growing journal of a life outdoors, told by the numbers.</p>
@@ -102,81 +93,94 @@
         </div>
     </section>
 
-    <!-- ===== STATE MAP SECTION ===== -->
-    <section class="state-map-section">
-        <h2 class="section-title">My Trailprint by State</h2>
-        <p class="elegant-subtitle">A visual chronicle of my adventures across the country, state by state.</p>
-        <div id="interactive-map-container">
-            <!-- SVG will be embedded here -->
+    <!-- ===== THREADS OF THE TRAIL (milestone narrative) ===== -->
+    <section class="threads-section">
+        <div class="threads-inner">
+            <div class="threads-header">
+                <div class="threads-eyebrow">The Journey So Far</div>
+                <h2 class="threads-title">Threads of the Trail</h2>
+                <p class="threads-lede">Not a scoreboard, a journey. Every marker below is a milestone
+                   surveyed onto the map the day it was earned. Hover a benchmark to open its story.</p>
+            </div>
+            <div class="field-sheet" id="threads-sheet"><!-- SVG quadrangle + benchmark disks injected by threads.js --></div>
         </div>
     </section>
+    <div id="threads-tip"><!-- milestone hover card --></div>
 
-    <!-- NEW: Seasonal Snapshot Section -->
-    <section class="seasonal-snapshot-section">
-        <h2 class="section-title">Seasonal Snapshot</h2>
-        <p class="section-subtitle elegant-subtitle">A visual journey through a year on the trail, revealing the rhythm of my adventures.</p>
-        <div class="seasonal-chart" id="seasonal-chart">
-            <!-- Chart bars will be injected here by JavaScript -->
-        </div>
-        <div class="heatmap-legend">
-            <span class="legend-label">Less</span>
-            <span class="legend-color-box heat-level-1"></span>
-            <span class="legend-color-box heat-level-2"></span>
-            <span class="legend-color-box heat-level-3"></span>
-            <span class="legend-color-box heat-level-4"></span>
-            <span class="legend-color-box heat-level-5"></span>
-            <span class="legend-label">More</span>
+    <!-- ===== THE OBSERVATORY (deep-data exploration) ===== -->
+    <section class="obs-section" id="observatory">
+        <div class="obs-inner">
+            <div class="obs-header">
+                <div class="obs-eyebrow">By the Numbers</div>
+                <h2 class="obs-title">The Observatory</h2>
+                <p class="obs-lede">Five years of trails, turned over and examined from every angle —
+                   where you roam, how hard you climb, and when you answer the call outside.</p>
+            </div>
+
+            <!-- Auto-written profile line (replaces the old radar) -->
+            <p class="obs-profile" id="obs-profile"></p>
+
+            <!-- Panel: The Effort Field (distance × climb scatter) -->
+            <div class="obs-panel" id="obs-effort">
+                <div class="obs-panel-head">
+                    <h3>The Effort Field</h3>
+                    <span class="obs-panel-sub">Every hike placed by distance and climb · up-and-right is the hard corner</span>
+                </div>
+                <div id="effort-field"><!-- svg injected --></div>
+                <div id="ef-legend"></div>
+                <p class="ef-note">Ringed dots reached a summit · click a year to isolate it</p>
+            </div>
+
+            <!-- Panel: Territories collected -->
+            <div class="obs-panel" id="obs-territories">
+                <div class="obs-panel-head">
+                    <h3>Territories</h3>
+                    <span class="obs-panel-sub" id="terr-count"></span>
+                </div>
+                <div class="terr-grid" id="terr-grid"><!-- tiles injected by observatory.js --></div>
+            </div>
+
+            <!-- Panel: The Skyline (summits to scale) -->
+            <div class="obs-panel" id="obs-skyline">
+                <div class="obs-panel-head">
+                    <h3>The Skyline</h3>
+                    <span class="obs-panel-sub" id="sky-count"></span>
+                </div>
+                <div id="skyline"><!-- svg injected --></div>
+                <p class="sky-caption" id="sky-caption"></p>
+            </div>
+
+            <!-- Panel: The Cadence (seasonal rhythm, as a radial year-wheel) -->
+            <div class="obs-panel" id="obs-cadence">
+                <div class="obs-panel-head">
+                    <h3>The Cadence</h3>
+                    <span class="obs-panel-sub" id="cad-count">When you answer the call, across the seasons</span>
+                </div>
+                <div class="cad-wrap">
+                    <div id="cadence"><!-- svg injected --></div>
+                    <div class="cad-side">
+                        <p class="cad-caption" id="cad-caption"></p>
+                        <div id="cad-legend"><!-- year key injected --></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel: Where You Feel at Home (biomes as a terrain ribbon) -->
+            <div class="obs-panel" id="obs-biomes">
+                <div class="obs-panel-head">
+                    <h3>Where You Feel at Home</h3>
+                    <span class="obs-panel-sub" id="bio-count"></span>
+                </div>
+                <div id="biomes"><!-- svg injected --></div>
+                <p class="bio-caption" id="bio-caption"></p>
+            </div>
         </div>
     </section>
+    <div id="obs-tip"><!-- observatory chart tooltip --></div>
 
-    <div class="container live-journal-section">
-        <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
-        <p class="section-strapline">The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.</p>
-        <h3 class="subtitle">Fresh Tracks</h3>
-        <div id="trail-log-section" class="trail-log-grid">
-            <!-- Recent hikes will be injected here by JS -->
-        </div>
-
-        <!-- Featured Adventure Section -->
-        <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
-            <div class="featured-adventure-visuals">
-                <div class="featured-adventure-image-container">
-                    <!-- Slideshow images will be injected here by JS -->
-                </div>
-                <div class="featured-adventure-stats">
-                    <div class="stat-item" id="featured-trip-days-stat"></div>
-                    <div class="stat-item" id="featured-trip-miles-stat"></div>
-                    <div class="stat-item" id="featured-trip-elevation-stat"></div>
-                </div>
-            </div>
-            <div class="featured-adventure-content">
-                <h3 class="subtitle">The Grand Traverse</h3>
-                <h2 class="title" id="featured-trip-title">--</h2>
-                <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
-            </div>
-        </div>
-
-        <!-- Go-To Trail Section -->
-        <div class="featured-adventure-section" id="goto-trail-section" style="display: none;">
-            <div class="featured-adventure-visuals">
-                <div class="featured-adventure-image-container">
-                    <!-- Slideshow images will be injected here by JS -->
-                </div>
-                <div class="featured-adventure-stats">
-                    <div class="stat-item" id="goto-trail-times-hiked-stat"></div>
-                    <div class="stat-item" id="goto-trail-miles-stat"></div>
-                    <div class="stat-item" id="goto-trail-elevation-stat"></div>
-                </div>
-            </div>
-            <div class="featured-adventure-content">
-                <h3 class="subtitle">The Well-Worn Path</h3>
-                <h2 class="title" id="goto-trail-title">--</h2>
-                <p class="panel-description" id="goto-trail-description">--</p>
-                <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
-            </div>
-        </div>
-        <!-- You can add more homepage content here later -->
-    </div>
+    <!-- (State map + seasonal chart removed in the July 2026 redesign — their
+         data returns inside the Observatory section. Echoes of the Trail
+         moved to echoes.html.) -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -193,8 +197,13 @@
    <!-- Homepage logic (extracted in Phase 1.4) -->
    <script src="scripts/home.js"></script>
 
+   <!-- Threads of the Trail: the milestone quadrangle (home redesign, July 2026) -->
+   <script src="scripts/threads.js"></script>
+
+   <!-- The Observatory: deep-data section (home redesign, July 2026) -->
+   <script src="scripts/observatory.js"></script>
+
    <!-- Shared script to update the 'Latest Hike' nav link -->
    <script src="scripts/nav-updater.js"></script>
-   <div id="map-tooltip"></div>
 </body>
 </html>

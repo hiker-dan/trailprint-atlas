@@ -1,8 +1,8 @@
 /**
  * Homepage script for The Trailprint Atlas.
  * Owns the showcase map + intro animation, headline stats, the state map,
- * the seasonal chart, the "Echoes of the Trail" sections, and the nav
- * loading-bar intro sequence. Extracted verbatim from index.html (Phase 1.4).
+ * the seasonal chart, and the nav loading-bar intro sequence. (Echoes of
+ * the Trail moved to echoes.html in the July 2026 redesign.)
  * Requires Leaflet, config.js, atlas-data.js, trail-renderer.js.
  *
  * (The tiny sessionStorage fast-forward check stays inline in index.html —
@@ -217,8 +217,8 @@ fetchHikes()
             document.getElementById('stats-miles').innerText = Math.round(atlasStats.totalMiles).toLocaleString();
             document.getElementById('stats-elevation').innerText = atlasStats.totalElevation.toLocaleString();
 
-            // (Record-stat calculations that once lived here moved to achievements.html.)
-
+            // (Record-stat calculations that once lived here now live on the
+            //  Echoes page and in the Observatory section.)
 
 
             // Time Range
@@ -227,235 +227,14 @@ fetchHikes()
                 document.getElementById('start-year').innerText = startYear;
             }
 
-            // First/Most Recent Hikes
-            if (data.length > 0) {
-                const sortedHikes = [...data].sort(compareHikesChrono);
-                const firstHike = sortedHikes[0];
-                const mostRecentHike = sortedHikes[sortedHikes.length - 1];
-                document.getElementById('first-hike-date').innerText = formatHikeDate(firstHike.date_completed);
-                document.getElementById('first-hike-name').innerText = `${firstHike.trail_name} - ${firstHike.location}`;
-                document.getElementById('most-recent-hike-date').innerText = formatHikeDate(mostRecentHike.date_completed);
-                document.getElementById('most-recent-hike-name').innerText = `${mostRecentHike.trail_name} - ${mostRecentHike.location}`;
-            } else {
-                document.getElementById('first-hike-date').innerText = '--';
-                document.getElementById('most-recent-hike-date').innerText = '--';
-            }
+            // (First/Latest hike cards removed — Threads of the Trail now
+            // carries the journey's endpoints.)
 
-            // Featured Adventure
-            const trips = groupByTrip(data);
-            const hikesWithTripTag = data.filter(hike => hike.trip_tag);
-            if (hikesWithTripTag.length > 0) {
-                const latestTripHike = hikesWithTripTag.sort(compareHikesChronoDesc)[0];
-                const latestTripTag = latestTripHike.trip_tag;
-                const adventureHikes = trips.get(latestTripTag);
-                document.getElementById('featured-trip-title').innerText = latestTripTag;
-                const hikesListContainer = document.getElementById('featured-trip-hikes-list');
-                hikesListContainer.innerHTML = '';
-                adventureHikes
-                    .sort(compareHikesChrono)
-                    .forEach(hike => {
-                        hikesListContainer.innerHTML += `
-                            <div class="featured-trip-hike-item">
-                                <h4>${hike.trail_name}</h4>
-                                <div class="hike-meta">${hike.miles} miles | ${hike.elevation_gain.toLocaleString()} ft gain</div>
-                                <p class="hike-description">${formatHikeText(hike.description)}</p>
-                            </div>
-                        `;
-                    });
-                const tripMiles = adventureHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
-                const tripElevation = adventureHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
-                const tripDays = new Set(adventureHikes.map(h => h.date_completed)).size;
-                document.getElementById('featured-trip-days-stat').innerHTML = `<span class="number">${tripDays}</span><span class="label">Trip Day${tripDays !== 1 ? 's' : ''}</span>`;
-                document.getElementById('featured-trip-miles-stat').innerHTML = `<span class="number">${Math.round(tripMiles)}</span><span class="label">Total Miles</span>`;
-                document.getElementById('featured-trip-elevation-stat').innerHTML = `<span class="number">${tripElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
-                const featuredImageIds = adventureHikes.map(h => h.images && h.images.length > 0 ? h.images[0] : null).filter(Boolean);
-                startSlideshow('#featured-adventure .featured-adventure-image-container', featuredImageIds);
-                document.getElementById('featured-adventure').style.display = 'flex';
-            }
+            // (Echoes of the Trail — Featured Adventure, Go-To Trail, Fresh Tracks —
+            // moved to echoes.html / scripts/echoes.js in the July 2026 redesign.)
 
-            // Go-To Trail
-            const trailCounts = {};
-            data.forEach(hike => { if (hike.trail_name) { trailCounts[hike.trail_name] = (trailCounts[hike.trail_name] || 0) + 1; } });
-            let mostHikedTrailName = '';
-            let maxHikes = 1;
-            for (const trailName in trailCounts) { if (trailCounts[trailName] > maxHikes) { maxHikes = trailCounts[trailName]; mostHikedTrailName = trailName; } }
-            if (mostHikedTrailName) {
-                const mostHikedHikes = data.filter(h => h.trail_name === mostHikedTrailName);
-                const representativeHike = mostHikedHikes.sort(compareHikesChronoDesc)[0];
-                const totalMiles = mostHikedHikes.reduce((sum, h) => sum + (h.miles || 0), 0);
-                const totalElevation = mostHikedHikes.reduce((sum, h) => sum + (h.elevation_gain || 0), 0);
-                document.getElementById('goto-trail-title').innerText = representativeHike.trail_name;
-                document.getElementById('goto-trail-description').innerHTML = formatHikeText(representativeHike.description);
-                const datesHtml = mostHikedHikes.sort(compareHikesChronoDesc).map(h => `<li>${formatHikeDate(h.date_completed)}</li>`).join('');
-                document.getElementById('goto-trail-dates-list').innerHTML = `<h4>Dates Hiked:</h4><ul>${datesHtml}</ul>`;
-                document.getElementById('goto-trail-times-hiked-stat').innerHTML = `<span class="number">${maxHikes}</span><span class="label">Times Hiked</span>`;
-                document.getElementById('goto-trail-miles-stat').innerHTML = `<span class="number">${Math.round(totalMiles)}</span><span class="label">Total Miles</span>`;
-                document.getElementById('goto-trail-elevation-stat').innerHTML = `<span class="number">${totalElevation.toLocaleString()}</span><span class="label">Total Gain (ft)</span>`;
-                const gotoImageIds = mostHikedHikes.map(h => h.images && h.images.length > 0 ? h.images[0] : null).filter(Boolean);
-                startSlideshow('#goto-trail-section .featured-adventure-image-container', gotoImageIds);
-                document.getElementById('goto-trail-section').style.display = 'flex';
-            }
-
-            // Trail Log
-            (function createTrailLog() {
-                const trailLogContainer = document.getElementById('trail-log-section');
-                if (!trailLogContainer) return;
-                const recentHikes = [...data].sort(compareHikesChronoDesc).slice(0, 3);
-                if (recentHikes.length === 0) { trailLogContainer.innerHTML = '<p>No recent hikes to display.</p>'; return; }
-                const cardsHtml = recentHikes.map(hike => `
-                    <div class="trail-log-card">
-                        <div>
-                            <h4>${hike.trail_name}</h4>
-                            <p class="location-date">${formatHikeDate(hike.date_completed)} &bull; ${hike.location}</p>
-                        </div>
-                        <div class="trail-log-stats">
-                            <div class="stat"><span class="stat-icon">📏</span><span class="stat-value">${hike.miles} mi</span></div>
-                            <div class="stat"><span class="stat-icon">🧗</span><span class="stat-value">${hike.elevation_gain.toLocaleString()} ft</span></div>
-                        </div>
-                    </div>`).join('');
-                trailLogContainer.innerHTML = cardsHtml;
-            })();
-
-            // Interactive State Map
-            (function setupInteractiveMap() {
-                const container = document.getElementById('interactive-map-container');
-                const tooltip = document.getElementById('map-tooltip');
-                if (!container || !tooltip) return;
-                fetch('assets/blank-us-map.svg').then(response => response.text()).then(svgData => {
-                    const parser = new DOMParser();
-                    const svgDoc = parser.parseFromString(svgData, "image/svg+xml");
-                    const svg = svgDoc.documentElement;
-                    svg.setAttribute('viewBox', '0 0 959 593');
-                    svg.removeAttribute('width');
-                    svg.removeAttribute('height');
-                    svg.querySelector('defs')?.remove();
-                    svg.querySelector('.separator1')?.remove();
-                    svg.querySelector('.borders')?.remove();
-                    const mainTitle = svg.querySelector('title');
-                    if (mainTitle && mainTitle.parentElement === svg) { mainTitle.remove(); }
-                    svg.querySelectorAll('path, circle').forEach(el => {
-                        el.classList.add('state');
-                        const titleEl = el.querySelector('title');
-                        if (titleEl) { el.setAttribute('aria-label', titleEl.textContent); titleEl.remove(); }
-                    });
-                    container.innerHTML = '';
-                    container.appendChild(svg);
-                    svg.id = 'us-map-svg';
-                    const stateStats = data.reduce((stats, hike) => {
-                        const region = hike.region || '';
-                        const stateAbbr = region.split(', ').pop();
-                        if (stateAbbr) {
-                            if (!stats[stateAbbr]) { stats[stateAbbr] = { totalHikes: 0, totalMiles: 0, uniqueTrails: new Set() }; }
-                            stats[stateAbbr].totalHikes++;
-                            stats[stateAbbr].totalMiles += hike.miles || 0;
-                            stats[stateAbbr].uniqueTrails.add(hike.trail_name);
-                        }
-                        return stats;
-                    }, {});
-                    const stateNames = { "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware", "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho", "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas", "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland", "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi", "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada", "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York", "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma", "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina", "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah", "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia", "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia" };
-                    Object.keys(stateStats).forEach(stateAbbr => {
-                        const stateEl = svg.querySelector(`.${stateAbbr.toLowerCase()}`);
-                        if (stateEl) {
-                            stateEl.classList.add('active');
-                            stateEl.dataset.hikes = stateStats[stateAbbr].totalHikes;
-                            stateEl.dataset.miles = Math.round(stateStats[stateAbbr].totalMiles);
-                            stateEl.dataset.trails = stateStats[stateAbbr].uniqueTrails.size;
-                            stateEl.dataset.stateName = stateNames[stateAbbr] || stateAbbr;
-                        }
-                    });
-                    svg.addEventListener('mouseover', e => {
-                        if (e.target.classList.contains('active')) {
-                            const { stateName, hikes, miles, trails } = e.target.dataset;
-                            tooltip.innerHTML = `
-                                <h4>${stateName}</h4>
-                                <div class="tooltip-stats">
-                                    <div class="tooltip-stat"><span class="tooltip-value">${hikes}</span><span class="tooltip-label">Hikes</span></div>
-                                    <div class="tooltip-stat"><span class="tooltip-value">${trails}</span><span class="tooltip-label">Trails</span></div>
-                                    <div class="tooltip-stat"><span class="tooltip-value">${miles}</span><span class="tooltip-label">Miles</span></div>
-                                </div>
-                            `;
-                            tooltip.style.display = 'block';
-                        }
-                    });
-                    svg.addEventListener('mousemove', e => {
-                        if (tooltip.style.display === 'block') {
-                            const tooltipRect = tooltip.getBoundingClientRect();
-                            const containerRect = container.getBoundingClientRect();
-                            let left = e.pageX + 15;
-                            let top = e.pageY;
-                            if (left + tooltipRect.width > containerRect.right) { left = e.pageX - tooltipRect.width - 15; }
-                            if (top + tooltipRect.height > window.innerHeight + window.scrollY) { top = e.pageY - tooltipRect.height; }
-                            tooltip.style.left = `${left}px`;
-                            tooltip.style.top = `${top}px`;
-                        }
-                    });
-                    svg.addEventListener('mouseout', () => { tooltip.style.display = 'none'; });
-                });
-            })();
-
-            // Seasonal Chart
-            (function createSeasonalChart() {
-                const chartContainer = document.getElementById('seasonal-chart');
-                if (!chartContainer) return;
-
-                const monthCounts = Array(12).fill(0);
-                data.forEach(hike => {
-                    monthCounts[hikeMonth(hike)]++;
-                });
-
-                const maxCount = Math.max(...monthCounts, 1);
-                const nonZeroCounts = monthCounts.filter(c => c > 0);
-                const minCount = nonZeroCounts.length > 0 ? Math.min(...nonZeroCounts) : 0;
-
-                const getHeatLevel = (count) => {
-                    if (count === 0) return 0;
-                    if (minCount === maxCount) return 3; // Use a mid-range color if all data is the same
-
-                    // Normalize the count within the actual data range [minCount, maxCount]
-                    const normalized = (count - minCount) / (maxCount - minCount);
-
-                    // Scale into 5 buckets (levels 1-5)
-                    const heatRange = 5;
-                    return 1 + Math.floor(normalized * (heatRange - 0.001));
-                };
-
-                const monthAbbreviations = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                chartContainer.innerHTML = ''; // Clear existing content
-
-                monthAbbreviations.forEach((abbr, index) => {
-                    const count = monthCounts[index];
-                    const heatLevel = getHeatLevel(count);
-                    const barHeight = count === 0 ? 5 : (count / maxCount) * 95 + 5;
-
-                    const barWrapper = document.createElement('div');
-                    barWrapper.className = 'chart-bar-wrapper';
-
-                    barWrapper.innerHTML = `
-                        <div class="chart-bar heat-level-${heatLevel}" style="height: ${barHeight}%;">
-                            <span class="bar-count">${count}</span>
-                        </div>
-                        <div class="month-label">${abbr}</div>
-                    `;
-                    chartContainer.appendChild(barWrapper);
-                });
-
-                // --- Intersection Observer for Animation ---
-                const observer = new IntersectionObserver((entries, observer) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const bars = chartContainer.querySelectorAll('.chart-bar-wrapper');
-                            bars.forEach((bar, index) => {
-                                setTimeout(() => {
-                                    bar.classList.add('visible');
-                                }, index * 60);
-                            });
-                            observer.unobserve(entry.target);
-                        }
-                    });
-                }, { threshold: 0.1 });
-
-                observer.observe(chartContainer);
-            })();
+            // (State map + seasonal chart removed — their data returns
+            // inside the Observatory section of the redesigned homepage.)
         })();
     }) .catch(error => {
         console.error("Error loading homepage map data:", error);
@@ -478,44 +257,6 @@ function animateCountUp(elementId, finalValue, duration = 2000) {
         }
     };
     window.requestAnimationFrame(step);
-}
-
-// ===== Photo slideshows (Featured Adventure / Well-Worn Path) =====
-
-function startSlideshow(containerSelector, imageIds, interval = 10000) {
-    const container = document.querySelector(containerSelector);
-    const fallbackImage = cloudinaryUrl('tta_67-china-camp-campground-via-pine-ridge-trail-01', 'w_800,h_600,c_fill,q_auto,f_auto');
-
-    if (!container || imageIds.length === 0) {
-        if (container) {
-            container.innerHTML = `<img src="${fallbackImage}" alt="Trail photo" class="slideshow-image active">`;
-        }
-        return;
-    }
-
-    container.innerHTML = '';
-    const imageElements = [];
-
-    imageIds.forEach((id, index) => {
-        const img = document.createElement('img');
-        img.src = cloudinaryUrl(id, 'w_800,h_600,c_fill,q_auto,f_auto');
-        img.alt = "A photo from the trail";
-        img.className = 'slideshow-image';
-        if (index === 0) {
-            img.classList.add('active');
-        }
-        container.appendChild(img);
-        imageElements.push(img);
-    });
-
-    if (imageElements.length <= 1) return;
-
-    let currentIndex = 0;
-    setInterval(() => {
-        imageElements[currentIndex].classList.remove('active');
-        currentIndex = (currentIndex + 1) % imageElements.length;
-        imageElements[currentIndex].classList.add('active');
-    }, interval);
 }
 
 // ===== Nav loading-bar intro sequence =====

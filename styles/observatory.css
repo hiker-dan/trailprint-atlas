@@ -1,0 +1,161 @@
+/* =====================================================================
+   The Trailprint Atlas — The Observatory
+   The homepage's deep-data section: exploring five years of trails from
+   every angle. Photo-free by design. Added in the July 2026 redesign.
+   ===================================================================== */
+
+.obs-section {
+    background: linear-gradient(180deg, #f4f1e8 0%, #efe9dc 100%);
+    padding: 100px 24px 110px;
+    overflow: hidden;
+}
+.obs-inner { max-width: 1120px; margin: 0 auto; }
+
+.obs-header { text-align: center; margin-bottom: 52px; }
+.obs-eyebrow { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; font-size: 0.82em; color: var(--trail-green); }
+.obs-title { font-family: var(--font-display); font-size: 3.2em; line-height: 1; letter-spacing: 0.02em; color: var(--evergreen); margin: 8px 0 12px; }
+.obs-lede { color: var(--stone); font-size: 1.15em; line-height: 1.55; max-width: 620px; margin: 0 auto; }
+
+/* --- Panels --- */
+.obs-panel {
+    background: #fffdf6;
+    border: 1px solid #e2d9c2;
+    border-radius: 16px;
+    padding: 30px 34px 34px;
+    box-shadow: 0 3px 14px rgba(60,50,30,0.07);
+    margin-bottom: 26px;
+    opacity: 0; transform: translateY(18px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.obs-section.in .obs-panel { opacity: 1; transform: none; }
+.obs-section.in .obs-panel:nth-of-type(2) { transition-delay: 0.08s; }
+.obs-section.in .obs-panel:nth-of-type(3) { transition-delay: 0.16s; }
+
+.obs-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid #eee3cc; padding-bottom: 14px; }
+.obs-panel-head h3 { font-family: var(--font-display); font-size: 1.7em; color: var(--evergreen); margin: 0; letter-spacing: 0.01em; }
+.obs-panel-sub { font-size: 0.95em; color: var(--gravel); font-style: italic; text-align: right; }
+
+/* --- Territories: a growing grid of collected state/country tiles --- */
+.terr-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+    gap: 16px;
+}
+.terr-tile {
+    position: relative;
+    background: #fbf7ea;
+    border: 1px solid #e7dcc0;
+    border-radius: 12px;
+    padding: 16px 12px 14px;
+    text-align: center;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    overflow: hidden;
+}
+.terr-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 22px rgba(60,50,30,0.13);
+    border-color: var(--trail-green);
+}
+.terr-silo {
+    height: 74px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 10px;
+}
+.terr-silo svg { max-height: 74px; max-width: 100%; height: auto; width: auto; overflow: visible; }
+.terr-silo svg path { transition: fill 0.2s ease; }
+.terr-name { font-family: var(--font-display); font-size: 1.06em; color: var(--evergreen); line-height: 1.05; letter-spacing: 0.01em; }
+.terr-count { margin-top: 6px; font-size: 0.82em; color: var(--stone); }
+.terr-count b { font-weight: 700; color: var(--charcoal); }
+
+/* The density legend under the grid */
+.terr-legend {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    margin-top: 22px; font-size: 0.8em; color: var(--gravel);
+}
+.terr-legend .swatches { display: flex; gap: 3px; }
+.terr-legend .sw { width: 20px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.06); }
+
+/* --- Profile line (replaces the radar) --- */
+.obs-profile {
+    text-align: center;
+    max-width: 780px;
+    margin: -18px auto 46px;
+    font-size: 1.45em;
+    line-height: 1.55;
+    color: var(--stone);
+    font-weight: 400;
+}
+.obs-profile b { color: var(--trail-green); font-weight: 700; }
+
+/* --- The Effort Field (scatter) --- */
+.ef-svg { width: 100%; height: auto; display: block; }
+.ef-axis { font-family: var(--font-body); font-size: 11px; fill: var(--gravel); }
+.ef-title { font-family: var(--font-body); font-size: 12px; font-weight: 700; fill: var(--stone); }
+.ef-dot { cursor: pointer; transition: r 0.12s ease, opacity 0.2s ease; }
+#ef-legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+.ef-chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: #fbf7ea; border: 1px solid #e7dcc0; border-radius: 999px;
+    padding: 5px 13px; font-family: var(--font-body); font-size: 0.86em; font-weight: 600; color: var(--stone);
+    cursor: pointer; transition: all 0.16s ease;
+}
+.ef-chip:hover { border-color: var(--trail-green); }
+.ef-chip.active { background: var(--evergreen); color: #fff; border-color: var(--evergreen); }
+.ef-chip-static { cursor: default; }
+.ef-sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.ef-sw-ring { background: #fffdf6; border: 2px solid #2c3e50; }
+.ef-note { text-align: center; color: var(--gravel); font-size: 0.85em; font-style: italic; margin-top: 10px; }
+
+/* --- The Skyline (summits) --- */
+.sky-svg { width: 100%; height: auto; display: block; }
+.sky-axis { font-family: var(--font-body); font-size: 11px; fill: var(--gravel); }
+.sky-hit { cursor: pointer; }
+.sky-label { font-family: var(--font-display); font-size: 13px; fill: var(--evergreen); }
+.sky-label-halo { font-family: var(--font-display); font-size: 13px; fill: #fffdf6; stroke: #fffdf6; stroke-width: 3.5px; paint-order: stroke; }
+.sky-elev { font-family: var(--font-body); font-size: 10px; font-weight: 700; fill: var(--stone); }
+.sky-caption { text-align: center; margin-top: 14px; font-size: 0.9em; color: var(--gravel); }
+.sky-caption b { color: var(--evergreen); font-weight: 700; }
+
+/* --- The Cadence (seasonal year-wheel) --- */
+.cad-wrap { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
+.cad-wrap #cadence { flex: 0 0 auto; width: min(480px, 100%); }
+.cad-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.cad-side { flex: 1 1 240px; min-width: 220px; max-width: 320px; }
+.cad-wedge { cursor: pointer; transition: filter 0.12s ease; }
+.cad-wedge:hover { filter: brightness(1.08); }
+.cad-month { font-family: var(--font-body); font-size: 12px; fill: var(--gravel); }
+.cad-month-peak { fill: var(--trail-green); font-weight: 700; }
+.cad-ring-label { font-family: var(--font-body); font-size: 9px; fill: #c3b48d; }
+.cad-caption { font-size: 1.05em; line-height: 1.55; color: var(--stone); margin: 0 0 18px; }
+.cad-caption b { color: var(--trail-green); font-weight: 700; }
+#cad-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.cad-key { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--stone); font-weight: 600; }
+.cad-key-sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+
+/* --- Where You Feel at Home (biomes as a canyon-wall of strata) --- */
+.bio-svg { width: 100%; height: auto; display: block; }
+.bio-band { cursor: pointer; transition: filter 0.14s ease; }
+.bio-strata-name { font-family: var(--font-display); font-size: 15px; fill: var(--evergreen); letter-spacing: 0.01em; }
+.bio-strata-count { font-family: var(--font-body); font-size: 13px; font-weight: 700; fill: var(--charcoal); }
+.bio-caption { text-align: center; margin-top: 18px; font-size: 0.95em; color: var(--gravel); line-height: 1.5; }
+.bio-caption b { color: var(--evergreen); font-weight: 700; }
+
+/* --- Shared Observatory tooltip --- */
+#obs-tip {
+    position: fixed; z-index: 60; pointer-events: none;
+    background: var(--evergreen); color: #fff;
+    padding: 8px 11px; border-radius: 8px; font-size: 0.84em; line-height: 1.4;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.28); max-width: 240px;
+    opacity: 0; transform: translateY(4px); transition: opacity 0.12s ease, transform 0.12s ease;
+}
+#obs-tip.show { opacity: 1; transform: none; }
+#obs-tip .tt-title { font-weight: 700; }
+#obs-tip .tt-sub { color: #c7d3cb; font-size: 0.92em; }
+
+@media (max-width: 720px) {
+    .obs-title { font-size: 2.4em; }
+    .obs-profile { font-size: 1.2em; }
+    .terr-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+}

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Threads of the Trail — Design Specimen</title>
+    <link rel="stylesheet" href="../styles/base.css"/>
+    <style>
+        /* ============================================================
+           Design record: three visual registers for the homepage's
+           "Threads of the Trail" milestone narrative (July 2026).
+           Same seven real milestones in each; hand-drawn SVG icons
+           throughout are PLACEHOLDERS Danny can swap for sourced art.
+           ============================================================ */
+        body { margin: 0; font-family: var(--font-body); background: #f1efe9; color: var(--charcoal); }
+        .spec-header { max-width: 900px; margin: 0 auto; padding: 60px 24px 10px; text-align: center; }
+        .spec-header .eyebrow { text-transform: uppercase; letter-spacing: .18em; color: var(--trail-green); font-weight: 700; font-size: .8em; }
+        .spec-header h1 { font-family: var(--font-display); font-size: 2.8em; color: var(--evergreen); margin: 8px 0 10px; }
+        .spec-header p { color: var(--stone); font-size: 1.1em; line-height: 1.6; max-width: 640px; margin: 0 auto; }
+
+        .register { max-width: 1180px; margin: 70px auto; padding: 0 24px; opacity: 0; transform: translateY(16px); transition: opacity .7s ease, transform .7s ease; }
+        .register.in { opacity: 1; transform: none; }
+        .register-label { display: flex; align-items: baseline; gap: 14px; border-bottom: 2px solid var(--evergreen); padding-bottom: 10px; margin-bottom: 8px; }
+        .register-label .tag { font-family: var(--font-display); font-size: 1.6em; color: var(--evergreen); }
+        .register-label .name { font-weight: 700; color: var(--trail-green); font-size: 1.05em; }
+        .register-note { color: var(--gravel); font-size: .95em; margin: 0 0 28px; max-width: 760px; line-height: 1.5; }
+
+        /* ---- Icon strip ---- */
+        .icon-strip { display: flex; gap: 26px; flex-wrap: wrap; align-items: center; justify-content: center;
+            background: #fff; border: 1px solid var(--mist); border-radius: 14px; padding: 20px 26px; max-width: 860px; margin: 34px auto 0; }
+        .icon-chip { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--trail-green); }
+        .icon-chip svg { width: 30px; height: 30px; }
+        .icon-chip span { font-size: .72em; color: var(--gravel); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+
+        /* ============ Register A: The Serpentine Waypath ============ */
+        .waypath-canvas { position: relative; max-width: 960px; margin: 0 auto; }
+        .waypath-canvas svg.path-layer { display: block; width: 100%; height: auto; }
+        .wp-station { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+            background: #fff; border: 2.5px solid var(--trail-green); display: flex; align-items: center; justify-content: center;
+            color: var(--trail-green); box-shadow: 0 3px 10px rgba(0,0,0,.12); cursor: default; transition: transform .18s ease, box-shadow .18s ease; }
+        .wp-station svg { width: 22px; height: 22px; }
+        .wp-station:hover { transform: scale(1.18); box-shadow: 0 6px 16px rgba(0,0,0,.2); z-index: 5; }
+        .wp-card { position: absolute; width: 240px; background: #fff; border: 1px solid var(--mist); border-radius: 10px;
+            padding: 10px 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        .wp-card .date { font-size: .72em; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--gravel); }
+        .wp-card .kicker { font-family: var(--font-display); font-size: 1.25em; color: var(--trail-green); line-height: 1.05; margin: 2px 0; }
+        .wp-card .hike { font-size: .9em; font-weight: 700; color: var(--evergreen); line-height: 1.25; }
+
+        /* ============ Register B: The Field Sheet ============ */
+        .fieldsheet { position: relative; max-width: 960px; height: 640px; margin: 0 auto;
+            background: #f7f2e4; border: 1px solid #d8cfb4; box-shadow: inset 0 0 0 6px #f7f2e4, inset 0 0 0 7px #c9bd9c, 0 6px 18px rgba(0,0,0,.08);
+            border-radius: 4px; overflow: hidden; }
+        .fieldsheet svg.sheet-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
+        .fs-title { position: absolute; top: 18px; left: 24px; font-family: var(--font-display); color: var(--evergreen);
+            font-size: 1.15em; letter-spacing: .12em; text-transform: uppercase; opacity: .75; }
+        .fs-sub { position: absolute; top: 44px; left: 24px; font-size: .72em; color: #8a7f63; letter-spacing: .06em; text-transform: uppercase; }
+        .fs-pin { position: absolute; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%;
+            background: #fff; border: 2px solid var(--evergreen); display: flex; align-items: center; justify-content: center;
+            color: var(--evergreen); box-shadow: 0 2px 8px rgba(0,0,0,.15); cursor: default; transition: transform .18s ease; }
+        .fs-pin svg { width: 20px; height: 20px; }
+        .fs-pin:hover { transform: scale(1.18); z-index: 5; }
+        .fs-label { position: absolute; width: 170px; margin-left: -85px; text-align: center;
+            background: rgba(247, 242, 228, 0.85); border-radius: 6px; padding: 2px 4px; }
+        .fs-label .kicker { font-family: var(--font-display); font-size: 1.02em; color: var(--evergreen); line-height: 1.05; }
+        .fs-label .date { font-size: .68em; font-weight: 700; letter-spacing: .06em; color: #8a7f63; text-transform: uppercase; margin-top: 1px; }
+
+        /* ============ Register C: The Ridgeline Ascent ============ */
+        .ridge-wrap { position: relative; max-width: 1180px; margin: 0 auto; }
+        .ridge-wrap svg.ridge-layer { display: block; width: 100%; height: auto; }
+        .rg-station { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+            background: #fff; border: 2.5px solid var(--trail-green); display: flex; align-items: center; justify-content: center;
+            color: var(--trail-green); box-shadow: 0 2px 8px rgba(0,0,0,.14); cursor: default; transition: transform .18s ease; }
+        .rg-station svg { width: 17px; height: 17px; }
+        .rg-station:hover { transform: scale(1.2); z-index: 5; }
+        .rg-label { position: absolute; width: 150px; margin-left: -75px; text-align: center;
+            /* cartographic halo: keeps labels legible where the ridge line passes behind them */
+            background: rgba(241, 239, 233, 0.85); border-radius: 6px; padding: 3px 4px; }
+        .rg-label .kicker { font-family: var(--font-display); font-size: .98em; color: var(--evergreen); line-height: 1.05; }
+        .rg-label .date { font-size: .66em; font-weight: 700; letter-spacing: .06em; color: var(--gravel); text-transform: uppercase; margin-top: 1px; }
+
+        /* ---- Shared hover card (photo loads only on first hover) ---- */
+        #ms-tip { position: fixed; z-index: 60; pointer-events: none; width: 240px; background: #fff; border-radius: 12px;
+            box-shadow: 0 14px 34px rgba(0,0,0,.25); overflow: hidden; opacity: 0; transform: translateY(6px);
+            transition: opacity .16s ease, transform .16s ease; border: 1px solid var(--mist); }
+        #ms-tip.show { opacity: 1; transform: none; }
+        #ms-tip img { width: 100%; height: 120px; object-fit: cover; display: block; }
+        #ms-tip .body { padding: 10px 14px 12px; }
+        #ms-tip .kicker { font-family: var(--font-display); font-size: 1.15em; color: var(--trail-green); line-height: 1; }
+        #ms-tip .hike { font-size: .9em; font-weight: 700; color: var(--evergreen); margin-top: 3px; }
+        #ms-tip .meta { font-size: .78em; color: var(--gravel); margin-top: 2px; }
+        #ms-tip .note { font-size: .84em; color: var(--stone); line-height: 1.45; margin-top: 7px; }
+        .spec-footnote { text-align: center; color: var(--gravel); font-style: italic; margin: 60px 0 80px; font-size: .92em; }
+    </style>
+</head>
+<body>
+    <div class="spec-header">
+        <div class="eyebrow">Design Specimen — July 2026</div>
+        <h1>Threads of the Trail</h1>
+        <p>Three registers for the homepage milestone narrative, each built from the same seven real
+           milestones. Hover any station for its detail card. The line icons are placeholders in a
+           consistent hand-drawn style — every slot can take commissioned art later.</p>
+        <div class="icon-strip" id="icon-strip"></div>
+    </div>
+
+    <section class="register" id="reg-a">
+        <div class="register-label"><span class="tag">Register A</span><span class="name">The Serpentine Waypath</span></div>
+        <p class="register-note">The trail switchbacks down the page the way a path descends a slope. Compact:
+           seven milestones in about a third of the height a straight timeline needs. Stations sit at the bends;
+           cards tuck into the curve.</p>
+        <div class="waypath-canvas" id="waypath"></div>
+    </section>
+
+    <section class="register" id="reg-b">
+        <div class="register-label"><span class="tag">Register B</span><span class="name">The Field Sheet</span></div>
+        <p class="register-note">A surveyor's sheet: parchment, faint contours, a compass rose. Milestones are
+           stations plotted on the map, connected by a dotted route that reads left to right, then down —
+           the most "real map" of the three.</p>
+        <div class="fieldsheet" id="fieldsheet">
+            <div class="fs-title">Threads of the Trail</div>
+            <div class="fs-sub">Field sheet No. 1 — surveyed 2022–2026</div>
+        </div>
+    </section>
+
+    <section class="register" id="reg-c">
+        <div class="register-label"><span class="tag">Register C</span><span class="name">The Ridgeline Ascent</span></div>
+        <p class="register-note">The whole journey as one climb: a ridgeline rising left to right, milestones
+           planted on the slope, the line fading onward past the last station — the story isn't finished.
+           The most space-efficient: one wide band.</p>
+        <div class="ridge-wrap" id="ridge"></div>
+    </section>
+
+    <p class="spec-footnote">Same seven milestones everywhere: dates, trails, and photos are real Atlas data (hand-copied for this specimen).</p>
+
+    <div id="ms-tip"></div>
+
+    <script src="../scripts/config.js"></script>
+    <script>
+    (function () {
+        'use strict';
+
+        /* ---------- Placeholder icon set (hand-drawn line style, currentColor) ---------- */
+        const ICONS = {
+            trailhead: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4"/><path d="M12 5h6.5l-1.8 2.5L18.5 10H12"/><path d="M8.5 20h7"/></svg>',
+            solo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11.5" cy="5" r="2.1"/><path d="M11.5 7.5V14"/><path d="M11.5 14l-3.2 6"/><path d="M11.5 14l3 6"/><path d="M11.5 9.5l4.2 1.6"/><path d="M16.5 11.5V20"/></svg>',
+            summit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 20l6.5-10 3.5 5.5L15 12l6.5 8z"/><path d="M9 10V3.5"/><path d="M9 3.5l3.8 1.4L9 6.5"/></svg>',
+            tent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4L2.5 20h19z"/><path d="M12 4l-4 16"/><path d="M12 4l4 16"/></svg>',
+            milestone100: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 20v-8.5a6.5 6.5 0 0 1 13 0V20z"/><path d="M4 20h16"/><text x="12" y="16" text-anchor="middle" font-size="6.5" font-weight="700" fill="currentColor" stroke="none" font-family="inherit">100</text></svg>',
+            fifty: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><text x="12" y="15.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="currentColor" stroke="none" font-family="inherit">50</text></svg>',
+            hundred: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><text x="12" y="15" text-anchor="middle" font-size="7" font-weight="700" fill="currentColor" stroke="none" font-family="inherit">100</text></svg>',
+        };
+
+        /* ---------- The seven specimen milestones (real Atlas data) ---------- */
+        const MILESTONES = [
+            { icon: 'trailhead', kicker: 'The First Step', hike: 'Grandeur Point', place: 'Grand Canyon National Park',
+              date: 'January 8, 2022', img: 'tta_01-grandeur-point-01', note: 'Where the Atlas begins. Every mile since traces back here.' },
+            { icon: 'solo', kicker: 'First Solo', hike: 'Grotto Trail', place: 'Santa Monica Mountains',
+              date: 'December 24, 2022', img: 'tta_16-grotto-trail-01', note: 'Just you and the quiet.' },
+            { icon: 'summit', kicker: 'First Summit', hike: 'Baldwin Hills Scenic Overlook', place: 'Kenneth Hahn SRA',
+              date: 'February 14, 2023', img: null, note: 'The first peak underfoot.' },
+            { icon: 'tent', kicker: 'First Night on the Trail', hike: 'Mount Lowe Trail Camp', place: 'Angeles National Forest',
+              date: 'December 15, 2023', img: 'tta_36-mount-lowe-trail-camp-01', note: 'Everything carried in, and a night under the pines.' },
+            { icon: 'milestone100', kicker: 'The 100-Mile Mark', hike: 'Sunset Peak Trail', place: 'Angeles National Forest',
+              date: 'January 21, 2024', img: 'tta_38-sunset-peak-trail-01', note: 'Cumulative trail mileage crossed 100 on this climb.' },
+            { icon: 'fifty', kicker: 'The 50th Outing', hike: 'Blue Mountain via Appalachian Trail', place: 'Pennsylvania',
+              date: 'July 23, 2024', img: 'tta_50-appalachian-trail-01', note: 'Fifty trips into the Atlas, on East Coast ground.' },
+            { icon: 'hundred', kicker: 'The 100th Outing', hike: 'Nightmare Gulch Loop', place: 'Red Rock Canyon SP',
+              date: 'December 6, 2025', img: 'tta_100-nightmare-gulch-loop-trail-01', note: 'Triple digits. The Atlas keeps growing.' },
+        ];
+
+        /* ---------- Icon strip ---------- */
+        const strip = document.getElementById('icon-strip');
+        MILESTONES.forEach(m => {
+            const chip = document.createElement('div');
+            chip.className = 'icon-chip';
+            chip.innerHTML = `${ICONS[m.icon]}<span>${m.kicker.replace('The ', '')}</span>`;
+            strip.appendChild(chip);
+        });
+
+        /* ---------- Shared hover card (lazy photo) ---------- */
+        const tip = document.getElementById('ms-tip');
+        function bindTip(el, m) {
+            el.addEventListener('mouseenter', () => {
+                const photo = m.img ? `<img loading="lazy" src="${cloudinaryUrl(m.img, 'w_480,h_240,c_fill,g_auto,q_auto,f_auto')}" alt="">` : '';
+                tip.innerHTML = `${photo}<div class="body"><div class="kicker">${m.kicker}</div>
+                    <div class="hike">${m.hike}</div><div class="meta">${m.place} · ${m.date}</div>
+                    <div class="note">${m.note}</div></div>`;
+                const r = el.getBoundingClientRect();
+                const left = Math.min(Math.max(10, r.left + r.width / 2 - 120), window.innerWidth - 250);
+                const top = r.bottom + 250 < window.innerHeight ? r.bottom + 10 : r.top - (m.img ? 258 : 138);
+                tip.style.left = left + 'px'; tip.style.top = top + 'px';
+                tip.classList.add('show');
+            });
+            el.addEventListener('mouseleave', () => tip.classList.remove('show'));
+        }
+
+        const SVGNS = 'http://www.w3.org/2000/svg';
+        const svgEl = (tag, attrs) => { const n = document.createElementNS(SVGNS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+
+        /* ============ Register A: Serpentine Waypath ============ */
+        (function buildWaypath() {
+            const W = 960, STEP = 128, TOP = 50;
+            const H = TOP + STEP * (MILESTONES.length - 1) + 50;
+            const canvas = document.getElementById('waypath');
+            const pts = MILESTONES.map((m, i) => ({ x: i % 2 === 0 ? 150 : 810, y: TOP + i * STEP }));
+
+            const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'path-layer' });
+            let d = `M${pts[0].x},${pts[0].y}`;
+            for (let i = 1; i < pts.length; i++) {
+                const a = pts[i - 1], b = pts[i], mx = (b.x - a.x) * 0.5;
+                d += ` C${a.x + mx},${a.y} ${b.x - mx},${b.y} ${b.x},${b.y}`;
+            }
+            // Faint solid underlay + dotted "footpath" overlay, like a route drawn on a map
+            svg.appendChild(svgEl('path', { d, fill: 'none', stroke: '#4a7c59', 'stroke-width': 5, opacity: 0.1, 'stroke-linecap': 'round' }));
+            svg.appendChild(svgEl('path', { d, fill: 'none', stroke: '#4a7c59', 'stroke-width': 2.5, 'stroke-dasharray': '.1 11', 'stroke-linecap': 'round', opacity: 0.85 }));
+            canvas.appendChild(svg);
+
+            MILESTONES.forEach((m, i) => {
+                const p = pts[i];
+                const pct = v => (v / W * 100) + '%';
+                const st = document.createElement('div');
+                st.className = 'wp-station';
+                st.style.left = pct(p.x); st.style.top = (p.y / H * 100) + '%';
+                st.innerHTML = ICONS[m.icon];
+                bindTip(st, m);
+                canvas.appendChild(st);
+
+                const card = document.createElement('div');
+                card.className = 'wp-card';
+                card.style.top = ((p.y - 26) / H * 100) + '%';
+                if (p.x < W / 2) card.style.left = pct(p.x + 38); else card.style.left = pct(p.x - 38 - 240);
+                card.innerHTML = `<div class="date">${m.date}</div><div class="kicker">${m.kicker}</div><div class="hike">${m.hike}</div>`;
+                canvas.appendChild(card);
+            });
+            // The absolute stations/cards need a sized positioning context
+            canvas.style.height = 'auto';
+        })();
+
+        /* ============ Register B: Field Sheet ============ */
+        (function buildFieldsheet() {
+            const sheet = document.getElementById('fieldsheet');
+            const W = 960, H = 640;
+            const pos = [ // pin centers, % of sheet
+                { x: 11, y: 18 }, { x: 40, y: 13 }, { x: 73, y: 19 },
+                { x: 85, y: 47 }, { x: 53, y: 51 }, { x: 19, y: 55 },
+                { x: 47, y: 84 },
+            ];
+            const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'sheet-layer', preserveAspectRatio: 'none' });
+
+            // Faint contour lines (imperfect nested loops, surveyor style)
+            const contours = [
+                'M120,520 C60,430 130,330 260,350 C390,370 400,470 300,520 C230,556 165,570 120,520Z',
+                'M150,500 C110,440 160,370 255,385 C350,400 355,465 285,500 C235,526 180,540 150,500Z',
+                'M700,120 C660,60 760,20 850,55 C935,88 930,170 840,185 C760,198 735,170 700,120Z',
+                'M730,115 C705,75 775,50 840,75 C900,98 895,150 830,160 C775,168 750,150 730,115Z',
+                'M520,600 C480,540 560,500 640,525 C715,548 710,610 630,625 C570,636 545,640 520,600Z',
+            ];
+            contours.forEach(cd => svg.appendChild(svgEl('path', { d: cd, fill: 'none', stroke: '#2c3e50', opacity: 0.07, 'stroke-width': 1.5 })));
+
+            // Dotted route through the stations, gently curved
+            const P = pos.map(p => ({ x: p.x / 100 * W, y: p.y / 100 * H }));
+            let d = `M${P[0].x},${P[0].y}`;
+            for (let i = 1; i < P.length; i++) {
+                const a = P[i - 1], b = P[i];
+                const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+                const off = 24 * (i % 2 ? 1 : -1); // alternate the bow direction
+                d += ` Q${mx - dy / len * off},${my + dx / len * off} ${b.x},${b.y}`;
+            }
+            svg.appendChild(svgEl('path', { d, fill: 'none', stroke: '#4a7c59', 'stroke-width': 2.2, 'stroke-dasharray': '.1 10', 'stroke-linecap': 'round', opacity: 0.9 }));
+
+            // Compass rose (top right)
+            const rose = svgEl('g', { transform: `translate(${W - 74},78)`, stroke: '#2c3e50', fill: 'none', opacity: 0.5, 'stroke-width': 1.4 });
+            rose.appendChild(svgEl('circle', { cx: 0, cy: 0, r: 26 }));
+            rose.appendChild(svgEl('path', { d: 'M0,-38 L7,-8 L0,0 L-7,-8 Z', fill: '#2c3e50', stroke: 'none', opacity: 0.75 }));
+            rose.appendChild(svgEl('path', { d: 'M0,38 L7,8 L0,0 L-7,8 Z' }));
+            const nText = svgEl('text', { x: 0, y: -44, 'text-anchor': 'middle', 'font-size': 13, fill: '#2c3e50', stroke: 'none', opacity: 0.7, 'font-weight': 700 });
+            nText.textContent = 'N'; rose.appendChild(nText);
+            svg.appendChild(rose);
+
+            // Scale bar (bottom left)
+            const scale = svgEl('g', { transform: `translate(26,${H - 30})`, stroke: '#2c3e50', opacity: 0.5, 'stroke-width': 1.4 });
+            scale.appendChild(svgEl('path', { d: 'M0,0 H120 M0,-5 V5 M60,-4 V4 M120,-5 V5' }));
+            const sText = svgEl('text', { x: 60, y: 18, 'text-anchor': 'middle', 'font-size': 10, fill: '#8a7f63', stroke: 'none', 'letter-spacing': '.08em' });
+            sText.textContent = 'ONE JOURNEY, 2022 — PRESENT'; scale.appendChild(sText);
+            svg.appendChild(scale);
+            sheet.appendChild(svg);
+
+            MILESTONES.forEach((m, i) => {
+                const p = pos[i];
+                const pin = document.createElement('div');
+                pin.className = 'fs-pin';
+                pin.style.left = p.x + '%'; pin.style.top = p.y + '%';
+                pin.innerHTML = ICONS[m.icon];
+                bindTip(pin, m);
+                sheet.appendChild(pin);
+
+                const label = document.createElement('div');
+                label.className = 'fs-label';
+                label.style.left = p.x + '%';
+                label.style.top = `calc(${p.y}% + 24px)`;
+                label.innerHTML = `<div class="kicker">${m.kicker}</div><div class="date">${m.date}</div>`;
+                sheet.appendChild(label);
+            });
+        })();
+
+        /* ============ Register C: Ridgeline Ascent ============ */
+        (function buildRidge() {
+            const W = 1180, H = 400;
+            const wrap = document.getElementById('ridge');
+            // Station points ascend left -> right
+            const st = [
+                { x: 95, y: 325 }, { x: 255, y: 298 }, { x: 415, y: 280 },
+                { x: 575, y: 246 }, { x: 735, y: 220 }, { x: 895, y: 180 }, { x: 1080, y: 118 },
+            ];
+            // Ridge polyline: station points plus small peaks/dips between them
+            const ridgePts = [[0, 352]];
+            for (let i = 0; i < st.length; i++) {
+                ridgePts.push([st[i].x, st[i].y]);
+                if (i < st.length - 1) {
+                    const a = st[i], b = st[i + 1];
+                    ridgePts.push([(a.x + b.x) / 2 - 18, Math.min(a.y, b.y) - 14]); // a small false summit
+                    ridgePts.push([(a.x + b.x) / 2 + 26, Math.max(a.y, b.y) + 6]);  // and a dip
+                }
+            }
+            const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'ridge-layer' });
+            const lineD = 'M' + ridgePts.map(p => p.join(',')).join(' L');
+
+            // Soft fill under the ridge
+            svg.appendChild(svgEl('path', { d: `${lineD} L${ridgePts[ridgePts.length - 1][0]},${H} L0,${H} Z`, fill: '#2c3e50', opacity: 0.07, stroke: 'none' }));
+            svg.appendChild(svgEl('path', { d: lineD, fill: 'none', stroke: '#4a7c59', 'stroke-width': 2.5, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+            // The trail continues past the last station, fading out: the story isn't over
+            const last = ridgePts[ridgePts.length - 1];
+            svg.appendChild(svgEl('path', { d: `M${last[0]},${last[1]} L${W - 30},${last[1] - 34}`, fill: 'none', stroke: '#4a7c59', 'stroke-width': 2.5, 'stroke-dasharray': '.1 10', 'stroke-linecap': 'round', opacity: 0.6 }));
+            wrap.appendChild(svg);
+
+            MILESTONES.forEach((m, i) => {
+                const p = st[i];
+                const node = document.createElement('div');
+                node.className = 'rg-station';
+                node.style.left = (p.x / W * 100) + '%'; node.style.top = (p.y / H * 100) + '%';
+                node.innerHTML = ICONS[m.icon];
+                bindTip(node, m);
+                wrap.appendChild(node);
+
+                const label = document.createElement('div');
+                label.className = 'rg-label';
+                const above = i % 2 === 0;
+                label.style.left = (p.x / W * 100) + '%';
+                label.style.top = ((p.y + (above ? -82 : 38)) / H * 100) + '%';
+                label.innerHTML = `<div class="kicker">${m.kicker}</div><div class="date">${m.date}</div>`;
+                wrap.appendChild(label);
+            });
+        })();
+
+        /* ---------- Gentle reveal on scroll ---------- */
+        const io = new IntersectionObserver(entries => entries.forEach(e => {
+            if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+        }), { threshold: 0.08 });
+        document.querySelectorAll('.register').forEach(r => io.observe(r));
+    })();
+    </script>
+</body>
+</html>

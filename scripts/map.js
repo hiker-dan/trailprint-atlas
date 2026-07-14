@@ -59,6 +59,36 @@ const allTrailsGroup = L.featureGroup().addTo(map); // The main layer group for 
 let layerReferences = {}; // To store references to map layers by trail_id
 let iconNudges = {}; // trail_name -> pixel offset for icons that share a trailhead
 
+// Deep-link support: map.html?state=CA opens zoomed to that state's hikes
+// (the Observatory's Territory tiles link here).
+const FOCUS_STATE = (new URLSearchParams(window.location.search).get('state') || '').trim().toUpperCase();
+// While set, the initial render skips its full-US fit so the focus zoom isn't
+// overwritten by that fit's animation finishing a beat later.
+let pendingFocusState = FOCUS_STATE;
+
+/** Frame the map on every hike whose region is in the given state.
+ * Uses the hikes' own trailhead coordinates (every record has them), which is
+ * more reliable than layer bounds for trips whose legs span several states. */
+function zoomToState(abbr) {
+    const pts = [];
+    allHikesData.forEach(group => {
+        const st = (group[0].region || '').split(', ').pop().trim().toUpperCase();
+        if (st !== abbr) return;
+        group.forEach(h => {
+            if (typeof h.latitude === 'number' && typeof h.longitude === 'number') pts.push([h.latitude, h.longitude]);
+        });
+    });
+    if (!pts.length) return;
+    const b = L.latLngBounds(pts);
+    const span = Math.max(b.getNorth() - b.getSouth(), b.getEast() - b.getWest());
+    // animate:false so this fit definitively overrides the initial full-map fit.
+    if (span < 0.05) {
+        map.setView(b.getCenter(), 11, { animate: false });     // a single hike (or one trailhead)
+    } else {
+        map.fitBounds(b.pad(0.2), { maxZoom: 12, animate: false });
+    }
+}
+
 // Keep track of the currently active base layer for the icon toggle functionality.
 let activeBaseLayer = esriTopoMap; // Default to the initial layer
 map.on('baselayerchange', function(e) {
@@ -87,6 +117,9 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
         renderMapLayers(allHikesData); // Initial render with all data
         setupEventListeners();
         renderLegend();
+        // If we arrived from a Territory tile, frame that state's hikes.
+        if (FOCUS_STATE) zoomToState(FOCUS_STATE);
+        pendingFocusState = ''; // later filter re-renders fit normally again
     })
     .catch(error => console.error('Error loading map data:', error));
 
@@ -218,8 +251,8 @@ function renderMapLayers(trailGroupsToRender) {
     });
 
     // Geometry is already in hand (no per-trail downloads), so the bounds
-    // are correct immediately.
-    if (allTrailsGroup.getLayers().length > 0) {
+    // are correct immediately. (Skipped on a focus-state load — zoomToState frames it.)
+    if (!pendingFocusState && allTrailsGroup.getLayers().length > 0) {
         map.fitBounds(allTrailsGroup.getBounds().pad(0.1));
     }
 }

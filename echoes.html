@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Trailprint Atlas - Echoes of the Trail</title>
+    <meta name="description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+    <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+    <!-- Link preview cards (Open Graph + Twitter) -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="The Trailprint Atlas">
+    <meta property="og:title" content="Echoes of the Trail — The Trailprint Atlas">
+    <meta property="og:description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
+    <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/echoes.html">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Echoes of the Trail — The Trailprint Atlas">
+    <meta name="twitter:description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <link rel="stylesheet" href="styles/base.css"/>
+    <link rel="stylesheet" href="styles/echoes.css"/>
+</head>
+<body>
+    <!-- Shared nav: structure injected by scripts/nav.js (one copy for all pages) -->
+    <nav id="top-bar-container"></nav>
+    <script src="scripts/nav.js"></script>
+
+    <!-- Echoes of the Trail — moved as-is from the homepage (July 2026 redesign).
+         A full rework of this feature is planned; until then this is the faithful move. -->
+    <div class="container live-journal-section">
+        <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
+        <p class="section-strapline">The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.</p>
+        <h3 class="subtitle">Fresh Tracks</h3>
+        <div id="trail-log-section" class="trail-log-grid">
+            <!-- Recent hikes will be injected here by JS -->
+        </div>
+
+        <!-- Featured Adventure Section -->
+        <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
+            <div class="featured-adventure-visuals">
+                <div class="featured-adventure-image-container">
+                    <!-- Slideshow images will be injected here by JS -->
+                </div>
+                <div class="featured-adventure-stats">
+                    <div class="stat-item" id="featured-trip-days-stat"></div>
+                    <div class="stat-item" id="featured-trip-miles-stat"></div>
+                    <div class="stat-item" id="featured-trip-elevation-stat"></div>
+                </div>
+            </div>
+            <div class="featured-adventure-content">
+                <h3 class="subtitle">The Grand Traverse</h3>
+                <h2 class="title" id="featured-trip-title">--</h2>
+                <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
+            </div>
+        </div>
+
+        <!-- Go-To Trail Section -->
+        <div class="featured-adventure-section" id="goto-trail-section" style="display: none;">
+            <div class="featured-adventure-visuals">
+                <div class="featured-adventure-image-container">
+                    <!-- Slideshow images will be injected here by JS -->
+                </div>
+                <div class="featured-adventure-stats">
+                    <div class="stat-item" id="goto-trail-times-hiked-stat"></div>
+                    <div class="stat-item" id="goto-trail-miles-stat"></div>
+                    <div class="stat-item" id="goto-trail-elevation-stat"></div>
+                </div>
+            </div>
+            <div class="featured-adventure-content">
+                <h3 class="subtitle">The Well-Worn Path</h3>
+                <h2 class="title" id="goto-trail-title">--</h2>
+                <p class="panel-description" id="goto-trail-description">--</p>
+                <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
+    <script src="scripts/config.js"></script>
+    <script src="scripts/atlas-data.js"></script>
+    <!-- Shared renderer, loaded for formatHikeText() only (no Leaflet on this page) -->
+    <script src="scripts/trail-renderer.js"></script>
+    <script src="scripts/echoes.js"></script>
+    <script src="scripts/nav-updater.js"></script>
+</body>
+</html>

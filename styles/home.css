@@ -1,13 +1,15 @@
 /* =====================================================================
    The Trailprint Atlas — Homepage styles
-   Moved out of index.html in Phase 1.5 (its two former <style> blocks,
-   in original order). Shared nav/footer live in base.css; the key-stats
-   dashboard also uses key-stats.css. The July 2026 home redesign added
-   threads.css and observatory.css for the new storytelling sections.
+   July 2026 home redesign: the hero is "The Life in Trails" — a vector map
+   that draws every trail from home ground out to the whole country — with
+   the Odometer stats beneath it. The old showcase-map intro, intro-stats
+   overlay, and key-stats dashboard styles retired with it. Shared nav and
+   footer live in base.css; the storytelling sections below the fold have
+   their own sheets (threads.css, observatory.css, records.css).
    ===================================================================== */
 
-body { 
-    margin: 0; 
+body {
+    margin: 0;
     font-family: var(--font-body);
     background-color: #f4f4f4;
     color: #333;
@@ -70,306 +72,77 @@ h1 {
     opacity: 0;
     transition: opacity 0.5s ease-in;
 }
-
-/* Style for our custom hike icons (for viewpoints) */
-.hike-icon {
-    /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 50%; /* This makes the background circular */
-    /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
-}
-/* --- Showcase Map Styles --- */
-.showcase-map-container {
-    position: relative;
-    height: 60vh; /* Make the hero map taller */
-    cursor: pointer;
-    overflow: hidden; /* Hide anything that might stick out */
-    display: block; /* Ensures the link takes up the full container space */
-}
-.hero-title-overlay {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000; /* Ensures the title is on top of the map tiles */
-}
-#home-map {
-    height: 100%;
-    width: 100%;
-    background-color: #1d1d1d; /* Dark background to hide satellite tile seams */
-}
-/* Keyframe animation for the "breathing" glow effect */
-@keyframes breathing-glow {
-    0% { opacity: 0.4; }
-    50% { opacity: 0.7; }
-    100% { opacity: 0.4; }
-}
-/* Class to apply the animation to our halo layers */
-.breathing-halo {
-    /* ease-in-out makes the pulse smooth */
-    animation: breathing-glow 4s ease-in-out infinite;
-}
-/* Add a smooth transition for the trail fade-in effect */
-.leaflet-path.trail-path {
-    transition: opacity 1.5s ease-in, fill-opacity 1.5s ease-in;
-}
-.map-overlay {
-    /* This ensures the overlay doesn't cover our new stats panel */
-    pointer-events: none;
-}
-.map-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.2); /* Dark overlay */
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    flex-direction: column;
-    opacity: 0;
-    transition: opacity 0.3s ease-in-out;
-}
-/* The hover reveal is armed by home.js on the first real mouse move —
-   prevents a phantom :hover flash of the overlay during page load. */
-html.map-hover-ready .showcase-map-container:hover .map-overlay {
+.intro-fast-forward #main-nav {
     opacity: 1;
-}
-.map-overlay h3 {
-    margin: 0;
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 2em;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
-}
-.map-overlay p {
-    margin-top: 10px;
-    font-size: 1.2em;
-    text-shadow: 1px 1px 2px rgba(0,0,0,0.7);
-}
-.hero-title-overlay h1 {
-    font-size: 4.5em;
-    color: rgba(255, 255, 255, 0.50); /* Make the title slightly transparent to let the map shine through */
-    margin: 0;
-    text-shadow: 3px 3px 8px rgba(0,0,0,0.8);
-    pointer-events: none; /* Make sure title doesn't block the link */
-}
-/* (Dead styles removed in the July 2026 redesign: the old .container/stats-bubble
-   dashboard, the retired Region Spotlight, the state-map section, and the seasonal
-   chart. State/seasonal data returns inside the Observatory section.) */
-
-/* (Echoes of the Trail styles — field-notes title, live-journal section,
-   trail-log cards, featured-adventure panels, slideshows — moved to
-   styles/echoes.css in the July 2026 redesign.) */
-
-/* --- Below: the former second <style> block of index.html --- */
-
-/* --- Intro Animation Styles --- */
-:root {
-    --intro-duration: 10s;
-    --title-delay: 5s;
-}
-
-/* Disable scrolling during intro */
-html:not(.intro-finished):not(.intro-fast-forward) {
-    overflow: hidden;
-}
-
-/* Default state for intro: hide elements that will transition in */
-.key-stats-section {
-    opacity: 0;
-    /* A more organic easing function and staggered delay */
-    transition: opacity 3s cubic-bezier(0.4, 0, 0.2, 1), transform 3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.key-stats-section {
-    transform: translateY(50px);
-    transition-delay: 0.6s; /* Stagger the container appearance */
-}
-
-/* --- Intro Animation Placeholders & Containers --- */
-.map-placeholder {
-    height: 0;
-    /* This transition must match the map container's height transition */
-    transition: height 3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.intro-fast-forward .map-placeholder {
-    height: 0;
     transition: none;
 }
 
-.intro-finished .map-placeholder {
-    height: 60vh;
-}
+/* --- The Life in Trails: the hero film --- */
+/* No raster basemap in the usual sense — the whole map lives in one SVG whose
+   viewBox drives the zoom. viewBox re-renders the vectors crisply every frame
+   (an ANIMATED transform would get GPU-snapshotted and stretched — blurry).
+   Stroke widths counter-scale via --z (set per frame by home.js) so line
+   weight stays constant on screen at any depth, and the dash-based draw-on
+   animation keeps working in map units. The terrain is static rings of Esri
+   Shaded Relief imagery placed inside the same SVG, so it rides the zoom with
+   zero mid-animation tile loading. */
+.hero-film { position: relative; height: calc(100vh - 40px); min-height: 620px; overflow: hidden; background: #ece3ce; }
+#hero-map { position: absolute; inset: 0; background: #ece3ce; }
+#map-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0; transition: opacity 0.7s ease; }
+#map-svg.ready { opacity: 1; }
+.trail-line { fill: none; stroke-width: calc(3px / var(--z, 1)); stroke-linecap: round; stroke-linejoin: round; }
+/* Soft under-glow per trail, in the trail's own year colour. Invisible up
+   close; home.js fades the group in as the camera recedes, so the final
+   frame reads as warm trailprints — brightest where the most miles live. */
+.trail-halo { fill: none; stroke-width: calc(11px / var(--z, 1)); stroke-linecap: round; stroke-linejoin: round; }
+/* Terrain sits underneath, so states are borders only — no fill. */
+.state-line { fill: none; stroke: #a8946e; stroke-opacity: 0.55; stroke-width: calc(1.1px / var(--z, 1)); }
+.hero-vig { position: absolute; inset: 0; z-index: 400; pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 42%, rgba(236,227,206,0) 45%, rgba(60,50,30,0.14) 100%); }
+.terrain-credit { position: absolute; z-index: 500; left: 12px; bottom: 12px; font-size: 0.72em;
+    color: var(--stone); opacity: 0.75; letter-spacing: 0.04em; pointer-events: none; }
 
-/* When the layout is final, the placeholder is no longer needed */
-.layout-settled .map-placeholder {
-    display: none;
-}
+.hero-title { position: absolute; z-index: 500; left: 0; right: 0; top: 50%; transform: translateY(-50%);
+    text-align: center; pointer-events: none; }
+.hero-title h1 { font-family: var(--font-display); font-size: clamp(2.6em, 6vw, 5.2em); color: var(--evergreen);
+    margin: 0; letter-spacing: 0.02em; text-shadow: 0 2px 22px rgba(247,244,236,0.9), 0 1px 3px rgba(247,244,236,1);
+    opacity: 0; transform: translateY(16px); transition: opacity 1.2s ease, transform 1.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.hero-title.show h1 { opacity: 1; transform: none; }
 
+.scroll-hint { position: absolute; z-index: 500; left: 0; right: 0; bottom: 26px; text-align: center;
+    color: var(--stone); font-size: 0.85em; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0;
+    transition: opacity 1s ease; animation: bob 2s ease-in-out infinite; }
+.scroll-hint.show { opacity: 0.8; }
+@keyframes bob { 0%,100% { transform: translateY(0);} 50% { transform: translateY(6px);} }
 
-/* Default state: map is full screen for the intro */
-.showcase-map-container {
-    position: fixed;
-    top: 40px; /* Start below the nav bar */
-    left: 0;
-    width: 100vw;
-    height: calc(100vh - 40px); /* Fill the remaining viewport height */
-    z-index: 100;
-    /* CRITICAL: DO NOT transition the 'position' property. It causes snapping. */
-    transition: width 3s cubic-bezier(0.4, 0, 0.2, 1), height 3s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-}
+/* One button, two jobs: "Skip the film" while it plays, "Replay" once landed. */
+.film-btn { position: absolute; z-index: 600; right: 16px; bottom: 18px; background: rgba(255,253,246,0.9);
+    border: 1px solid #d8ccae; border-radius: 999px; padding: 7px 15px; font-size: 0.82em; font-weight: 600;
+    color: var(--evergreen); cursor: pointer; font-family: var(--font-body);
+    transition: background-color 0.2s ease, transform 0.2s ease; }
+.film-btn:hover { background: #fffdf6; transform: translateY(-1px); }
 
-.hero-title-overlay {
-    opacity: 0;
-    transition: opacity 1.5s ease-in-out;
-}
+/* --- The Odometer: the key stats as rolling mile-counter reels --- */
+.odo-section { background: linear-gradient(180deg, #efe7d5 0%, #e6dabd 100%); padding: 96px 24px 110px; text-align: center; }
+.odo-inner { max-width: 1080px; margin: 0 auto; }
+.odo-eyebrow { text-transform: uppercase; letter-spacing: 0.22em; font-weight: 700; font-size: 0.8em; color: var(--trail-green); margin-bottom: 40px; }
+.odo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.odo-stat { display: flex; flex-direction: column; align-items: center; }
+/* the enamel park-sign plate the reels sit in */
+.odo-plate { background: linear-gradient(180deg, #2f5c40 0%, #274c35 100%); border-radius: 12px;
+    padding: 16px 14px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.35), 0 4px 14px rgba(40,60,45,0.3);
+    border: 1px solid #23402e; display: flex; align-items: center; justify-content: center; gap: 1px; min-width: 0; }
+.odo-reel { display: inline-block; height: 62px; overflow: hidden; vertical-align: bottom;
+    box-shadow: inset 0 6px 8px -6px rgba(0,0,0,0.7), inset 0 -6px 8px -6px rgba(0,0,0,0.7); }
+.odo-strip { display: flex; flex-direction: column; transform: translateY(0); }
+.odo-strip.rolling { transition: transform 1.9s cubic-bezier(0.16, 1, 0.3, 1); }
+.odo-digit { height: 62px; line-height: 62px; width: 0.62em; text-align: center;
+    font-family: var(--font-display); font-size: 50px; color: #f3e8cd; }
+.odo-sep { font-family: var(--font-display); font-size: 50px; color: #b7cbb8; align-self: flex-end; padding: 0 1px 4px; }
+.odo-label { margin-top: 14px; font-size: 0.92em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--stone); }
+.odo-tagline { margin-top: 44px; font-family: var(--font-body); font-style: italic; color: var(--gravel); font-size: 1.05em; }
 
-/* State for when the intro is finished or skipped */
-.intro-fast-forward nav,
-.intro-finished nav,
-.intro-fast-forward .key-stats-section,
-.intro-finished .key-stats-section {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-.intro-fast-forward .key-stats-section,
-.intro-finished .key-stats-section {
-    transition-delay: 0s; /* Remove delay for fast-forward */
-}
-
-.intro-finished .showcase-map-container {
-    height: 60vh;
-    width: 100%;
-}
-
-/* This class is added via JS after the transition to finalize the layout */
-.layout-settled .showcase-map-container {
-    position: relative;
-    margin-top: 0; /* NEW: Ensure no gap above map */
-    top: auto; /* CRITICAL: Reset the 'top' property used during fixed positioning */
-    pointer-events: auto;
-    z-index: auto;
-}
-
-.intro-fast-forward .showcase-map-container {
-    height: 60vh;
-    width: 100%;
-    position: relative;
-    top: auto; /* CRITICAL: Reset top property for fast-forward state */
-    pointer-events: auto;
-    z-index: auto;
-    transition: none; /* Ensure no transition on fast-forward */
-}
-
-/* When skipping, we want the map to appear instantly in its final state, not transition */
-.intro-fast-forward nav,
-.intro-fast-forward .key-stats-section {
-    transition: none;
-}
-
-/* When skipping, we want the stats to appear instantly, not transition */
-.intro-fast-forward .key-stats-section .stat-number,
-.intro-fast-forward .key-stats-section .hike-card {
-    transition: none;
-}
-
-/* The title becomes visible when the specific class is added */
-.intro-fast-forward .hero-title-overlay,
-.title-visible .hero-title-overlay {
-    opacity: 1;
-    transition-delay: 0s;
-}
-
-.intro-fast-forward .hero-title-overlay {
-    transition: none;
-}
-
-/* --- Intro Stats Overlay --- */
-#intro-stats-overlay {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 2vh 5vw; /* Use viewport units for responsive padding */
-    display: flex;
-    justify-content: center;
-    gap: 5vw;
-    z-index: 101; /* Above the map, below any potential top-level UI */
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 1.5s cubic-bezier(0.25, 0.8, 0.25, 1), transform 1.5s cubic-bezier(0.25, 0.8, 0.25, 1);
-}
-
-#intro-stats-overlay.visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-#intro-stats-overlay.hiding {
-    opacity: 0;
-    transform: translateY(20px);
-}
-
-.intro-stat-item {
-    text-align: center;
-    color: white;
-    text-shadow: 0 1px 5px rgba(0,0,0,0.5);
-}
-
-.intro-stat-item .number {
-    font-size: 3.5vw; /* Responsive font size */
-    font-weight: 600;
-    display: block;
-    line-height: 1;
-}
-
-.intro-stat-item .label {
-    font-size: 1vw; /* Responsive font size */
-    font-weight: 300;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.8;
-}
-
-/* --- Skip-intro affordance (injected by home.js during the full intro) --- */
-#skip-intro-btn {
-    position: fixed;
-    top: 52px; /* just below the 40px nav/loading bar */
-    right: 20px;
-    z-index: 200; /* above the fullscreen intro map (100) and stats overlay (101) */
-    padding: 9px 16px;
-    font-family: inherit;
-    font-size: 0.85em;
-    letter-spacing: 0.03em;
-    color: #fff;
-    background-color: rgba(44, 62, 80, 0.55); /* --evergreen, translucent */
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    border-radius: 20px;
-    cursor: pointer;
-    /* Fade in a beat after load so the first frame stays clean, but soon
-       enough that an impatient visitor sees the way out quickly. */
-    opacity: 0;
-    animation: skip-btn-fade-in 0.6s ease 0.8s forwards;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-}
-#skip-intro-btn:hover {
-    background-color: rgba(44, 62, 80, 0.85);
-    transform: translateY(-1px);
-}
-@keyframes skip-btn-fade-in {
-    to { opacity: 1; }
-}
-/* Never show it on a repeat-visit fast-forward load. */
-.intro-fast-forward #skip-intro-btn {
-    display: none;
+@media (max-width: 820px) {
+    .odo-grid { grid-template-columns: repeat(2, 1fr); gap: 34px 22px; }
+    .odo-digit, .odo-sep { font-size: 40px; } .odo-reel { height: 50px; } .odo-digit { height: 50px; line-height: 50px; }
 }

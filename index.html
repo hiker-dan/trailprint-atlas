@@ -21,22 +21,27 @@
     <meta name="twitter:title" content="The Trailprint Atlas">
     <meta name="twitter:description" content="A living journal of one hiker's life outdoors — every trail, summit, and mile, mapped and remembered.">
     <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <!-- The hero film paints parchment before any stylesheet arrives (no white
+         flash) and fetches its terrain from Esri — warm that connection early. -->
+    <style>html { background: #ece3ce; }</style>
+    <link rel="preconnect" href="https://server.arcgisonline.com">
     <!-- Add Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
-    <link rel="stylesheet" href="styles/key-stats.css"/>
     <link rel="stylesheet" href="styles/threads.css"/>
     <link rel="stylesheet" href="styles/observatory.css"/>
+    <link rel="stylesheet" href="styles/records.css"/>
     <link rel="stylesheet" href="styles/home.css"/>
 </head>
 <body>
     <script>
-      // This script runs before the page is rendered to prevent flickering.
-      if (sessionStorage.getItem('introShown')) {
-        // If the intro has been shown, apply a class to the HTML element
-        // that immediately sets the page to its final layout.
+      // Runs before first paint: repeat visits this session (and visitors whose
+      // system asks for reduced motion) skip the hero film — the page loads
+      // straight into its finished state, nav and all.
+      if (sessionStorage.getItem('introShown') ||
+          (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
         document.documentElement.classList.add('intro-fast-forward');
       }
     </script>
@@ -44,52 +49,28 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- Map Placeholder for smooth animation -->
-    <div class="map-placeholder"></div>
-
-    <!-- Showcase Map Section -->
-    <a href="map.html" class="showcase-map-container" title="Explore the Interactive Map">
-        <div id="home-map"></div>
-        <div class="hero-title-overlay">
+    <!-- ===== THE LIFE IN TRAILS (hero film: the Atlas draws itself) =====
+         A vector map opens tight over home ground and pulls back to the whole
+         country while every trail draws itself in, in year colours. First visit
+         each session gets the full ~20s film (skippable); after that the page
+         loads straight onto the finished map, and the button offers a replay. -->
+    <section class="hero-film" id="hero-film">
+        <div id="hero-map"></div>
+        <div class="hero-vig"></div>
+        <div class="hero-title" id="hero-title">
             <h1>The Trailprint Atlas</h1>
         </div>
-        <div class="map-overlay">
-            <h3>Explore the Atlas</h3>
-            <p>(Click to open the interactive map)</p>
-        </div>
-    </a>
+        <div class="scroll-hint" id="scroll-hint">scroll to begin</div>
+        <div class="terrain-credit">Terrain &copy; Esri &middot; Shaded Relief</div>
+        <button class="film-btn" id="film-btn" type="button">Skip</button>
+    </section>
 
-    <!-- NEW: Overlay for Intro Stats -->
-    <div id="intro-stats-overlay"></div>
-
-    <!-- ===== KEY ATLAS STATS SECTION (NEW) ===== -->
-    <section id="key-stats-section" class="key-stats-section">
-        <div class="key-stats-container">
-            <div class="key-stats-grid">
-                <div class="stat-item">
-                    <span id="stats-hikes" class="stat-number">--</span>
-                    <span class="stat-label">Total Hikes</span>
-                </div>
-                <div class="stat-item">
-                    <span id="stats-miles" class="stat-number">--</span>
-                    <span class="stat-label">Miles Hiked</span>
-                </div>
-                <div class="stat-item">
-                    <span id="stats-elevation" class="stat-number">--</span>
-                    <span class="stat-label">Feet Climbed</span>
-                </div>
-                <div class="stat-item">
-                    <span id="stats-trails" class="stat-number">--</span>
-                    <span class="stat-label">Unique Trails</span>
-                </div>
-            </div>
-            <!-- (First/Latest hike cards removed — the Threads of the Trail
-                 section now carries the journey's endpoints.) -->
-            <div class="key-stats-headline">
-                <h2 class="eyebrow">The Trailprint Atlas</h2>
-                <p class="headline-text">An ever-growing journal of a life outdoors, told by the numbers.</p>
-                <p class="headline-subtext">Charting adventures from <span id="start-year">....</span> to Present.</p>
-            </div>
+    <!-- ===== THE ODOMETER (the key stats, as rolling mile-counter reels) ===== -->
+    <section class="odo-section" id="odo-section">
+        <div class="odo-inner">
+            <div class="odo-eyebrow">The Trailprint Atlas &middot; by the numbers</div>
+            <div class="odo-grid" id="odo-grid"><!-- reels injected by home.js --></div>
+            <p class="odo-tagline">The miles keep turning over &middot; <span id="odo-range">....</span> &ndash; Present</p>
         </div>
     </section>
 
@@ -178,6 +159,35 @@
     </section>
     <div id="obs-tip"><!-- observatory chart tooltip --></div>
 
+    <!-- ===== THE RECORD BOOKS (the closer: guideposts into the Atlas) ===== -->
+    <section class="records-section" id="record-books">
+        <div class="records-inner">
+            <div class="records-header">
+                <div class="records-eyebrow">The Standing Records</div>
+                <h2 class="records-title">The Record Books</h2>
+                <p class="records-lede">The trails that hold a crown and the expeditions that went farthest.
+                   Every card opens its own chapter of the Atlas.</p>
+            </div>
+
+            <div class="rb-block">
+                <h3 class="rb-board-title">The Records</h3>
+                <p class="rb-board-blurb">Four crowns — the trail that went farthest, the one that climbed
+                   hardest, the highest summit reached, and the steepest grade earned.</p>
+                <div class="crowns-grid" id="board-records"><!-- injected --></div>
+                <div class="rb-more-wrap">
+                    <a class="board-more" id="records-more" href="hike.html">Into the logbook <span class="arw">&rarr;</span></a>
+                </div>
+            </div>
+
+            <div class="rb-block">
+                <h3 class="rb-board-title">The Expeditions</h3>
+                <p class="rb-board-blurb">The multi-day trips that covered the most ground. Step onto the podium.</p>
+                <div class="podium" id="board-expeditions"><!-- injected --></div>
+                <p class="board-note" id="expeditions-note"></p>
+            </div>
+        </div>
+    </section>
+
     <!-- (State map + seasonal chart removed in the July 2026 redesign — their
          data returns inside the Observatory section. Echoes of the Trail
          moved to echoes.html.) -->
@@ -202,6 +212,9 @@
 
    <!-- The Observatory: deep-data section (home redesign, July 2026) -->
    <script src="scripts/observatory.js"></script>
+
+   <!-- The Record Books: the closing guideposts (home redesign, July 2026) -->
+   <script src="scripts/records.js"></script>
 
    <!-- Shared script to update the 'Latest Hike' nav link -->
    <script src="scripts/nav-updater.js"></script>

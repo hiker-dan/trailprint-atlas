@@ -59,12 +59,12 @@ there is fine, with his review.
 
 | Path | What it is |
 |---|---|
-| `index.html` | Homepage shell. Logic lives in `scripts/home.js`, styles in `styles/home.css`; a 5-line sessionStorage intro check stays inline by design (must run before first paint). |
+| `index.html` | Homepage shell. Logic lives in `scripts/home.js`, styles in `styles/home.css`; a small inline sessionStorage/reduced-motion check stays inline by design (must run before first paint — it fast-forwards the hero film for repeat visits and reduced-motion visitors). |
 | `404.html` | Branded "Off the Trail" page (GitHub Pages serves it for bad URLs). Self-contained on purpose — no relative assets. |
 | `scripts/config.js` | `ATLAS_CONFIG` (Cloudinary cloud + `cloudinaryUrl()`, year colors, type icons, seasons). Load before all other Atlas scripts. |
 | `scripts/atlas-data.js` | Data layer: cached `fetchHikes()`/`fetchTrailGeometries()`, `groupByTrail`/`groupByTrip`, `hikeYear`/`hikeMonth`, `formatHikeDate`, `compareHikesChrono`/`Desc`, `getAtlasStats`. |
 | `scripts/nav.js` | Injects the single shared nav structure (synchronously) + the site footer on every page. |
-| `scripts/home.js` | All homepage logic: showcase map + intro choreography, stats, state map, seasonal chart, slideshows, loading-bar phrases. |
+| `scripts/home.js` | All homepage logic: **The Life in Trails** hero film (one SVG built from every trail's geometry; viewBox-driven zoom — never an animated transform, which GPU-snapshots and blurs — over static rings of Esri Shaded Relief tiles; skip/replay button, plays once per session), the Odometer stats reels, and the nav loading-bar phrases (Danny's words), all coordinated through `AtlasIntro`. `?p=0..1` freezes the film at a zoom progress for headless screenshot verification. |
 | `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. |
 | `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. |
 | `achievements.html` | Personal records (longest hike, biggest climb, highest summit, busiest month). |
@@ -73,7 +73,7 @@ there is fine, with his review.
 | `credits.html` | "The Overlook": hero slideshow + asset credits. Personal statement arrives in Phase 4. |
 | `scripts/trail-renderer.js` | Shared renderer for both maps (`isInteractive` flag), plus `formatHikeText()` for `**bold**`/newline rendering. |
 | `scripts/nav-updater.js` | Points the "Logbook" nav link at the most recent hike; highlights the active page. |
-| `styles/` | `base.css` (the earthy palette as CSS custom properties + nav + footer) and one sheet per page: `home.css`, `map.css`, `hike.css`, `achievements.css`, `credits.css`, plus the `key-stats.css`/`map-stats.css` dashboard sheets. No inline CSS anywhere except `404.html` (self-contained by design). |
+| `styles/` | `base.css` (the earthy palette as CSS custom properties + nav + footer) and one sheet per page or section: `home.css` (hero film + Odometer), `threads.css`, `observatory.css`, `records.css`, `map.css`, `hike.css`, `echoes.css`, `crew.css`, `trip.css`, `credits.css`, `timeline-nav.css`. No inline CSS anywhere except `404.html` (self-contained by design). |
 | `data/hikes.json` | **The single source of truth.** All hike data. |
 | `data/crew.json` | Trail Crew portrait registry: `{"Will R.": "crew-will-r"}` — hand-picked Cloudinary photos of core-crew members (face-aware `g_auto` crops). The ritual: Danny drops `Will R.jpg` into `intake/`, Claude uploads it (public ID `crew-will-r`, Media Library folder `trailprint-atlas/trail-crew`) and adds the entry. Missing entries fall back to a landscape from a shared hike. |
 | `data/trails/*.gpx` | Raw GPX tracks, one per hike — the archival record. Never served to visitors. |

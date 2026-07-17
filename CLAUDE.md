@@ -59,15 +59,20 @@ there is fine, with his review.
 
 | Path | What it is |
 |---|---|
-| `index.html` | Homepage shell. Logic lives in `scripts/home.js`, styles in `styles/home.css`; a small inline sessionStorage/reduced-motion check stays inline by design (must run before first paint — it fast-forwards the hero film for repeat visits and reduced-motion visitors). |
+| `index.html` | Homepage shell for the July 2026 redesign, section by section: the hero film + Odometer (`scripts/home.js`), Threads of the Trail (`threads.js`), The Observatory (`observatory.js`), The Record Books (`records.js`). A small inline sessionStorage/reduced-motion check stays inline by design (must run before first paint — it fast-forwards the hero film for repeat visits and reduced-motion visitors). |
 | `404.html` | Branded "Off the Trail" page (GitHub Pages serves it for bad URLs). Self-contained on purpose — no relative assets. |
 | `scripts/config.js` | `ATLAS_CONFIG` (Cloudinary cloud + `cloudinaryUrl()`, year colors, type icons, seasons). Load before all other Atlas scripts. |
 | `scripts/atlas-data.js` | Data layer: cached `fetchHikes()`/`fetchTrailGeometries()`, `groupByTrail`/`groupByTrip`, `hikeYear`/`hikeMonth`, `formatHikeDate`, `compareHikesChrono`/`Desc`, `getAtlasStats`. |
 | `scripts/nav.js` | Injects the single shared nav structure (synchronously) + the site footer on every page. |
 | `scripts/home.js` | All homepage logic: **The Life in Trails** hero film (one SVG built from every trail's geometry; viewBox-driven zoom — never an animated transform, which GPU-snapshots and blurs — over static rings of Esri Shaded Relief tiles; skip/replay button, plays once per session), the Odometer stats reels, and the nav loading-bar phrases (Danny's words), all coordinated through `AtlasIntro`. `?p=0..1` freezes the film at a zoom progress for headless screenshot verification. |
-| `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. |
-| `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. |
-| `achievements.html` | Personal records (longest hike, biggest climb, highest summit, busiest month). |
+| `scripts/threads.js` | **Threads of the Trail** (homepage): the milestone field sheet — a procedural vintage USGS quadrangle (seeded contours, a lake, full map collar) with brass benchmark disks planted along a fixed spine, hover focus cards. Milestones computed live from hikes.json. Styles in `styles/threads.css`. |
+| `scripts/observatory.js` | **The Observatory** (homepage): profile line, the Effort Field scatter, Territories tiles, **The True Ascents** (summit climbs as their real elevation profiles from `data/elevations.json`, hazed panorama + fixed field card — no floating tooltip over the profiles), **The Cadence** year-wheel, and **The Specimen Drawer** (biome cabinet; hand-picked photos via the `SPECIMEN_PICKS` map — the section's one deliberate photo exception). |
+| `scripts/records.js` | **The Record Books** (homepage closer): four standing-record crowns + the expedition podium — guideposts into hike and trip pages. |
+| `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. `?state=XX` deep-links a state (Territories tiles use it). |
+| `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. `scripts/shape-of-day.js` draws its elevation profile ("The Shape of the Day") from the same GPX fetch as the map. |
+| `trip.html` + `scripts/trip.js` | One trip's chapter (`trip.html?tag=<trip_tag>`): hero, headline numbers, combined journey map, day-by-day itinerary. |
+| `scripts/timeline-nav.js` | The shared timeline strip — the spine of the Atlas — used by hike.html and trip.html (styles in `styles/timeline-nav.css`). |
+| `echoes.html` + `scripts/echoes.js` | **Echoes of the Trail**: Fresh Tracks, the Featured Adventure, and the Go-To Trail — moved as-is from the old homepage (July 2026). Keep-vs-redesign decision pending; don't invest here without checking. |
 | `crew.html` + `scripts/crew.js` | **Trail Crew**: core-crew field cards (10+ shared hikes, `CREW_CORE_MIN_HIKES` in config.js) + the full trail-register ledger with era bars; rows expand in place. All derived from `hiked_with` at load time. |
 | `crew-member.html` + `scripts/crew-member.js` | One core-crew member (`?name=Will%20R.`): hero, combined map of every shared trail, full chronological list. Companion names on hike pages link here (core crew) or to the register (everyone else). Both crew pages share `styles/crew.css`. |
 | `credits.html` | "The Overlook": hero slideshow + asset credits. Personal statement arrives in Phase 4. |
@@ -96,7 +101,7 @@ Claude drafts `description`/`flora`/`fauna` for review → check the page in Liv
 Records land in the exact format below; the wizard leaves the three prose fields empty,
 so a record with an empty `description` means "drafting still owed."
 
-### `hikes.json` schema (71 records as of June 2026)
+### `hikes.json` schema (103 records as of July 2026)
 
 Every page derives from this file. **Never hardcode hike data anywhere else.** When a feature
 needs new per-hike information, the first step is always to add the field to the schema.
@@ -119,7 +124,7 @@ needs new per-hike information, the first step is always to add the field to the
 | `hiked_with` | string[] | Names as `"First L."` (e.g. "Luke R."). Empty for solo. |
 | `description` | string | AI-drafted field-guide text. May contain `**bold**` — render via `formatHikeText()`. |
 | `flora`, `fauna` | string | One species spotlight each, "Name (Latin) — fact" format. |
-| `notes` | string\|null | **Danny's journal — currently null on all 71.** Phase 4 fills it. His words only. |
+| `notes` | string\|null | **Danny's journal — currently null on every record.** Phase 4 fills it. His words only. |
 | `fire_memorial` | object | *Absent on most records — always guard.* `{ "fire": "Eaton Fire", "date": "YYYY-MM-DD" }` on trails that burned **after** the hike (5 records: Eaton/Palisades/Bridge fires, verified against real perimeters July 2026). Drives the hike page's muted memorial banner ("Hiked six weeks before the Palisades Fire…"). Hand-added after research — not a wizard question; edge-singed trails (Dawn Mine) get a factual sentence in `description` instead. No map mark, by design. |
 | `trip_tag` | string\|null | Groups multi-day trips: `"Trip Name - Mon YYYY"`. Must match exactly across a trip's hikes. |
 | `all_trails_url`, `official_trail_url` | string\|null | External links. |

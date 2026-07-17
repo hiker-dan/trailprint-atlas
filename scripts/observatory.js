@@ -1,7 +1,8 @@
 /**
  * The Observatory — the homepage's deep-data section.
- * Explores five years of trails from every angle. Photo-free by design.
- * Panels are built one by one below; this file grows through Phase D.
+ * Explores five years of trails from every angle. Photo-free by design,
+ * with one deliberate exception: the Specimen Drawer's nine lazy-loaded,
+ * small-transform thumbnails.
  * Requires config.js + atlas-data.js. Added July 2026 (home redesign).
  *
  * Panel 1 — Territories: a growing grid of the states (and, later, countries)
@@ -47,10 +48,17 @@
         buildProfile(hikes);
         buildEffortField(hikes);
         buildTerritories(hikes, usSvgText);
-        buildSkyline(hikes);
+        buildAscents(hikes);
         buildCadence(hikes);
-        buildBiomes(hikes);
+        buildSpecimens(hikes);
     });
+
+    // Blend two hex colours — the atmospheric-haze workhorse for the panorama.
+    const mix = (a, b, t) => {
+        const pa = a.match(/\w\w/g).map(x => parseInt(x, 16));
+        const pb = b.match(/\w\w/g).map(x => parseInt(x, 16));
+        return '#' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('');
+    };
 
     // ============ Profile line (replaces the old radar) ============
     function buildProfile(hikes) {
@@ -144,91 +152,187 @@
         legend.appendChild(ring);
     }
 
-    // ============ The Skyline (summits as a to-scale range) ============
-    function buildSkyline(hikes) {
+    // ============ The True Ascents (every summit climb, as its real profile) ============
+    // Each ridge is the genuine elevation profile of a summit hike, read from its
+    // GPX by tools/build-trails.py (data/elevations.json) and drawn at true
+    // vertical scale, sea level at the ground line. Tallest climbs stand at the
+    // back of the panorama, hazed toward the sky like a real mountain horizon.
+    // Hovering a ridge raises it out of the haze; clicking opens the climb.
+    function buildAscents(hikes) {
         const mount = document.getElementById('skyline');
         if (!mount) return;
-        // One entry per peak (a repeated summit keeps its highest reading)
-        const byPeak = {};
-        hikes.filter(h => h.summit_trail && h.summit_elevation).forEach(h => {
-            const k = h.trail_name;
-            if (!byPeak[k] || h.summit_elevation > byPeak[k].summit_elevation) byPeak[k] = h;
-        });
-        const peaks = Object.values(byPeak).sort((a, b) => b.summit_elevation - a.summit_elevation);
-        if (!peaks.length) return;
+        // How many times each summit trail has been climbed (repeats collapse
+        // into one ridge; the tooltip carries the count).
+        const climbs = {};
+        hikes.filter(h => h.summit_trail && h.summit_elevation).forEach(h => { climbs[h.trail_name] = (climbs[h.trail_name] || 0) + 1; });
+        const seen = new Set();
+        const summits = hikes.filter(h => h.summit_trail && h.summit_elevation && h.gpx_file)
+            .filter(h => !seen.has(h.trail_name) && seen.add(h.trail_name));
 
-        // Bitonic arrangement: tallest in the middle, stepping down to both sides.
-        const arranged = [];
-        peaks.forEach((p, i) => { if (i % 2 === 0) arranged.push(p); else arranged.unshift(p); });
+        fetch('data/elevations.json').then(r => r.json()).then(profiles => {
+            const list = summits
+                .map(h => { const prof = profiles[h.trail_id]; return prof && prof.length >= 20 ? { h, prof, peak: Math.max(...prof) } : null; })
+                .filter(Boolean)
+                .sort((a, b) => b.peak - a.peak);   // tallest painted first = the back of the panorama
+            if (!list.length) return;
+            const n = list.length;
 
-        const W = 920, H = 380, MB = 46, MT = 26, ML = 52, MR = 20;
-        const plotW = W - ML - MR, plotH = H - MT - MB;
-        const baseY = MT + plotH;
-        const maxElev = peaks[0].summit_elevation;
-        const elevMax = Math.ceil(maxElev / 2000) * 2000;
-        const scaleY = e => (e / elevMax) * plotH;
-        const n = arranged.length;
-        const slotW = plotW / n;
-        const peakW = slotW * 1.5; // overlap neighbours for a range feel
-        const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'sky-svg' });
+            const W = 1060, H = 470, baseY = H - 24, topPad = 42;
+            const maxPeak = Math.max(list[0].peak, ...list.map(o => o.h.summit_elevation));
+            const maxFt = Math.ceil((maxPeak * 1.07) / 1000) * 1000;
+            const yOf = ft => baseY - (ft / maxFt) * (baseY - topPad);
+            const SKY = '#f5ecd2';   // what distance dissolves a ridge toward
+            const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'asc-svg' });
+            const defs = svgEl('defs', {});
+            svg.appendChild(defs);
 
-        // elevation gridlines
-        for (let e = 2000; e <= elevMax; e += 2000) {
-            const y = baseY - scaleY(e);
-            svg.appendChild(svgEl('line', { x1: ML, y1: y, x2: ML + plotW, y2: y, stroke: '#e8dfc8', 'stroke-width': 1, 'stroke-dasharray': '2 4' }));
-            const t = svgEl('text', { x: ML - 8, y: y + 3, 'text-anchor': 'end', class: 'sky-axis' });
-            t.textContent = (e / 1000) + 'k'; svg.appendChild(t);
-        }
-        svg.appendChild(svgEl('line', { x1: ML, y1: baseY, x2: ML + plotW, y2: baseY, stroke: '#b9a97f', 'stroke-width': 1.5 }));
+            // Dawn sky, warming toward the horizon
+            const sky = svgEl('linearGradient', { id: 'asc-sky', x1: 0, y1: 0, x2: 0, y2: 1 });
+            [['0%', '#fdfbf2'], ['62%', '#f9f1db'], ['100%', '#f3e6c4']].forEach(([o, c]) => sky.appendChild(svgEl('stop', { offset: o, 'stop-color': c })));
+            defs.appendChild(sky);
+            svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: baseY, fill: 'url(#asc-sky)' }));
 
-        // Draw shortest→tallest so taller peaks sit in front; atmospheric colour by height.
-        const lerp = (a, b, t) => Math.round(a + (b - a) * t);
-        const heightColor = e => {
-            const t = e / maxElev;
-            return `rgb(${lerp(150, 47, t)},${lerp(174, 92, t)},${lerp(150, 64, t)})`; // sage → deep evergreen
-        };
-        const order = arranged.map((p, i) => ({ p, i })).sort((a, b) => a.p.summit_elevation - b.p.summit_elevation);
-        order.forEach(({ p, i }) => {
-            const cx = ML + slotW * (i + 0.5);
-            const ph = scaleY(p.summit_elevation);
-            const topY = baseY - ph;
-            const half = peakW / 2;
-            // a mountain with a slightly irregular ridge
-            const d = `M${cx - half},${baseY} L${cx - half * 0.28},${baseY - ph * 0.62} L${cx},${topY} L${cx + half * 0.34},${baseY - ph * 0.58} L${cx + half},${baseY} Z`;
-            svg.appendChild(svgEl('path', { d, fill: heightColor(p.summit_elevation), stroke: '#2f5c40', 'stroke-width': 0.8, 'stroke-opacity': 0.4, 'stroke-linejoin': 'round' }));
-            // snowcap on the high peaks
-            if (p.summit_elevation > maxElev * 0.82) {
-                const capH = ph * 0.16;
-                svg.appendChild(svgEl('path', { d: `M${cx - half * 0.16},${topY + capH} L${cx},${topY} L${cx + half * 0.2},${topY + capH} L${cx + half * 0.06},${topY + capH * 0.7} L${cx},${topY + capH * 0.9} L${cx - half * 0.06},${topY + capH * 0.7} Z`, fill: '#fdfdfb', 'fill-opacity': 0.9 }));
+            // Elevation lines, floating in the sky like survey marks (labels hug
+            // the right edge, clear of the peak name-plates)
+            for (let ft = 2000; ft < maxFt; ft += 2000) {
+                svg.appendChild(svgEl('line', { x1: 0, x2: W, y1: yOf(ft), y2: yOf(ft), stroke: '#b8a67c', 'stroke-width': 0.7, 'stroke-dasharray': '3 7', opacity: 0.5 }));
+                const t = svgEl('text', { x: W - 8, y: yOf(ft) - 5, 'text-anchor': 'end', class: 'asc-axis' });
+                t.textContent = ft.toLocaleString() + ' ft'; svg.appendChild(t);
             }
-            // hit area + hover
-            const hit = svgEl('path', { d, fill: 'transparent', class: 'sky-hit' });
-            hit.addEventListener('mouseenter', ev => showTip(`<div class="tt-title">${p.trail_name}</div><div class="tt-sub">${p.summit_elevation.toLocaleString()} ft · ${p.location}</div><div class="tt-sub">${formatHikeDate(p.date_completed)}</div>`, ev));
-            hit.addEventListener('mousemove', moveTip);
-            hit.addEventListener('mouseleave', hideTip);
-            svg.appendChild(hit);
+
+            // Deterministic horizontal spread: coprime slot shuffle + seeded jitter,
+            // so tall back ridges and short front ones interleave across the frame.
+            let s = 7;
+            const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+            const coprime = [7, 5, 3].find(k => n % k !== 0) || 1;
+            const ridgeGroups = [], labels = [];
+            list.forEach((o, i) => {
+                const yc = yearColor(hikeYear(o.h));
+                const w = 170 + Math.min(280, (o.h.miles || 4) * 20);
+                const slot = (i * coprime) % n;
+                const cx = 60 + ((slot + 0.5) / n) * (W - 120) + (rnd() - 0.5) * 54;
+                const x0 = Math.max(-30, Math.min(W + 30 - w, cx - w / 2));
+
+                // The track itself (its true GPX shape)…
+                let dTrack = '', px = 0, py = 0, pft = 0;
+                o.prof.forEach((ft, k) => {
+                    const x = x0 + (k / (o.prof.length - 1)) * w, y = yOf(ft);
+                    dTrack += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+                    if (ft > pft) { pft = ft; px = x; py = y; }
+                });
+                const peakPt = [px, py];   // raw summit point (labels use a clamped copy)
+                // …with concave flanks easing down to the valley floor on both
+                // sides — the mountain's real skirt below the trailhead. Without
+                // them a high-trailhead climb ends in a sheer block wall.
+                const yL = yOf(o.prof[0]), yR = yOf(o.prof[o.prof.length - 1]);
+                const skirt = (xEdge, yTop, dir) => {
+                    const sw = Math.min(300, (baseY - yTop) * 0.75) * dir;
+                    let d = '';
+                    for (let k = 0; k <= 8; k++) {
+                        const t = k / 8;   // t=0 at the valley, t=1 at the track's edge
+                        const x = xEdge - sw + sw * t, y = baseY - (baseY - yTop) * Math.pow(t, 1.6);
+                        d += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+                    }
+                    return d;
+                };
+                const left = skirt(x0, yL, 1), right = skirt(x0 + w, yR, -1);
+                const dFill = 'M' + (left + dTrack + [...right.split(' L').filter(Boolean)].reverse().map(p => ' L' + p).join('')).slice(2) + ' Z';
+                // Only the hiked ground gets a crestline — the flanks stay strokeless,
+                // so where the bright line begins IS the trailhead.
+                const dHike = 'M' + dTrack.slice(2);
+
+                // Atmospheric perspective: the further back (taller) a ridge, the
+                // more it dissolves toward the sky. Front ridges keep full colour.
+                const hz = 0.68 * Math.pow(1 - i / Math.max(1, n - 1), 0.8);
+                const grad = (id, haze) => {
+                    const g = svgEl('linearGradient', { id, x1: 0, y1: 0, x2: 0, y2: 1 });
+                    g.appendChild(svgEl('stop', { offset: '0%', 'stop-color': mix(mix(yc, '#fdf8ec', 0.30), SKY, haze) }));
+                    g.appendChild(svgEl('stop', { offset: '100%', 'stop-color': mix(mix(yc, '#2e2413', 0.32), SKY, haze) }));
+                    defs.appendChild(g);
+                };
+                grad(`asc-g${i}`, hz);
+                grad(`asc-gl${i}`, 0);
+                const crestCol = haze => mix(mix(yc, '#4a3a1e', 0.35), SKY, haze);
+
+                const g = svgEl('g', { class: 'asc-ridge' });
+                g.appendChild(svgEl('path', { d: dFill, fill: `url(#asc-g${i})` }));
+                g.appendChild(svgEl('path', { d: dHike, fill: 'none', stroke: crestCol(hz), 'stroke-width': 1.3, 'stroke-linejoin': 'round' }));
+                // The raised state: unhazed colours, a bolder crest, and survey
+                // marks pinning the real track — trailhead, summit, trail's end.
+                const lit = svgEl('g', { class: 'asc-lit-layer' });
+                lit.appendChild(svgEl('path', { d: dFill, fill: `url(#asc-gl${i})` }));
+                lit.appendChild(svgEl('path', { d: dHike, fill: 'none', stroke: crestCol(0), 'stroke-width': 2, 'stroke-linejoin': 'round' }));
+                [[x0, yL], [x0 + w, yR]].forEach(([x, y]) =>
+                    lit.appendChild(svgEl('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 4, fill: '#fffdf6', stroke: crestCol(0), 'stroke-width': 2 })));
+                lit.appendChild(svgEl('circle', { cx: peakPt[0].toFixed(1), cy: peakPt[1].toFixed(1), r: 3.4, fill: crestCol(0), stroke: '#fffdf6', 'stroke-width': 1.4 }));
+                g.appendChild(lit);
+                svg.appendChild(g);
+                ridgeGroups.push({ o, g, dFill, px: Math.max(70, Math.min(W - 70, px)), py });
+            });
+
+            // The ground the panorama stands on
+            svg.appendChild(svgEl('rect', { x: 0, y: baseY, width: W, height: H - baseY, fill: '#cdbb90' }));
+            svg.appendChild(svgEl('line', { x1: 0, x2: W, y1: baseY, y2: baseY, stroke: '#8a7649', 'stroke-width': 1.4 }));
+
+            const shortPeak = nm => nm.replace(/ via .*/i, '').replace(/:.*/, '').replace(/\s*(Loop )?Trail$/i, '').replace(/ Loop$/i, '').replace(/\bMountain\b/i, 'Mtn').trim();
+
+            // Name the three highest ridges; everything else reveals on hover.
+            ridgeGroups.slice(0, 3).forEach(r => labels.push({ x: r.px, y: r.py - 10, text: `${shortPeak(r.o.h.trail_name)} · ${r.o.h.summit_elevation.toLocaleString()} ft` }));
+            // Nudge apart any label pair that would collide
+            labels.sort((a, b) => a.x - b.x);
+            for (let i = 1; i < labels.length; i++) {
+                for (let j = 0; j < i; j++) {
+                    if (Math.abs(labels[i].x - labels[j].x) < 230 && Math.abs(labels[i].y - labels[j].y) < 18) labels[i].y = labels[j].y - 20;
+                }
+            }
+            labels.forEach(l => {
+                ['asc-label-halo', 'asc-label'].forEach(cls => {
+                    const t = svgEl('text', { x: l.x, y: Math.max(16, l.y), 'text-anchor': 'middle', class: cls + ' asc-anno' });
+                    t.textContent = l.text; svg.appendChild(t);
+                });
+            });
+
+            // The field card: a fixed home for the details below the panorama, so
+            // nothing ever floats over (or hides) a profile. At rest it reads the
+            // whole range; hovering a ridge morphs it to that climb.
+            const card = document.getElementById('asc-card');
+            const top = list[0].h;
+            const stat = (v, l) => `<div class="asc-stat"><div class="asc-stat-v">${v}</div><div class="asc-stat-l">${l}</div></div>`;
+            const setCard = o => {
+                if (!card) return;
+                if (!o) {
+                    card.style.setProperty('--accent', '#b9a97f');
+                    card.innerHTML = `<div class="asc-card-lead"><div class="asc-card-name">The whole range</div>
+                        <div class="asc-card-meta">${n} summit climbs at true scale, sea level to ${top.summit_elevation.toLocaleString()} ft. The bright crestline is ground you actually walked; the soft flanks are the mountain beneath it.</div></div>
+                        <div class="asc-card-hint">Hover a ridge to raise it from the haze · click to stand on it again</div>`;
+                    return;
+                }
+                const h = o.h, times = climbs[h.trail_name] || 1;
+                card.style.setProperty('--accent', yearColor(hikeYear(h)));
+                card.innerHTML = `<div class="asc-card-lead"><div class="asc-card-name">${h.trail_name}</div>
+                    <div class="asc-card-meta">${h.location} · ${formatHikeDate(h.date_completed)}${times > 1 ? ` · climbed ${times}×` : ''}</div></div>
+                    <div class="asc-card-stats">
+                        ${stat(h.summit_elevation.toLocaleString() + ' ft', 'summit')}
+                        ${stat(o.prof[0].toLocaleString() + ' ft', 'trailhead')}
+                        ${stat('+' + (h.elevation_gain || 0).toLocaleString() + ' ft', 'gain')}
+                        ${stat((h.miles || 0).toFixed(1) + ' mi', 'distance')}
+                    </div>`;
+            };
+            setCard(null);
+
+            // Hit layer last, in paint order — the frontmost ridge wins the hover
+            ridgeGroups.forEach(ridge => {
+                const hit = svgEl('path', { d: ridge.dFill, fill: 'transparent', class: 'asc-hit' });
+                hit.addEventListener('mouseenter', () => { svg.classList.add('asc-focus'); ridge.g.classList.add('lit'); setCard(ridge.o); });
+                hit.addEventListener('mouseleave', () => { svg.classList.remove('asc-focus'); ridge.g.classList.remove('lit'); setCard(null); });
+                hit.addEventListener('click', () => { window.location.href = 'hike.html?id=' + ridge.o.h.trail_id; });
+                svg.appendChild(hit);
+            });
+
+            mount.appendChild(svg);
+            const sub = document.getElementById('sky-count');
+            if (sub) sub.textContent = `${n} summit climbs, drawn from their own GPX tracks`;
         });
-
-        // A concise display name for a peak (drops trail suffixes, shortens "Mountain").
-        const shortPeak = n => n.replace(/ via .*/i, '').replace(/:.*/, '').replace(/\s*(Loop )?Trail$/i, '').replace(/ Loop$/i, '').replace(/\bMountain\b/i, 'Mtn').trim();
-
-        // Label only the tallest peak on the chart (its neighbours are unlabelled,
-        // so nothing collides); everything else reveals on hover.
-        const ti = arranged.indexOf(peaks[0]);
-        const tcx = ML + slotW * (ti + 0.5);
-        const tTopY = baseY - scaleY(peaks[0].summit_elevation);
-        ['sky-label-halo', 'sky-label'].forEach(cls => {
-            const t = svgEl('text', { x: tcx, y: tTopY - 19, 'text-anchor': 'middle', class: cls });
-            t.textContent = shortPeak(peaks[0].trail_name); svg.appendChild(t);
-        });
-        const te = svgEl('text', { x: tcx, y: tTopY - 8, 'text-anchor': 'middle', class: 'sky-elev' });
-        te.textContent = peaks[0].summit_elevation.toLocaleString() + ' ft'; svg.appendChild(te);
-
-        mount.appendChild(svg);
-        const sub = document.getElementById('sky-count');
-        if (sub) sub.textContent = `${peaks.length} peaks, tallest to ${maxElev.toLocaleString()} ft`;
-        const cap = document.getElementById('sky-caption');
-        if (cap) cap.innerHTML = 'Highest: ' + peaks.slice(0, 3).map(p => `<b>${shortPeak(p.trail_name)}</b> ${p.summit_elevation.toLocaleString()} ft`).join('&nbsp;&nbsp;·&nbsp;&nbsp;');
     }
 
     function buildTerritories(hikes, usSvgText) {
@@ -394,67 +498,105 @@
         if (leg) leg.innerHTML = years.map(y => `<span class="cad-key"><span class="cad-key-sw" style="background:${yearColor(y)}"></span>${y}</span>`).join('');
     }
 
-    // ============ Where You Feel at Home (biomes as a canyon-wall of strata) ============
-    // Every hike's primary_geography, stacked as sedimentary rock layers — most-hiked
-    // at the sunlit rim, rarest in the deep old rock at the base. Each layer's length
-    // is how much of your hiking life it holds, with a weathered, eroded right face.
-    // Honest bar lengths, earthy hues, and a name on every stratum (no slivers to lose).
+    // ============ The Specimen Drawer (biomes as a naturalist's cabinet) ============
+    // Nine kinds of country the Atlas has collected, each pinned as one photograph
+    // in a wooden specimen drawer — most-hiked first, with a count stamp for how
+    // many outings that country holds. The one deliberate photo exception in the
+    // Observatory: nine lazy-loaded, small-transform Cloudinary thumbnails.
     const BIOME_COLORS = {
         'Desert': '#c9a566', 'Chaparral': '#a7a058', 'Coastal Chaparral': '#8fb08a',
         'Coastal': '#6fb0ac', 'Riparian Canyon': '#b77d52', 'Riparian Forest': '#3f7a55',
         'Riparian Meadow': '#8cc06a', 'Mountain Forest': '#2f5c40', 'Urban Edge': '#9c9486'
     };
-    function buildBiomes(hikes) {
+    // Hand-picked specimen per biome: [trail_id, image index]. Chosen for the
+    // landscape, not the people — swap freely as better photographs join the Atlas.
+    // Any biome missing here falls back to its earliest photographed hike.
+    const SPECIMEN_PICKS = {
+        'Desert': ['tta_06', 1],
+        'Mountain Forest': ['tta_47', 0],
+        'Chaparral': ['tta_20', 0],
+        'Riparian Canyon': ['tta_39', 0],
+        'Urban Edge': ['tta_70', 0],
+        'Coastal Chaparral': ['tta_103', 0],
+        'Coastal': ['tta_68', 3],
+        'Riparian Meadow': ['tta_52', 0],
+        'Riparian Forest': ['tta_51', 0]
+    };
+    function buildSpecimens(hikes) {
         const mount = document.getElementById('biomes');
         if (!mount) return;
         const byBio = {};
-        hikes.forEach(h => { const b = h.primary_geography || 'Unknown'; byBio[b] = (byBio[b] || 0) + 1; });
-        const items = Object.entries(byBio).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+        hikes.forEach(h => {
+            const b = h.primary_geography || 'Unknown';
+            (byBio[b] = byBio[b] || []).push(h);
+        });
+        const items = Object.entries(byBio).map(([name, hs]) => ({ name, hs, count: hs.length })).sort((a, b) => b.count - a.count);
         const total = items.reduce((s, i) => s + i.count, 0);
         if (!total) return;
-        const maxC = items[0].count;
+        const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-        const W = 920, xName = 170, xStart = 178, padR = 44, rowH = 34, MT = 16;
-        const plotW = W - xStart - padR;
-        const H = MT + items.length * rowH + 16;
-        const len = c => Math.max(16, (c / maxC) * plotW);   // rarest layer still shows a nub
+        // The cabinet: nine wooden drawer fronts with brass label plates. Pulling
+        // one lifts its specimen card onto the display shelf beside it — one
+        // country at a time, and each photograph only loads when its drawer opens.
+        mount.classList.add('spec-cabinet-wrap');
+        const cabinet = document.createElement('div');
+        cabinet.className = 'spec-cabinet';
+        const display = document.createElement('div');
+        display.className = 'spec-display';
+        mount.append(cabinet, display);
 
-        // A gently varied bedding plane — the same wavy line is one band's floor and
-        // the next band's roof, so the strata sit flush like real rock.
-        const amp = 2.3, freq = 0.024;
-        const yB = (i, x) => MT + i * rowH + amp * Math.sin(x * freq + i * 1.7);
-        const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, class: 'bio-svg' });
+        const buildCard = it => {
+            // The pinned photograph: the hand-picked specimen, or the earliest
+            // photographed hike of that country as a fallback.
+            const pick = SPECIMEN_PICKS[it.name];
+            let hike = pick && it.hs.find(h => h.trail_id === pick[0]);
+            let imgIdx = hike ? pick[1] : 0;
+            if (!hike || !(hike.images || [])[imgIdx]) {
+                hike = it.hs.slice().sort(compareHikesChrono).find(h => (h.images || []).length);
+                imgIdx = 0;
+            }
+            const first = it.hs.slice().sort(compareHikesChrono)[0];
+            const fd = new Date(first.date_completed);
+            const collected = `${MON[fd.getUTCMonth()]} ${fd.getUTCFullYear()}`;
 
-        items.forEach((it, i) => {
-            const xEnd = xStart + len(it.count), yc = MT + i * rowH + rowH / 2, step = 26;
-            let d = '';
-            for (let x = xStart, first = true; x <= xEnd; x += step, first = false) d += `${first ? 'M' : 'L'}${x.toFixed(1)},${yB(i, x).toFixed(1)} `;
-            d += `L${xEnd.toFixed(1)},${yB(i, xEnd).toFixed(1)} `;
-            // weathered right face (a small concave notch)
-            const midY = (yB(i, xEnd) + yB(i + 1, xEnd)) / 2;
-            d += `L${(xEnd - 3).toFixed(1)},${midY.toFixed(1)} L${xEnd.toFixed(1)},${yB(i + 1, xEnd).toFixed(1)} `;
-            for (let x = xEnd; x >= xStart; x -= step) d += `L${x.toFixed(1)},${yB(i + 1, x).toFixed(1)} `;
-            d += `L${xStart.toFixed(1)},${yB(i + 1, xStart).toFixed(1)} Z`;
+            const card = document.createElement('a');
+            card.className = 'spec-card';
+            card.href = hike ? 'hike.html?id=' + hike.trail_id : 'map.html';
+            card.style.setProperty('--bio', BIOME_COLORS[it.name] || '#9a8f77');
+            const img = hike
+                ? `<img loading="lazy" src="${cloudinaryUrl(hike.images[imgIdx], 'w_640,h_440,c_fill,g_auto,q_auto,f_auto')}" alt="${it.name} — ${hike.trail_name}">`
+                : '<div class="spec-empty">specimen pending</div>';
+            card.innerHTML = `
+                <div class="spec-photo">${img}<span class="spec-stamp">&times;&thinsp;${it.count}</span></div>
+                <div class="spec-plate">
+                    <div class="spec-name">${it.name}</div>
+                    <div class="spec-meta">${hike ? hike.location : ''}</div>
+                    <div class="spec-meta2">first collected ${collected} · ${it.count} outing${it.count === 1 ? '' : 's'}</div>
+                </div>`;
+            return card;
+        };
 
-            const band = svgEl('path', { d, fill: BIOME_COLORS[it.name] || '#9a8f77', stroke: 'rgba(60,42,22,0.30)', 'stroke-width': 1, 'stroke-linejoin': 'round', class: 'bio-band' });
-            band.addEventListener('mouseenter', ev => { band.style.filter = 'brightness(1.07)'; showTip(`<div class="tt-title">${it.name}</div><div class="tt-sub">${it.count} hike${it.count === 1 ? '' : 's'} · ${Math.round(it.count / total * 100)}%</div>`, ev); });
-            band.addEventListener('mousemove', moveTip);
-            band.addEventListener('mouseleave', () => { band.style.filter = ''; hideTip(); });
-            svg.appendChild(band);
-            // faint grain striation across the stratum
-            if (xEnd - xStart > 30) svg.appendChild(svgEl('line', { x1: xStart + 3, y1: yc, x2: xEnd - 4, y2: yc, stroke: 'rgba(255,255,255,0.16)', 'stroke-width': 1 }));
-            // name in the rim gutter, count at the weathered tip
-            const nm = svgEl('text', { x: xName, y: yc + 4.5, 'text-anchor': 'end', class: 'bio-strata-name' });
-            nm.textContent = it.name; svg.appendChild(nm);
-            const ct = svgEl('text', { x: xEnd + 9, y: yc + 4.5, 'text-anchor': 'start', class: 'bio-strata-count' });
-            ct.textContent = it.count; svg.appendChild(ct);
+        const fronts = [];
+        const open = idx => {
+            fronts.forEach((f, i) => f.classList.toggle('open', i === idx));
+            display.replaceChildren(buildCard(items[idx]));
+        };
+        items.forEach((it, idx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'spec-front';
+            btn.style.setProperty('--bio', BIOME_COLORS[it.name] || '#9a8f77');
+            btn.innerHTML = `<span class="spec-front-plate">${it.name}</span><span class="spec-front-pull"></span>`;
+            btn.addEventListener('click', () => open(idx));
+            cabinet.appendChild(btn);
+            fronts.push(btn);
         });
-        mount.appendChild(svg);
+        open(0);   // home ground starts pulled
 
         const sub = document.getElementById('bio-count');
-        if (sub) sub.textContent = `${items.length} kinds of country`;
+        if (sub) sub.textContent = `${items.length} drawers, ${items.length} kinds of country`;
         const cap = document.getElementById('bio-caption');
-        if (cap) cap.innerHTML = `Your home ground is <b>${items[0].name}</b> — ${items[0].count} of ${total} outings. Layer by layer, the country you walk through.`;
+        if (cap) cap.innerHTML = `Your home ground is <b>${items[0].name}</b>: ${items[0].count} of ${total} outings collected there. Pull a drawer to lift out its specimen; click the card to visit the hike it was taken on.`;
     }
 
     // Reveal the section when it scrolls into view

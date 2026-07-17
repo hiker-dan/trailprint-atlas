@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Build data/trails.geojson from the raw GPX archive.
+"""Build data/trails.geojson and data/elevations.json from the raw GPX archive.
 
 The map page draws every trail, but raw GPX records a point every few
 seconds — far more detail than any screen can show. This script reads
 data/hikes.json, parses each hike's GPX from data/trails/, simplifies the
 geometry (Douglas-Peucker), and bundles all trails into one compact
-GeoJSON file the site fetches in a single request.
+GeoJSON file the site fetches in a single request. It also distills each
+track's elevation readings into a small, smoothed profile (feet above sea
+level) so pages can draw the true shape of a climb without ever fetching
+raw GPX — the homepage's True Ascents panorama reads elevations.json.
 
 Run it from the repo root whenever a GPX file is added or changed:
 
@@ -25,6 +28,11 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HIKES_PATH = os.path.join(REPO_ROOT, "data", "hikes.json")
 TRAILS_DIR = os.path.join(REPO_ROOT, "data", "trails")
 OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "trails.geojson")
+ELEV_OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "elevations.json")
+
+# Profile resolution: enough points to keep every ridge and dip readable at
+# panorama size, few enough that a hundred hikes stay a few tens of KB.
+ELEV_POINTS = 120
 
 # Max distance (in degrees, ~2.2 m) a dropped point may sit from the
 # simplified line. Small enough to be invisible at any Leaflet zoom.
@@ -36,9 +44,8 @@ COORD_DECIMALS = 5
 GPX_NS = "{http://www.topografix.com/GPX/1/1}"
 
 
-def parse_gpx_segments(path):
+def parse_gpx_segments(tree):
     """Return a list of segments, each a list of (lon, lat) tuples."""
-    tree = ET.parse(path)
     segments = []
     for seg in tree.getroot().iter(f"{GPX_NS}trkseg"):
         points = [
@@ -48,6 +55,27 @@ def parse_gpx_segments(path):
         if len(points) >= 2:
             segments.append(points)
     return segments
+
+
+def elevation_profile(tree):
+    """Distill a track's <ele> readings (metres) into ELEV_POINTS smoothed
+    integer feet. Index-based sampling is fine here: the profile conveys the
+    shape of the day, not a distance axis. Returns None when the GPX carries
+    no usable elevation data."""
+    els = [
+        float(e.text) * 3.28084
+        for e in tree.getroot().iter(f"{GPX_NS}ele")
+        if e.text
+    ]
+    if len(els) < 20:
+        return None
+    n = ELEV_POINTS
+    pts = [els[int(i * (len(els) - 1) / (n - 1))] for i in range(n)]
+    # ±4-point mean smooths GPS altimeter jitter without flattening real ridges
+    return [
+        round(sum(pts[max(0, i - 4):min(n, i + 5)]) / (min(n, i + 5) - max(0, i - 4)))
+        for i in range(n)
+    ]
 
 
 def perpendicular_distance(point, start, end):
@@ -90,6 +118,7 @@ def main():
 
     features = []
     warnings = []
+    elevations = {}
     points_before = points_after = 0
 
     referenced = set()
@@ -103,10 +132,15 @@ def main():
             warnings.append(f"{hike['trail_id']}: gpx_file '{gpx_name}' not found in data/trails/")
             continue
 
-        segments = parse_gpx_segments(gpx_path)
+        tree = ET.parse(gpx_path)
+        segments = parse_gpx_segments(tree)
         if not segments:
             warnings.append(f"{hike['trail_id']}: no track points in '{gpx_name}'")
             continue
+
+        profile = elevation_profile(tree)
+        if profile:
+            elevations[hike["trail_id"]] = profile
 
         simplified = []
         for seg in segments:
@@ -135,12 +169,17 @@ def main():
     with open(OUTPUT_PATH, "w") as f:
         json.dump(collection, f, separators=(",", ":"))
 
+    with open(ELEV_OUTPUT_PATH, "w") as f:
+        json.dump(elevations, f, separators=(",", ":"))
+
     raw_bytes = sum(
         os.path.getsize(os.path.join(TRAILS_DIR, n))
         for n in os.listdir(TRAILS_DIR) if n.endswith(".gpx")
     )
     out_bytes = os.path.getsize(OUTPUT_PATH)
     print(f"trails.geojson: {len(features)} trails")
+    print(f"elevations.json: {len(elevations)} profiles "
+          f"({os.path.getsize(ELEV_OUTPUT_PATH) / 1e3:.0f} KB)")
     print(f"track points:   {points_before:,} -> {points_after:,} "
           f"({100 - 100 * points_after / points_before:.0f}% removed)")
     print(f"payload:        {raw_bytes / 1e6:.1f} MB of GPX -> {out_bytes / 1e3:.0f} KB "

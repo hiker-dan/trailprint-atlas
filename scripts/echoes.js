@@ -105,9 +105,10 @@
         mount.appendChild(reg);
 
         // the doorway out: the register continues in the full logbook
+        // (always the newest hike — bare hike.html has no fallback and 404s)
         const more = document.createElement('a');
         more.className = 'ft-more';
-        more.href = 'hike.html';
+        more.href = 'hike.html?id=' + latest.trail_id;
         more.innerHTML = 'Into the full logbook <span class="arw">&rarr;</span>';
         mount.appendChild(more);
     }

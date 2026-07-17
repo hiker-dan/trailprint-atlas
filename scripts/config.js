@@ -51,3 +51,43 @@ const ATLAS_CONFIG = {
 function cloudinaryUrl(publicId, transform = 'q_auto,f_auto') {
     return `https://res.cloudinary.com/${ATLAS_CONFIG.CLOUDINARY_CLOUD}/image/upload/${transform},cs_srgb,fl_strip_profile/${publicId}`;
 }
+
+/**
+ * Photo-loading machinery for the lightboxes. Full-size Cloudinary images
+ * can take a couple of seconds; the answer is preloading, not placeholders
+ * (a holding card was tried July 2026 and retired — every variant flickered).
+ * Loaded Image objects are cached so "is it warm?" survives across flips.
+ */
+const _photoCache = {};
+function blurUpPreload(url) {
+    if (!_photoCache[url]) { const im = new Image(); im.src = url; _photoCache[url] = im; }
+    return _photoCache[url];
+}
+/**
+ * Show a photo as fast as possible:
+ *  - already loaded (the common case when flipping in order, thanks to the
+ *    neighbor preloads below and hover warming at the call sites) → at once;
+ *  - otherwise the current frame simply holds until the new photo is ready —
+ *    no placeholder states.
+ * Neighbors warm only AFTER the current photo lands — they must never
+ * compete with it for bandwidth. Rapid flips are token-guarded: only the
+ * newest request may land.
+ */
+function blurUpShow(img, publicId, transform, neighborIds = []) {
+    const fullUrl = cloudinaryUrl(publicId, transform);
+    img.dataset.blurToken = fullUrl;
+    const isWarm = im => im.complete && im.naturalWidth > 0;
+    const warmNeighbors = () => neighborIds.forEach(id => blurUpPreload(cloudinaryUrl(id, transform)));
+
+    const full = blurUpPreload(fullUrl);
+    if (isWarm(full)) {
+        img.src = fullUrl;
+        warmNeighbors();
+        return;
+    }
+    full.addEventListener('load', () => {
+        if (img.dataset.blurToken !== fullUrl) return;   // superseded by a newer flip
+        img.src = fullUrl;
+        warmNeighbors();
+    }, { once: true });
+}

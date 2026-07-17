@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>The Trailprint Atlas - Echoes of the Trail</title>
-    <meta name="description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
+    <meta name="description" content="The Atlas in the present tense — the freshest tracks, echoes from this month in years past, and the Local Loop: the Runyon Canyon record.">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -12,15 +12,15 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="The Trailprint Atlas">
     <meta property="og:title" content="Echoes of the Trail — The Trailprint Atlas">
-    <meta property="og:description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
+    <meta property="og:description" content="The Atlas in the present tense — the freshest tracks, echoes from this month in years past, and the Local Loop: the Runyon Canyon record.">
     <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/echoes.html">
-    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/local-loop-01">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Echoes of the Trail — The Trailprint Atlas">
-    <meta name="twitter:description" content="The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.">
-    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_67-china-camp-campground-via-pine-ridge-trail-01">
+    <meta name="twitter:description" content="The Atlas in the present tense — the freshest tracks, echoes from this month in years past, and the Local Loop: the Runyon Canyon record.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/local-loop-01">
     <link rel="stylesheet" href="styles/base.css"/>
     <link rel="stylesheet" href="styles/echoes.css"/>
 </head>
@@ -29,61 +29,87 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- Echoes of the Trail — moved as-is from the homepage (July 2026 redesign).
-         A full rework of this feature is planned; until then this is the faithful move. -->
-    <div class="container live-journal-section">
-        <h2 class="dashboard-title field-notes-title">Echoes of the Trail</h2>
-        <p class="section-strapline">The living journal of my hiking life, from the latest footprints on the trail to my most significant expeditions and well-worn paths.</p>
-        <h3 class="subtitle">Fresh Tracks</h3>
-        <div id="trail-log-section" class="trail-log-grid">
-            <!-- Recent hikes will be injected here by JS -->
-        </div>
+    <div class="echoes-page">
+        <header class="echoes-header">
+            <div class="echoes-eyebrow">The Atlas, in the present tense</div>
+            <h1 class="echoes-title">Echoes of the Trail</h1>
+            <p class="echoes-lede">What just happened, what this month remembers, and the one trail
+               that was never an expedition — just home.</p>
+        </header>
 
-        <!-- Featured Adventure Section -->
-        <div class="featured-adventure-section" id="featured-adventure" style="display: none;">
-            <div class="featured-adventure-visuals">
-                <div class="featured-adventure-image-container">
-                    <!-- Slideshow images will be injected here by JS -->
-                </div>
-                <div class="featured-adventure-stats">
-                    <div class="stat-item" id="featured-trip-days-stat"></div>
-                    <div class="stat-item" id="featured-trip-miles-stat"></div>
-                    <div class="stat-item" id="featured-trip-elevation-stat"></div>
-                </div>
+        <!-- ===== FRESH TRACKS: the last page of the logbook ===== -->
+        <section class="echo-section" id="sec-fresh">
+            <div class="echo-section-head">
+                <h2>Fresh Tracks</h2>
+                <span class="echo-section-sub">the last page of the logbook</span>
             </div>
-            <div class="featured-adventure-content">
-                <h3 class="subtitle">The Grand Traverse</h3>
-                <h2 class="title" id="featured-trip-title">--</h2>
-                <div class="featured-trip-hikes-list" id="featured-trip-hikes-list"></div>
-            </div>
-        </div>
+            <div id="fresh-tracks"><!-- featured entry + register rows injected by echoes.js --></div>
+        </section>
 
-        <!-- Go-To Trail Section -->
-        <div class="featured-adventure-section" id="goto-trail-section" style="display: none;">
-            <div class="featured-adventure-visuals">
-                <div class="featured-adventure-image-container">
-                    <!-- Slideshow images will be injected here by JS -->
+        <!-- ===== TRAIL ECHOES: this month, in years past ===== -->
+        <section class="echo-section" id="sec-echoes">
+            <div class="echo-section-head">
+                <h2>Trail Echoes</h2>
+                <span class="echo-section-sub" id="echoes-month"></span>
+            </div>
+            <div class="echo-scatter" id="trail-echoes"><!-- scattered anniversary snapshots injected by echoes.js --></div>
+        </section>
+
+        <!-- ===== THE LOCAL LOOP: the Runyon Canyon record ===== -->
+        <section class="echo-section loop-section" id="sec-loop">
+            <div class="echo-section-head">
+                <h2>The Local Loop</h2>
+                <span class="echo-section-sub">Runyon Canyon · the hometown trail · 2022&ndash;2025</span>
+            </div>
+
+            <div class="loop-grid">
+                <div class="loop-story">
+                    <!-- Danny's words (his telling, approved July 2026 — edit only with
+                         his raw material; nothing here should ever be invented for him). -->
+                    <p>I lived down the street from Runyon for years. I was brand new to LA and had
+                       barely any money, and hiking Runyon multiple times a week was a great free way
+                       to get out. The views at the top were always showstoppers. I remember countless
+                       days making it to the top of the fire road, to a clearing on the hill with
+                       benches, where I would always take a seat to catch my breath and stare out at
+                       the city.</p>
+                    <p>As I grew into my love for hiking, weekly trips up Runyon were replaced by the
+                       weekly trip to Angeles National Forest. I couldn't find a single time I hiked
+                       Runyon in 2024, as I was eager to explore bigger, newer, or more isolated
+                       trails.</p>
+                    <p>I moved to Silver Lake in 2025. A couple of days before I moved, I hiked it one
+                       last time as a trip down memory lane. A last hurrah.</p>
+                    <div class="loop-bookends" id="loop-bookends"><!-- first ascent / last hurrah --></div>
+                    <div class="loop-routes-wrap">
+                        <div class="loop-tally-label">the two versions, drawn to scale</div>
+                        <div id="loop-routes"><!-- route sketch SVG injected by echoes.js --></div>
+                        <div id="loop-legend"><!-- route legend --></div>
+                    </div>
+                    <div class="loop-links" id="loop-links"><!-- AllTrails + official park links --></div>
                 </div>
-                <div class="featured-adventure-stats">
-                    <div class="stat-item" id="goto-trail-times-hiked-stat"></div>
-                    <div class="stat-item" id="goto-trail-miles-stat"></div>
-                    <div class="stat-item" id="goto-trail-elevation-stat"></div>
+                <div class="loop-record">
+                    <div class="loop-stats" id="loop-stats"><!-- ascents / era / companions --></div>
+                    <div class="loop-tally-wrap">
+                        <div class="loop-tally-label">the wall of ascents, scored by hand</div>
+                        <div id="loop-tally"><!-- tally-mark SVG injected by echoes.js --></div>
+                        <p class="loop-math" id="loop-math"></p>
+                    </div>
+                    <div class="loop-roll">
+                        <div class="loop-roll-label">brought along the way</div>
+                        <div id="loop-rollcall"><!-- companion chips --></div>
+                    </div>
                 </div>
             </div>
-            <div class="featured-adventure-content">
-                <h3 class="subtitle">The Well-Worn Path</h3>
-                <h2 class="title" id="goto-trail-title">--</h2>
-                <p class="panel-description" id="goto-trail-description">--</p>
-                <div class="featured-trip-hikes-list" id="goto-trail-dates-list"></div>
+
+            <div class="loop-photos-wrap">
+                <div class="loop-tally-label">from the top of the hill · 2022&ndash;2025</div>
+                <div id="loop-photos"><!-- photo strip injected by echoes.js --></div>
             </div>
-        </div>
+        </section>
     </div>
 
     <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
     <script src="scripts/config.js"></script>
     <script src="scripts/atlas-data.js"></script>
-    <!-- Shared renderer, loaded for formatHikeText() only (no Leaflet on this page) -->
-    <script src="scripts/trail-renderer.js"></script>
     <script src="scripts/echoes.js"></script>
     <script src="scripts/nav-updater.js"></script>
 </body>

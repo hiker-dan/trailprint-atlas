@@ -50,7 +50,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         modalVideoContainer.innerHTML = '';
 
         if (item.type === 'photo') {
-            modalImage.src = cloudinaryUrl(item.id, 'w_1200,h_1200,c_limit,q_auto,f_auto');
+            // Blur-up + neighbor preload (config.js): the adjacent photos warm
+            // in the background, so flipping in order lands sharp instantly.
+            const T = 'w_1200,h_1200,c_limit,q_auto,f_auto';
+            const photoIds = currentMediaSetInModal.filter(m => m.type === 'photo').map(m => m.id);
+            const at = photoIds.indexOf(item.id);
+            const neighbors = photoIds.length > 1
+                ? [photoIds[(at + 1) % photoIds.length], photoIds[(at - 1 + photoIds.length) % photoIds.length]]
+                : [];
+            blurUpShow(modalImage, item.id, T, neighbors);
             modalImage.style.display = 'block';
         } else if (item.type === 'video') {
             const videoId = getYoutubeId(item.url);
@@ -793,6 +801,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             currentMediaSetInModal = mediaItems;
                             updateModalMedia(currentMediaIndex);
                             modal.classList.add('visible');
+                        });
+                        // Hovering the card signals intent: start the full-size photo
+                        // now, so opening the modal usually lands straight on it.
+                        document.getElementById('polaroid-card').addEventListener('pointerenter', () => {
+                            const item = mediaItems[currentMediaIndex];
+                            if (item && item.type === 'photo') blurUpPreload(cloudinaryUrl(item.id, 'w_1200,h_1200,c_limit,q_auto,f_auto'));
                         });
                     } else {
                         // If there's no media, hide the gallery, make the map full-width,

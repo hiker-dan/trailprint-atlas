@@ -20,7 +20,10 @@ function renderTrailGroup(hikesForTrail, options = {}) {
     // fetchTrailGeometries(). Required to draw trail lines (interactive map).
     // iconNudges: trail_name -> horizontal pixel offset, for fanning apart the
     // icons of trails whose trailheads share a parking lot (computed in map.js).
-    const { isInteractive = false, popupHtmlGenerator, trailGeometries = {}, iconNudges = {} } = options;
+    // onTrailClick: when provided, clicks on the trail call it instead of
+    // opening a bound popup — the interactive map uses this to dock its
+    // field card. popupHtmlGenerator remains for callers that want popups.
+    const { isInteractive = false, popupHtmlGenerator, onTrailClick, trailGeometries = {}, iconNudges = {} } = options;
 
     // Sort hikes by date to easily identify the most recent one for styling.
     // This is safer than assuming the input array is pre-sorted.
@@ -153,7 +156,9 @@ function renderTrailGroup(hikesForTrail, options = {}) {
         }
     }
 
-    if (layer && isInteractive && popupHtmlGenerator) {
+    if (layer && isInteractive && onTrailClick) {
+        layer.on('click', () => onTrailClick(hikesForTrail));
+    } else if (layer && isInteractive && popupHtmlGenerator) {
         const popupContent = popupHtmlGenerator(hikesForTrail);
         layer.bindPopup(popupContent);
     }

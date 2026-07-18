@@ -1,591 +1,363 @@
 /* =====================================================================
-   The Trailprint Atlas — Interactive Map page styles
-   Moved out of map.html in Phase 1.5. Shared nav/footer live in base.css.
+   The Trailprint Atlas — Interactive Map (rebuilt July 2026)
+   The map is the page: full-bleed under the nav, every control floating
+   on it as an Atlas-crafted card. Three modes (ranger-led, self-led,
+   off-trail) share one deck + timeline at the foot of the map. Trail info
+   lives in the field card docked at the left edge — the old postcard
+   popups' craft, rehoused so it never covers the trail. Ranger mode is
+   cinema: everything but the deck and the card fades away.
    ===================================================================== */
 
-/* Basic styling for the map container */
-#map { 
-    height: 80vh; /* Make map taller */
-    flex-grow: 1; /* Allow map to take up remaining space */
+body { margin: 0; font-family: var(--font-body); overflow: hidden; }
+
+.map-shell { position: fixed; top: 40px; left: 0; right: 0; bottom: 0; }
+#map { position: absolute; inset: 0; background: #ece3ce; }
+
+.leaflet-container { font-family: var(--font-body); }
+
+/* --- the parchment wash (Atlas basemap only) --- */
+.parchment-wash {
+    position: absolute; inset: 0; z-index: 250; pointer-events: none;
+    background: #d9c8a0; mix-blend-mode: multiply;
+    opacity: 0; transition: opacity 0.5s ease;
+}
+.parchment-wash.on { opacity: 0.42; }
+/* soften the topo sheet toward the Atlas palette */
+.basemap-soften { filter: saturate(0.82) sepia(0.12) contrast(0.97); }
+/* satellite's place names ride above the wash so they stay crisp on imagery */
+.places-layer { z-index: 260 !important; }
+/* the Atlas outfit's labels sit UNDER the parchment wash (240 < 250): the
+   multiply blend soaks their white halos into the paper and warms the gray
+   type, so names read as printed on the map rather than floating over it */
+.atlas-labels { z-index: 240 !important; filter: sepia(0.45) saturate(0.6) contrast(0.92); }
+/* the hillshade sheet multiplies onto the paper base beneath it — terrain
+   as ink pressed into the page, crisp to z16 */
+.hillshade-multiply { mix-blend-mode: multiply; }
+
+/* Style for fading tile layers */
+.fadeable-tile-layer { transition: opacity 0.5s ease-in-out !important; }
+
+/* --- the floating card system --- */
+.ui-card {
+    position: absolute; z-index: 1000;
+    background: rgba(255, 253, 246, 0.94);
+    border: 1px solid #d8ccae; border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(60, 50, 30, 0.22);
 }
 
-body { margin: 0; font-family: var(--font-body); }
-
-/* Page heading above the map */
-.map-page-title {
-    text-align: center;
-    margin-top: 20px;
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    color: var(--evergreen);
-}
-.map-page-subtitle {
-    text-align: center;
-    color: var(--stone);
-    font-style: italic;
+/* --- cinema: the ranger-led expedition fades every control but the deck,
+       leaving the land, the field card, and the timeline --- */
+.wordmark, .register-tab, .filters-wrap, .cartouche, .basemap-chips,
+.map-shell .leaflet-control-zoom { transition: opacity 0.5s ease; }
+.map-shell.cinema :is(.wordmark, .register, .register-tab, .filters-wrap, .cartouche, .basemap-chips, .leaflet-control-zoom) {
+    opacity: 0 !important; pointer-events: none !important;
 }
 
-/* Leaflet pins its own Helvetica on the map container; the Atlas's written
-   voice takes over everything inside the map (popups, controls, attribution). */
-.leaflet-container {
-    font-family: var(--font-body);
+/* --- at rest, the land takes focus: while the cursor is on the map itself,
+       the side controls recede; reach toward one and it returns --- */
+@media (hover: hover) {
+    .map-shell:has(> #map:hover) :is(.wordmark, .register-tab, .filters-wrap, .cartouche, .basemap-chips, .leaflet-control-zoom) {
+        opacity: 0.4;
+    }
+    /* the zoom control lives inside #map, so hovering it keeps #map:hover
+       true — this exception lets it come back as you reach for it */
+    .map-shell:has(> #map:hover) .leaflet-control-zoom:hover { opacity: 1; }
 }
 
-/* Style for our custom hike icons */
+/* the wordmark: engraved on the paper, not boxed — a cartographer's
+   inscription. The soft parchment halo keeps it legible over any terrain. */
+.wordmark { position: absolute; z-index: 1000; top: 12px; left: 18px; pointer-events: none; }
+.wordmark-title {
+    font-family: var(--font-display); font-size: 1.15em; color: var(--evergreen); letter-spacing: 0.03em;
+    text-shadow: 0 0 6px rgba(245, 238, 220, 0.95), 0 0 14px rgba(245, 238, 220, 0.85), 0 1px 2px rgba(245, 238, 220, 0.9);
+}
+.wordmark-sub {
+    font-size: 0.72em; font-style: italic; color: var(--stone); margin-top: 1px;
+    text-shadow: 0 0 5px rgba(245, 238, 220, 0.95), 0 0 10px rgba(245, 238, 220, 0.85);
+}
+
+/* --- the trail register (drawer) --- */
+.register {
+    top: 72px; left: 14px; bottom: 132px; width: 274px;
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+.register.tucked { transform: translateX(-320px); opacity: 0; pointer-events: none; }
+.register-tab {
+    top: 72px; left: 14px; padding: 8px 12px; cursor: pointer;
+    font-family: var(--font-display); font-size: 0.85em; color: var(--evergreen);
+    writing-mode: vertical-rl; letter-spacing: 0.12em;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease 0.15s; border: 1px solid #d8ccae;
+}
+.register.tucked ~ .register-tab, .register.tucked + .register-tab { opacity: 1; pointer-events: auto; }
+.register-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 9px 16px; border-bottom: 1px solid #eee3cc; }
+.register-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.05em; color: var(--evergreen); letter-spacing: 0.03em; }
+.register-collapse { border: none; background: none; font-size: 1.3em; color: var(--gravel); cursor: pointer; padding: 0 6px; }
+.register-collapse:hover { color: var(--evergreen); }
+#trail-search-container { padding: 9px 12px; border-bottom: 1px solid #eee3cc; }
+#trail-search-input {
+    width: 100%; padding: 7px 10px; box-sizing: border-box;
+    border: 1px solid #d5cbae; border-radius: 8px; background: #fffdf6;
+    font-family: var(--font-body); font-size: 13px;
+}
+#trail-search-input:focus { outline: none; border-color: var(--trail-green); box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.15); }
+#trail-list-container { overflow-y: auto; flex: 1; }
+.trail-list-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; border-bottom: 1px dashed #eee3cc; cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.3s ease;
+}
+.trail-list-item:hover { background: #fbf7ea; }
+.trail-list-item.active { background: #f1f5f1; box-shadow: inset 3px 0 0 var(--trail-green); }
+.trail-list-item.future { opacity: 0.35; }
+.tli-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.tli-main { min-width: 0; }
+.tli-name { display: block; font-size: 13px; font-weight: 600; color: var(--charcoal); line-height: 1.25; }
+.tli-times { font-style: normal; font-size: 11px; color: var(--trail-green); font-weight: 700; }
+.tli-loc { display: block; font-size: 11px; color: var(--gravel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- filters pocket --- */
+.filters-wrap { position: absolute; z-index: 1000; top: 14px; right: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.filters-pill {
+    position: static; padding: 9px 20px; cursor: pointer; border: 1px solid #d8ccae;
+    font-family: var(--font-body); font-weight: 700; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--evergreen);
+}
+.filters-pill:hover { background: #fffdf6; }
+#filter-panel { position: static; display: none; width: 232px; padding: 14px 16px; }
+#filter-panel.visible { display: block; }
+#filter-panel h4 {
+    margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--evergreen); border-bottom: 1px solid #eee3cc; padding-bottom: 8px;
+}
+.filter-group { margin-bottom: 10px; }
+.filter-group label {
+    display: block; margin-bottom: 6px; font-weight: 700; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.09em; color: var(--gravel);
+}
+.filter-options { display: flex; flex-wrap: wrap; gap: 5px; }
+.filter-tag {
+    background: #fbf7ea; border: 1px solid #e0d5b5; border-radius: 999px;
+    padding: 4px 11px; cursor: pointer; font-size: 12px;
+    font-family: var(--font-body); color: var(--stone);
+    transition: all 0.18s ease-in-out;
+}
+.filter-tag:hover { border-color: var(--trail-green); color: var(--trail-green); }
+.filter-tag.active { background: var(--trail-green); color: #fff; border-color: var(--trail-green); }
+#active-filters-display { margin-top: 12px; padding-top: 10px; border-top: 1px solid #eee3cc; }
+#active-filters-display h5 { margin: 0 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--gravel); }
+.active-filter-tag {
+    display: inline-block; background: var(--evergreen); color: #fff;
+    border-radius: 12px; padding: 3px 10px; font-size: 12px; margin: 3px 4px 0 0;
+}
+.remove-filter-btn { margin-left: 6px; color: #b8c6bd; font-weight: bold; cursor: pointer; }
+.filter-count { margin-top: 10px; font-size: 11.5px; font-style: italic; color: var(--gravel); }
+#reset-filters-btn {
+    width: 100%; margin-top: 8px; padding: 7px; cursor: pointer;
+    background: transparent; color: var(--stone); border: 1px solid #d5cbae; border-radius: 8px;
+    font-family: var(--font-body); font-weight: 700; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+#reset-filters-btn:hover { border-color: var(--stone); color: var(--charcoal); }
+
+/* --- the map key, docked as a cartouche --- */
+.cartouche { right: 14px; bottom: 150px; width: 190px; overflow: hidden; }
+.cartouche-head {
+    width: 100%; border: none; background: none; cursor: pointer; text-align: left;
+    padding: 9px 14px; font-family: var(--font-display); font-size: 0.95em;
+    color: var(--evergreen); letter-spacing: 0.08em; text-transform: uppercase;
+    display: flex; justify-content: space-between; align-items: center;
+}
+.cartouche-caret { transition: transform 0.25s ease; }
+.cartouche.folded .cartouche-caret { transform: rotate(-90deg); }
+.cartouche-body { max-height: 300px; overflow-y: auto; padding: 0 14px 12px; transition: max-height 0.3s ease, padding 0.3s ease; }
+.cartouche.folded .cartouche-body { max-height: 0; padding-top: 0; padding-bottom: 0; }
+.cartouche-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gravel); margin: 9px 0 5px; font-weight: 700; }
+.legend-item { display: flex; align-items: center; margin-bottom: 5px; font-size: 12px; color: var(--stone); }
+.legend-trail-segment { display: inline-block; height: 4px; width: 24px; border-radius: 2px; margin-right: 9px; }
+.legend-icon { width: 22px; height: 22px; margin-right: 9px; }
+.legend-note { font-size: 10.5px; font-style: italic; color: var(--gravel); margin: 8px 0 0; }
+
+/* --- basemap wardrobe chips --- */
+.basemap-chips { right: 14px; bottom: 96px; display: flex; padding: 4px; gap: 4px; }
+.basemap-chips button {
+    border: none; background: transparent; border-radius: 8px; padding: 6px 12px;
+    font-family: var(--font-body); font-weight: 700; font-size: 12px; color: var(--stone); cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.basemap-chips button:hover { color: var(--evergreen); }
+.basemap-chips button.active { background: var(--evergreen); color: #fff; }
+
+/* --- the veil: every expedition cut happens behind it --- */
+.veil {
+    position: absolute; inset: 0; z-index: 4000; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, rgba(240, 231, 207, 0.98) 0%, rgba(228, 214, 180, 0.99) 100%);
+    opacity: 0; transition: opacity 0.55s ease;
+    display: flex; align-items: center; justify-content: center;
+}
+.veil.on { opacity: 1; }
+.veil.fast { transition-duration: 0.3s; }
+.veil-text {
+    text-align: center; color: var(--evergreen); opacity: 0; transform: translateY(6px);
+    transition: opacity 0.45s ease 0.15s, transform 0.45s ease 0.15s;
+}
+.veil.on .veil-text { opacity: 1; transform: none; }
+.veil-kicker { font-size: 12px; text-transform: uppercase; letter-spacing: 0.28em; color: var(--gravel); margin-bottom: 10px; }
+.veil-title { font-family: var(--font-display); font-size: 34px; letter-spacing: 0.02em; }
+.veil-sub { font-size: 14px; font-style: italic; color: var(--stone); margin-top: 10px; }
+
+/* --- the expedition deck: the whole console --- */
+.deck {
+    left: 50%; transform: translateX(-50%); bottom: 16px;
+    width: min(950px, calc(100vw - 60px));
+    padding: 12px 20px 13px;
+}
+.deck-grid { display: flex; gap: 18px; align-items: stretch; }
+.deck-plaque {
+    flex: 0 0 250px; min-width: 0; padding-left: 12px; padding-right: 18px;
+    border-left: 4px solid var(--lg, #d8ccae); border-right: 1px solid #eee3cc;
+    transition: opacity 0.4s ease, border-color 0.4s ease;
+}
+.deck-plaque.dim { opacity: 0.35; }
+.lg-inner { transition: opacity 0.24s ease; }
+.lg-inner.swap { opacity: 0; }
+.lg-kicker { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.13em; color: var(--gravel); margin-bottom: 3px; }
+.lg-name {
+    font-family: var(--font-display); font-size: 15px; line-height: 1.15; color: var(--evergreen);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.lg-loc { font-size: 11px; font-style: italic; color: var(--stone); margin: 2px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-stats { font-size: 11.5px; color: var(--charcoal); }
+.lg-with { font-size: 11px; color: var(--stone); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-log {
+    display: inline-block; margin-top: 5px; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--trail-green); text-decoration: none;
+}
+.lg-log:hover { text-decoration: underline; }
+.deck-main { flex: 1; min-width: 0; }
+.deck-readout { text-align: center; font-size: 13.5px; color: var(--evergreen); margin-bottom: 7px; min-height: 18px; }
+.deck-readout b { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.02em; }
+.deck-stats { color: var(--gravel); font-size: 12px; font-style: italic; margin-left: 9px; }
+.deck-row { display: flex; align-items: center; gap: 14px; }
+.deck-controls { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.deck-controls button {
+    border: 1.5px solid var(--evergreen); background: #fffdf6; color: var(--evergreen);
+    font-family: var(--font-body); cursor: pointer; border-radius: 999px;
+    transition: background-color 0.18s ease, color 0.18s ease;
+}
+.deck-controls button:hover { background: var(--evergreen); color: #fff; }
+.deck-begin { font-weight: 700; font-size: 13px; padding: 8px 18px; white-space: nowrap; }
+.deck-pp { width: 36px; height: 36px; font-size: 13px; }
+.deck-step { width: 30px; height: 30px; font-size: 15px; line-height: 1; }
+.deck-end { width: 30px; height: 30px; font-size: 12px; border-color: #c0a98a !important; color: var(--gravel) !important; }
+.deck-end:hover { background: #c0392b !important; border-color: #c0392b !important; color: #fff !important; }
+.deck-leg { font-size: 11.5px; color: var(--gravel); font-style: italic; white-space: nowrap; }
+.deck-track { position: relative; flex: 1; height: 26px; min-width: 120px; }
+.deck-band { position: absolute; left: 0; right: 0; top: 10px; height: 6px; border-radius: 3px; opacity: 0.85; }
+.deck-track input {
+    position: absolute; inset: 0; width: 100%; margin: 0;
+    -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
+}
+.deck-track input::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 19px; height: 19px; border-radius: 50%;
+    background: #fffdf6; border: 2.5px solid var(--evergreen);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+}
+.deck-track input::-moz-range-thumb {
+    width: 15px; height: 15px; border-radius: 50%;
+    background: #fffdf6; border: 2.5px solid var(--evergreen);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+}
+.deck-years { position: relative; height: 13px; margin-top: 2px; }
+.deck-years span { position: absolute; transform: translateX(-50%); font-size: 9.5px; color: var(--gravel); }
+
+/* ============ carried over from the first generation ============ */
+
+/* Custom hike icons: circular white puck so they pop on any basemap */
 .hike-icon {
-    /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 50%; /* This makes the background circular */
-    /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
-}
-
-/* Style for the icon of a multi-year hike */
-.multi-year-icon-style {
-    border: 3px solid #f1c40f; /* A prominent gold border */
-    box-sizing: border-box;    /* Ensures the border doesn't increase the icon's size */
-}
-
-/* --- Custom Reset Control Button --- */
-.leaflet-bar a.leaflet-control-reset-view,
-.leaflet-bar a.leaflet-control-reset-view:hover {
-    font-family: 'Arial', sans-serif;
-    font-weight: bold;
-    font-size: 18px;
-    line-height: 26px;
-    color: #333;
-    text-align: center;
-    cursor: pointer;
-}
-
-/* --- Custom Icon Toggle Control --- */
-.leaflet-bar a.leaflet-control-toggle-icons,
-.leaflet-bar a.leaflet-control-toggle-icons:hover {
-    width: 30px; /* Match other leaflet buttons */
-    height: 30px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative; /* For positioning the strikethrough */
-    overflow: hidden; /* To contain the rotated line */
-}
-/* New: A wrapper to create the white "puck" background, just like map icons */
-.leaflet-control-toggle-icons .hike-icon-wrapper {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
     background-color: rgba(255, 255, 255, 0.8);
     border-radius: 50%;
     box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
 }
-/* The actual icon image inside the puck */
-.leaflet-control-toggle-icons .hike-icon-wrapper img {
-    width: 18px;
-    height: 18px;
-}
-.leaflet-control-toggle-icons .icon-strikethrough {
-    position: absolute;
-    width: 120%; /* Make it longer than the container to ensure full coverage when rotated */
-    height: 3px; /* Thickness of the line */
-    background-color: #c0392b; /* A strong red color */
-    transform: rotate(-45deg);
-    transition: opacity 0.2s ease-in-out;
-    opacity: 0; /* Hidden by default */
-    pointer-events: none; /* So it doesn't interfere with clicks */
-}
-.leaflet-bar a.leaflet-control-toggle-icons.active {
-    background-color: #ddd; /* Give visual feedback that the mode is active */
-}
-/* When the button is active, show the strikethrough */
-.leaflet-control-toggle-icons.active .icon-strikethrough {
-    opacity: 1;
-}
-#map.trail-icons-hidden .leaflet-marker-icon.trail-start-icon {
-    display: none;
-}
+.multi-year-icon-style { border: 3px solid #f1c40f; box-sizing: border-box; }
 
 /* --- Zoom-aware icon reveal --- */
-/* Zoomed out, the trailprints own the view: trail-start icons fade away and
-   only reappear once you zoom into a region. Viewpoint markers are exempt —
-   without a trail line they'd otherwise vanish entirely. */
-.leaflet-marker-icon.hike-icon {
-    transition: opacity 0.3s ease-in-out;
-}
-/* Restate Leaflet's zoom transform animation alongside our opacity fade.
-   This sheet loads after leaflet.css, so the rule above would otherwise
-   replace Leaflet's transition entirely and markers would snap instead of
-   gliding while the map zooms. */
+.leaflet-marker-icon.hike-icon { transition: opacity 0.3s ease-in-out; }
 .leaflet-zoom-anim .leaflet-marker-icon.hike-icon {
     transition: opacity 0.3s ease-in-out, transform 0.25s cubic-bezier(0, 0, 0.25, 1);
 }
 #map.icons-zoomed-out .leaflet-marker-icon.trail-start-icon {
-    opacity: 0 !important; /* must outweigh the inline opacity the spotlight sets */
+    opacity: 0 !important;
     pointer-events: none;
 }
 
 /* --- Trail spotlight --- */
-/* Selecting a trail dims all the others; the fade rides on the SVG strokes. */
-#map .leaflet-overlay-pane path {
-    transition: stroke-opacity 0.3s ease-in-out;
-}
+#map .leaflet-overlay-pane path { transition: stroke-opacity 0.3s ease-in-out; }
 
-/* Style for fading tile layers */
-.fadeable-tile-layer {
-    transition: opacity 0.4s ease-in-out !important;
-}
-
-/* --- Filter Control Styles --- */
-.leaflet-top.leaflet-right {
-    /* Ensure our control has space from the existing layer control */
-    top: 50px;
-}
-.filter-control-container {
-    background-color: #fdfdfd;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.18);
-}
-#filter-panel h4 {
-    margin: 0 0 12px;
-    font-size: 13px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--evergreen);
-    border-bottom: 2px solid var(--mist);
-    padding-bottom: 8px;
-}
-#filter-panel {
-    display: none; /* Hidden by default */
-    width: 200px;
-    margin-top: 10px;
-}
-#filter-panel.visible {
-    display: block; /* Shown when active */
-}
-.filter-group {
-    margin-bottom: 10px;
-}
-.filter-group label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: 700;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--gravel);
-}
-.filter-group select {
-    width: 100%;
-    padding: 5px;
-}
-#filter-toggle-btn, #reset-filters-btn {
-    width: 100%;
-    padding: 8px;
-    cursor: pointer;
-    margin-top: 5px;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    border-radius: 6px;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-#filter-toggle-btn {
-    background-color: var(--trail-green);
-    color: #fff;
-    border: none;
-}
-#filter-toggle-btn:hover {
-    background-color: #3d684a; /* trail-green, one shade deeper */
-}
-#reset-filters-btn {
-    background-color: transparent;
-    color: var(--stone);
-    border: 1px solid #ccc;
-}
-#reset-filters-btn:hover {
-    border-color: var(--stone);
-    color: var(--charcoal);
-}
-
-/* --- New Tag-Based Filter Styles --- */
-.filter-options {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-}
-.filter-tag {
-    background-color: var(--paper);
-    border: 1px solid #d5d0c8;
-    border-radius: 15px;
-    padding: 5px 10px;
-    cursor: pointer;
-    font-size: 12px;
-    font-family: var(--font-body);
-    color: var(--stone);
-    transition: all 0.2s ease-in-out;
-}
-.filter-tag:hover {
-    border-color: var(--trail-green);
-    color: var(--trail-green);
-}
-.filter-tag.active {
-    background-color: var(--trail-green);
-    color: white;
-    border-color: var(--trail-green);
-}
-#active-filters-display {
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px solid var(--mist);
-}
-#active-filters-display h5 {
-    margin: 0 0 6px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--gravel);
-}
-.active-filter-tag {
-    display: inline-block;
-    background-color: var(--evergreen);
-    color: #fff;
-    border-radius: 12px;
-    padding: 3px 10px;
-    font-size: 12px;
-    margin: 3px 4px 0 0;
-}
-.remove-filter-btn {
-    margin-left: 6px;
-    color: #b8c6bd;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-/* --- Legend Styles --- */
-#legend-container {
-    padding: 20px;
-    background-color: var(--paper);
-    border-top: 1px solid var(--mist);
-    display: flex;
-    justify-content: space-around;
-    flex-wrap: wrap;
-    font-family: var(--font-body);
-}
-.legend-section {
-    margin: 10px 20px;
-}
-.legend-section h3 {
-    text-align: center;
-    font-family: var(--font-display);
-    letter-spacing: 0.04em;
-    font-size: 19px;
-    margin-bottom: 15px;
-    color: var(--evergreen);
-    border-bottom: 2px solid var(--mist);
-    padding-bottom: 5px;
-}
-.legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 8px;
-    font-size: 14px;
-    color: var(--stone);
-}
-.legend-trail-segment {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-    border: 1px solid #ccc;
-}
-.legend-icon, .legend-icon-wrapper {
-    width: 32px;
-    height: 32px;
-    margin-right: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.legend-trail-segment {
-    height: 5px;
-    width: 30px;
-    border-radius: 3px;
-    margin-right: 10px;
-}
-.legend-note {
-    font-size: 12px;
-    font-style: italic;
-    color: #888;
-    margin: 10px 0 0 0;
-    max-width: 220px;
-}
-
-/* --- Main Layout & Trail List Styles --- */
-.content-wrapper {
-    display: flex;
-    flex-direction: row;
-}
-#trail-list-panel {
-    width: 300px;
-    height: 80vh; /* Match map height */
-    background-color: #fff;
-    border-right: 1px solid #ddd;
-    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-    display: flex;
-    flex-direction: column;
-}
-#trail-list-header {
-    flex-shrink: 0; /* Prevent header from shrinking */
-}
-#trail-list-header h2 {
-    margin: 0;
-    padding: 15px;
-    background-color: var(--paper);
-    border-bottom: 1px solid #ddd;
-    font-family: var(--font-display);
-    letter-spacing: 0.04em;
-    font-size: 21px;
-    color: var(--evergreen);
-}
-#trail-search-container {
-    padding: 10px 15px;
-    border-bottom: 1px solid #ddd;
-    background-color: #f9f9f9;
-}
-#trail-search-input {
-    width: 100%;
-    padding: 8px;
-    box-sizing: border-box; /* Important for 100% width */
-    border: 1px solid #d5d0c8;
-    border-radius: 6px;
-    font-family: var(--font-body);
-    font-size: 14px;
-}
-#trail-search-input:focus {
-    outline: none;
-    border-color: var(--trail-green);
-    box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.15);
-}
-#trail-list-container {
-    overflow-y: auto; /* Add scrollbar if list is long */
-    flex-grow: 1; /* Allow list to take up remaining space */
-}
-.trail-list-item {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-.trail-list-item:hover {
-    background-color: #f1f5f1; /* a breath of green on hover */
-}
-.trail-list-item.active {
-    background-color: #eaf2ec; /* deeper green tint for the active trail */
-    box-shadow: inset 3px 0 0 var(--trail-green);
-}
-.trail-list-item.active h4 {
-    font-size: 16px; /* Make title larger on selection */
-    color: var(--trail-green); /* Emphasis in the Atlas's own green */
-}
-.trail-list-item.active p {
-    font-size: 13px; /* Make location text slightly larger */
-}
-.trail-list-item h4 { margin: 0 0 5px 0; }
-.trail-list-item p { margin: 0; font-size: 12px; color: #666; }
-
-.trail-details-panel {
-    padding: 15px;
-    background-color: var(--paper);
-    border-bottom: 1px solid var(--mist);
-    animation: fadeIn 0.3s ease-in-out;
-}
-.trail-details-panel a {
-    color: var(--trail-green);
-    font-weight: 700;
-    text-decoration: none;
-}
-.trail-details-panel a:hover {
-    text-decoration: underline;
-}
-.trail-details-panel h3 { margin: 0 0 10px 0; }
-.trail-details-panel p { margin: 0 0 5px 0; font-size: 13px; }
-.trail-details-panel ul { margin: 5px 0 0 0; padding-left: 20px; }
-.trail-details-panel li { margin-bottom: 3px; font-size: 13px; }
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- Trail popups: postcards from the trail --- */
-/* The wrapper loses Leaflet's padding so the photo banner bleeds to the
-   card's rounded edges; the left spine is colored per trail year in JS. */
-.leaflet-popup-content-wrapper {
-    background: #fdfdfd;
-    color: var(--charcoal);
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-    padding: 0;
-    overflow: hidden;
-}
-.leaflet-popup-tip {
-    background: #fdfdfd;
-}
-.leaflet-popup-content {
-    margin: 0;
-    font-size: 14px;
-    line-height: 1.5;
-}
-/* The close button floats over the photo banner */
-.leaflet-popup-close-button {
-    color: #fff !important;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
-    font-size: 18px !important;
-    top: 4px !important;
-    right: 6px !important;
-}
-
-.popup-card {
-    width: 262px;
-    border-left: 5px solid var(--trail-green); /* JS overrides with the year color */
-}
-.popup-banner {
-    position: relative;
-    height: 118px;
-    overflow: hidden;
-    background-color: var(--mist); /* neutral base under the blur stand-in */
-}
-/* The ~1 KB blurred stand-in paints instantly beneath the real photo.
-   Slightly oversized so its blurred edges never show. */
-.popup-banner .popup-banner-blur {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: blur(10px);
-    transform: scale(1.12);
-}
-.popup-banner .popup-banner-photo {
-    position: relative; /* stacks above the blur layer */
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-    opacity: 0;
-    transition: opacity 0.35s ease-in-out;
-}
-.popup-banner .popup-banner-photo.loaded {
-    opacity: 1;
-}
-/* No photos: a year-colored band with the hike-type icon puck */
-.popup-banner-fallback {
-    height: 82px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.popup-banner-fallback img {
-    width: 44px;
-    height: 44px;
-    object-fit: contain;
-    padding: 4px;
-}
-.popup-body {
-    padding: 12px 16px 14px;
-}
-.popup-title {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 20px;
-    line-height: 1.15;
-    color: var(--evergreen);
-    margin-bottom: 2px;
-}
-.popup-loc {
-    font-size: 13px;
-    font-style: italic;
-    color: var(--stone);
-    margin-bottom: 10px;
-}
-.popup-stats {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 12px;
-}
-.popup-stat .num {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1.1;
-    color: var(--trail-green);
-}
-.popup-stat .cap {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--gravel);
-}
-.popup-visits-label {
-    display: block;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--gravel);
-    margin-bottom: 5px;
-}
-.popup-stamps {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-/* Visit stamps: dashed like a passport stamp, each one a link to that log */
-a.popup-stamp {
-    display: inline-block;
-    border: 1.5px dashed var(--trail-green);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--trail-green);
-    text-decoration: none;
-    transform: rotate(-1.2deg);
-    transition: background-color 0.15s ease, color 0.15s ease;
-}
-a.popup-stamp:nth-child(even) {
-    transform: rotate(1deg);
-}
-a.popup-stamp:hover {
-    background-color: var(--trail-green);
-    color: #fff;
-}
-/* The card's front door: an unmistakable action bar. Repeat trails open
-   the most recent visit; the stamps above pick a specific day. */
-a.popup-open-log {
-    display: block;
-    margin-top: 12px;
-    padding: 8px 10px;
-    background-color: var(--trail-green);
-    color: #fff;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    border-radius: 6px;
-    text-decoration: none;
+/* --- The field card: the postcard craft, docked at the map's left edge.
+       One consistent home in every mode — it never covers the trail, which
+       frames itself in the open space to the card's right. --- */
+.field-card {
+    left: 14px; top: 50%; width: 302px;
+    max-height: calc(100% - 180px); overflow-y: auto; overflow-x: hidden;
+    border-left: 5px solid var(--fc-color, var(--trail-green));
+    opacity: 0; pointer-events: none; z-index: 1100;
+    transform: translateY(-50%) translateX(-20px);
+    transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.field-card.show { opacity: 1; pointer-events: auto; transform: translateY(-50%) translateX(0); }
+.fc-close {
+    position: absolute; top: 8px; right: 8px; z-index: 5;
+    width: 26px; height: 26px; border: none; border-radius: 50%; cursor: pointer;
+    background: rgba(30, 26, 18, 0.45); color: #fff; font-size: 12px; line-height: 1;
     transition: background-color 0.15s ease;
 }
-a.popup-open-log:hover {
-    background-color: #3d684a; /* trail-green, one shade deeper */
-    text-decoration: none;
+.fc-close:hover { background: rgba(30, 26, 18, 0.75); }
+.fc-banner { position: relative; height: 138px; overflow: hidden; background-color: var(--mist); border-radius: 7px 7px 0 0; }
+.fc-banner .fc-banner-blur {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; filter: blur(10px); transform: scale(1.12);
 }
+.fc-banner .fc-banner-photo {
+    position: relative; width: 100%; height: 100%; object-fit: cover; display: block;
+    opacity: 0; transition: opacity 0.35s ease-in-out;
+}
+.fc-banner .fc-banner-photo.loaded { opacity: 1; }
+.fc-banner-fallback { height: 96px; display: flex; align-items: center; justify-content: center; }
+.fc-banner-fallback img.hike-icon { width: 44px; height: 44px; object-fit: contain; padding: 4px; }
+.fc-kind {
+    position: absolute; left: 10px; bottom: 8px;
+    background: rgba(255, 253, 246, 0.92); color: var(--evergreen);
+    font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    padding: 3px 9px; border-radius: 999px;
+}
+.fc-body { padding: 13px 16px 15px; }
+.fc-title { font-family: var(--font-display); letter-spacing: 0.02em; font-size: 20px; line-height: 1.15; color: var(--evergreen); margin-bottom: 2px; }
+.fc-loc { font-size: 13px; font-style: italic; color: var(--stone); margin-bottom: 10px; }
+.fc-stats { display: flex; gap: 16px; margin-bottom: 11px; }
+.fc-stat .num { display: block; font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.1; color: var(--trail-green); }
+.fc-stat .cap { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gravel); }
+.fc-vp-note { font-size: 12.5px; font-style: italic; color: var(--gravel); margin-bottom: 11px; }
+.fc-with { font-size: 12px; color: var(--stone); margin: -3px 0 11px; }
+.fc-visits-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gravel); margin-bottom: 5px; }
+.fc-stamps { display: flex; flex-wrap: wrap; gap: 6px; }
+a.fc-stamp {
+    display: inline-block; border: 1.5px dashed var(--trail-green); border-radius: 4px;
+    padding: 2px 8px; font-size: 12px; font-weight: 700; color: var(--trail-green);
+    text-decoration: none; transform: rotate(-1.2deg);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+a.fc-stamp:nth-child(even) { transform: rotate(1deg); }
+a.fc-stamp:hover { background-color: var(--trail-green); color: #fff; }
+a.fc-stamp.current { background-color: var(--trail-green); color: #fff; }
+a.fc-open-log {
+    display: block; margin-top: 12px; padding: 8px 10px;
+    background-color: var(--trail-green); color: #fff; text-align: center;
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    border-radius: 6px; text-decoration: none; transition: background-color 0.15s ease;
+}
+a.fc-open-log:hover { background-color: #3d684a; text-decoration: none; }
+
+/* Attribution stays subtle on parchment */
+.leaflet-control-attribution { background: rgba(255, 253, 246, 0.75) !important; font-size: 9.5px !important; }

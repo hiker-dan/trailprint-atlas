@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive Map - The Trailprint Atlas</title>
-    <meta name="description" content="Every hike on one interactive map — filter by year, hike type, difficulty, and company.">
+    <meta name="description" content="Every hike on one living map — ride the ranger-led expedition through four years of trails, scrub the timeline, or explore every trailprint freely.">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
@@ -12,14 +12,14 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="The Trailprint Atlas">
     <meta property="og:title" content="Interactive Map — The Trailprint Atlas">
-    <meta property="og:description" content="Every hike on one interactive map — filter by year, hike type, difficulty, and company.">
+    <meta property="og:description" content="Every hike on one living map — ride the ranger-led expedition through four years of trails, scrub the timeline, or explore every trailprint freely.">
     <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/map.html">
     <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_58-heather-lakes-via-lakes-trail-01">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Interactive Map — The Trailprint Atlas">
-    <meta name="twitter:description" content="Every hike on one interactive map — filter by year, hike type, difficulty, and company.">
+    <meta name="twitter:description" content="Every hike on one living map — ride the ranger-led expedition through four years of trails, scrub the timeline, or explore every trailprint freely.">
     <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_58-heather-lakes-via-lakes-trail-01">
 
     <!-- Leaflet CSS -->
@@ -33,21 +33,90 @@
     <!-- Shared nav: structure injected by scripts/nav.js (one copy for all pages) -->
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
-    <h1 class="map-page-title">The Interactive Map</h1>
-    <p class="map-page-subtitle">Explore every hike, filter by your criteria, and click on any trail to see the details.</p>
 
-    <div class="content-wrapper">
-        <div id="trail-list-panel">
-            <div id="trail-list-header">
-                <h2>Trails</h2>
-                <div id="trail-search-container"><input type="search" id="trail-search-input" placeholder="Search trails by name..."></div>
-            </div>
-            <div id="trail-list-container"></div>
-        </div>
+    <!-- The map IS the page: full-bleed under the nav, every control floating
+         on it as an Atlas-crafted layer (July 2026 redesign). Three ways in:
+         the ranger-led expedition (autopilot), self-led legs (step at your own
+         pace), and off-trail (plain free exploration — grab the map any time
+         and the chauffeur yields instantly). -->
+    <div class="map-shell">
         <div id="map"></div>
-    </div>
 
-    <div id="legend-container"></div>
+        <!-- the wordmark is engraved on the map itself, not boxed in a card —
+             a cartographer's inscription, part of the paper -->
+        <div class="wordmark">
+            <div class="wordmark-title">The Trailprint Atlas</div>
+            <div class="wordmark-sub" id="wordmark-sub">every trail, on the land itself</div>
+        </div>
+
+        <!-- the trail register (drawer) — tucked at rest; the map breathes -->
+        <aside class="ui-card register tucked" id="register-panel">
+            <div class="register-head">
+                <h2>The Trail Register</h2>
+                <button class="register-collapse" id="register-collapse" type="button" title="Tuck the register away">&#8249;</button>
+            </div>
+            <div id="trail-search-container"><input type="search" id="trail-search-input" placeholder="Search trails or places&hellip;"></div>
+            <div id="trail-list-container"></div>
+        </aside>
+        <button class="ui-card register-tab" id="register-tab" type="button" title="Open the trail register">Register</button>
+
+        <!-- the field card: one docked home for trail info in every mode.
+             Replaces the old anchored popups — it never covers the trail,
+             which frames itself in the space to the card's right. -->
+        <aside class="ui-card field-card" id="field-card" aria-live="polite"></aside>
+
+        <!-- filters pocket -->
+        <div class="filters-wrap">
+            <button class="ui-card filters-pill" id="filter-toggle-btn" type="button">Filters</button>
+            <div class="ui-card" id="filter-panel">
+                <h4>Sift the Atlas</h4>
+                <div class="filter-group"><label>Year</label><div class="filter-options" id="year-filter-options"></div></div>
+                <div class="filter-group"><label>Hike Type</label><div class="filter-options" id="type-filter-options"></div></div>
+                <div class="filter-group"><label>Difficulty</label><div class="filter-options" id="difficulty-filter-options"></div></div>
+                <div class="filter-group"><label>Company</label><div class="filter-options" id="size-filter-options"></div></div>
+                <div id="active-filters-display" style="display: none;"></div>
+                <div class="filter-count" id="filter-count"></div>
+                <button id="reset-filters-btn" type="button">Reset Filters</button>
+            </div>
+        </div>
+
+        <!-- the map key, docked as a cartouche (folded at rest) -->
+        <div class="ui-card cartouche folded" id="legend-cartouche">
+            <button class="cartouche-head" id="legend-toggle" type="button">Key <span class="cartouche-caret">&#9662;</span></button>
+            <div class="cartouche-body" id="legend-body"></div>
+        </div>
+
+        <!-- basemap wardrobe -->
+        <div class="ui-card basemap-chips" id="basemap-chips">
+            <button type="button" data-base="atlas" class="active">Atlas</button>
+            <button type="button" data-base="topo">Topo</button>
+            <button type="button" data-base="satellite">Satellite</button>
+        </div>
+
+        <!-- the expedition deck: the whole console — the field plaque (the
+             expedition's ledger, no photo by decision) on the left wing,
+             transport + the year-banded, per-leg timeline on the right -->
+        <div class="ui-card deck" id="deck">
+            <div class="deck-grid">
+                <div class="deck-plaque dim" id="deck-plaque"><div class="lg-inner" id="lg-inner"></div></div>
+                <div class="deck-main">
+                    <div class="deck-readout" id="deck-readout"></div>
+                    <div class="deck-row">
+                        <div class="deck-controls" id="deck-controls"></div>
+                        <div class="deck-track">
+                            <div class="deck-band" id="deck-band"></div>
+                            <input type="range" id="timeline-scrub" min="0" max="1000" value="1000" aria-label="Timeline">
+                        </div>
+                    </div>
+                    <div class="deck-years" id="deck-years"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- the veil: every expedition cut happens behind it, and it lifts
+             only when the tile sheets report themselves loaded -->
+        <div class="veil" id="veil"><div class="veil-text" id="veil-text"></div></div>
+    </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

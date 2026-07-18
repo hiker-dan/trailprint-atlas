@@ -68,7 +68,7 @@ there is fine, with his review.
 | `scripts/threads.js` | **Threads of the Trail** (homepage): the milestone field sheet — a procedural vintage USGS quadrangle (seeded contours, a lake, full map collar) with brass benchmark disks planted along a fixed spine, hover focus cards. Milestones computed live from hikes.json. Styles in `styles/threads.css`. |
 | `scripts/observatory.js` | **The Observatory** (homepage): profile line, the Effort Field scatter, Territories tiles, **The True Ascents** (summit climbs as their real elevation profiles from `data/elevations.json`, hazed panorama + fixed field card — no floating tooltip over the profiles), **The Cadence** year-wheel, and **The Specimen Drawer** (biome cabinet; hand-picked photos via the `SPECIMEN_PICKS` map — the section's one deliberate photo exception). |
 | `scripts/records.js` | **The Record Books** (homepage closer): four standing-record crowns + the expedition podium — guideposts into hike and trip pages. |
-| `map.html` + `scripts/map.js` | Interactive map: all trails, filters, search, trail list, legend, dark-mode toggle. `?state=XX` deep-links a state (Territories tiles use it). |
+| `map.html` + `scripts/map.js` | Interactive map (rebuilt July 2026): full-bleed map, floating Atlas-crafted cards, and the **expedition engine** — Chapters of the Land + the Expedition Line. **The camera never moves on screen: it is always parked on a scene or cutting behind the veil**, which lifts only when the tile sheets report loaded (live multi-zoom camera flights were tried three ways and rejected — never reintroduce them). All motion belongs to the ink: trails draw themselves along their GPX; a dashed journey line travels trailhead-to-trailhead between chapters. Structure (airtight, data-driven): **chapter** = a tagged trip that truly left home / a home stretch / a lone far-away day hike ("sortie"); distance overrides trip tags (local overnights stay home, `SORTIE_KM = 73`); **scene** = consecutive legs sharing one `location` tag = one parked framing; scene changes are textless veil blinks, chapter changes get one combined ceremony slide. The deck is the whole console: the **field plaque** (expedition ledger, no photo by decision) + transport + a per-leg year-banded timeline; rapid steps buffer ~1.2s before settling; any jump renders trails AND journey lines as if watched through. Free exploration unchanged: docked field card on click, filters, register, search; `nowT` still drives the reveal. Basemap wardrobe: Atlas (CARTO Voyager + Esri World Hillshade multiply, crisp to z16, under the parchment wash + CARTO labels tinted beneath it), Topo, Satellite — crossfaded. At rest the chrome recedes (register tucked, key folded, engraved wordmark). `?state=XX` deep-links; `?leg=N` (+`&cinema=1`) are headless-screenshot hooks. The reference mockup lives at `mockups/map-chapters.html`. |
 | `hike.html` + `scripts/hike-detail.js` | Single-hike page: timeline nav, hero, cycling map, gallery, almanac, logbook. `scripts/shape-of-day.js` draws its elevation profile ("The Shape of the Day") from the same GPX fetch as the map. |
 | `trip.html` + `scripts/trip.js` | One trip's chapter (`trip.html?tag=<trip_tag>`): hero, headline numbers, combined journey map, day-by-day itinerary. |
 | `scripts/timeline-nav.js` | The shared timeline strip — the spine of the Atlas — used by hike.html and trip.html (styles in `styles/timeline-nav.css`). |
@@ -141,6 +141,12 @@ needs new per-hike information, the first step is always to add the field to the
 
 ## Code conventions
 
+- **Viewpoints are not hikes** (decided July 2026). Any user-facing "hikes" tally excludes
+  `hike_type: "Viewpoint"` — use `isViewpoint()` from atlas-data.js, never re-test the string.
+  Where viewpoints appear they're named as such (map wordmark/deck, Territories tiles, trip
+  stats); counts that legitimately mix both say **"outings"** (crew tallies, echoes). Crew
+  tallies deliberately keep viewpoints — excluding them would demote real companions below
+  the core-crew threshold (Rachel G. sits at exactly 10 shared outings).
 - **UTC dates, always.** `date_completed` parses as UTC midnight; reading it with local-time
   getters shifts hikes a day for anyone west of UTC. Use `getUTCFullYear()` / `getUTCMonth()`
   etc. — never the local variants — when deriving year/month/day from hike dates.

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Chronoscope (Concepts 1+3)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    :root { --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c; }
+    html, body { margin:0; height:100%; font-family: Georgia, serif; }
+    #map { position:fixed; inset:0; background:#ece3ce; }
+    /* the parchment wash that marries the map to the hero film */
+    .parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+        opacity:0.42; z-index:250; pointer-events:none; }
+    .leaflet-container { font-family: Georgia, serif; }
+
+    .ui-card { position:fixed; z-index:1000; background:rgba(255,253,246,0.94); border:1px solid #d8ccae;
+        border-radius:12px; box-shadow:0 4px 16px rgba(60,50,30,0.22); }
+
+    /* wordmark instead of a page title */
+    .wordmark { top:14px; left:14px; padding:9px 16px; font-size:15px; color:var(--evergreen); font-weight:bold; }
+    .wordmark small { display:block; font-weight:normal; font-style:italic; color:var(--gravel); font-size:11px; }
+
+    /* the register drawer */
+    .register { top:70px; left:14px; bottom:120px; width:270px; display:flex; flex-direction:column; overflow:hidden; }
+    .register h3 { margin:0; padding:12px 16px 9px; font-size:14px; color:var(--evergreen);
+        border-bottom:1px solid #eee3cc; letter-spacing:0.04em; }
+    .register .rows { overflow-y:auto; flex:1; }
+    .reg-row { display:flex; align-items:center; gap:9px; padding:8px 14px; border-bottom:1px dashed #eee3cc;
+        cursor:pointer; font-size:12.5px; color:#3d3a30; }
+    .reg-row:hover { background:#fbf7ea; }
+    .reg-row .dot { width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+    .reg-row .nm { flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .reg-row .dt { color:var(--gravel); font-size:10.5px; }
+    .reg-row.future { opacity:0.32; }
+
+    /* filters pill (decor in this mockup) */
+    .filters-pill { top:14px; right:14px; padding:9px 18px; font-size:13px; font-weight:bold;
+        color:var(--evergreen); cursor:pointer; }
+
+    /* legend cartouche */
+    .cartouche { right:14px; bottom:120px; padding:11px 15px; font-size:11px; color:var(--stone); }
+    .cartouche b { display:block; color:var(--evergreen); margin-bottom:6px; font-size:11.5px; letter-spacing:0.05em; }
+    .cartouche .sw { display:inline-block; width:18px; height:4px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+    .cartouche div { margin:3px 0; }
+
+    /* ===== THE CHRONOSCOPE ===== */
+    .chrono { left:50%; transform:translateX(-50%); bottom:18px; width:min(760px, 92vw);
+        padding:14px 22px 16px; }
+    .chrono-readout { text-align:center; font-size:15px; color:var(--evergreen); margin-bottom:9px; }
+    .chrono-readout b { font-size:18px; }
+    .chrono-readout .stats { color:var(--gravel); font-size:12.5px; font-style:italic; margin-left:10px; }
+    .chrono-row { display:flex; align-items:center; gap:14px; }
+    .chrono-play { width:38px; height:38px; border-radius:50%; border:1.5px solid var(--evergreen);
+        background:#fffdf6; color:var(--evergreen); font-size:15px; cursor:pointer; flex:0 0 auto; }
+    .chrono-play:hover { background:var(--evergreen); color:#fff; }
+    .chrono-track { position:relative; flex:1; height:26px; }
+    .chrono-track .band { position:absolute; left:0; right:0; top:10px; height:6px; border-radius:3px;
+        background:linear-gradient(90deg,#3f7ec1 0 24%, #4a9a6f 24% 48%, #d9a038 48% 72%, #c96f3a 72% 92%, #8d6cab 92% 100%);
+        opacity:0.85; }
+    .chrono-track input { position:absolute; inset:0; width:100%; margin:0; -webkit-appearance:none; background:transparent; cursor:pointer; }
+    .chrono-track input::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%;
+        background:#fffdf6; border:2.5px solid var(--evergreen); box-shadow:0 1px 5px rgba(0,0,0,0.3); margin-top:0px; }
+    .chrono-years { display:flex; justify-content:space-between; font-size:10px; color:var(--gravel); margin-top:3px; padding:0 2px; }
+
+    .cheap { position:fixed; z-index:1000; left:50%; transform:translateX(-50%); top:14px; max-width:520px;
+        background:rgba(47,60,40,0.88); color:#f2ead8; font-size:11px; font-style:italic;
+        padding:7px 14px; border-radius:9px; line-height:1.45; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="cheap">Mockup (1+3). Cheap here → real build: camera drifts to follow new ink, trails draw on (not pop), month-tick sounds of the Odometer, working filters, register clicks sync the scrubber, parchment gets the hero film's full treatment + a labels layer.</div>
+<div class="ui-card wordmark">The Trailprint Atlas<small>every trail, on the land itself</small></div>
+<div class="ui-card register"><h3>THE TRAIL REGISTER</h3><div class="rows" id="reg"></div></div>
+<div class="ui-card filters-pill">Filters</div>
+<div class="ui-card cartouche" id="cartouche"><b>KEY</b></div>
+<div class="ui-card chrono">
+    <div class="chrono-readout" id="readout"></div>
+    <div class="chrono-row">
+        <button class="chrono-play" id="play" type="button">&#9654;</button>
+        <div class="chrono-track">
+            <div class="band"></div>
+            <input type="range" id="scrub" min="0" max="1000" value="1000">
+        </div>
+    </div>
+    <div class="chrono-years" id="yearticks"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const yc = y => ATLAS_CONFIG.COLOR_MAP[String(y)] || ATLAS_CONFIG.DEFAULT_COLOR;
+
+    const map = L.map('map', { zoomControl:false }).setView([37, -105], 5);
+    L.control.zoom({ position:'bottomright' }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', {
+        attribution:'Terrain © Esri', maxZoom:13 }).addTo(map);
+    const wash = document.createElement('div');
+    wash.className = 'parchment';
+    map.getContainer().appendChild(wash);
+
+    const [hikes, geo] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json())
+    ]);
+    const segs = {};
+    geo.features.forEach(f => {
+        const c = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        segs[f.properties.trail_id] = c.map(seg => seg.map(([lon, lat]) => [lat, lon]));
+    });
+
+    // chronological order (ties broken by tta number, per Atlas convention)
+    const num = h => +h.trail_id.split('_')[1];
+    const chrono = [...hikes].sort((a, b) => a.date_completed.localeCompare(b.date_completed) || num(a) - num(b));
+    const t0 = new Date(chrono[0].date_completed).getTime();
+    const t1 = new Date(chrono[chrono.length - 1].date_completed).getTime();
+
+    // one layerGroup per hike: halo + line (or a viewpoint dot)
+    const entries = chrono.map(h => {
+        const g = L.layerGroup();
+        const col = yc(new Date(h.date_completed).getUTCFullYear());
+        const s = segs[h.trail_id];
+        if (s) {
+            s.forEach(latlngs => {
+                L.polyline(latlngs, { color: col, weight: 7, opacity: 0.22, interactive:false }).addTo(g);
+                L.polyline(latlngs, { color: col, weight: 2.6, opacity: 0.95, interactive:false }).addTo(g);
+            });
+        } else if (h.latitude) {
+            L.circleMarker([h.latitude, h.longitude], { radius:5, color:col, fillColor:col, fillOpacity:0.8, weight:1.5 }).addTo(g);
+        }
+        return { h, g, t: new Date(h.date_completed).getTime(), col, miles: h.miles || 0 };
+    });
+
+    // fit to everything once
+    const pts = hikes.filter(h => h.latitude).map(h => [h.latitude, h.longitude]);
+    map.fitBounds(L.latLngBounds(pts).pad(0.08));
+
+    // register rows (newest first)
+    const reg = document.getElementById('reg');
+    [...entries].reverse().forEach(e => {
+        const d = new Date(e.h.date_completed);
+        const row = document.createElement('div');
+        row.className = 'reg-row';
+        row.innerHTML = `<span class="dot" style="background:${e.col}"></span>
+            <span class="nm">${e.h.trail_name}</span>
+            <span class="dt">${MONTHS[d.getUTCMonth()].slice(0,3)} ’${String(d.getUTCFullYear()).slice(2)}</span>`;
+        row.onclick = () => { const b = e.g.getLayers()[0]?.getBounds?.(); if (b) map.fitBounds(b.pad(0.6)); };
+        e.row = row;
+        reg.appendChild(row);
+    });
+
+    // legend cartouche
+    const cart = document.getElementById('cartouche');
+    Object.keys(ATLAS_CONFIG.COLOR_MAP).forEach(y => {
+        cart.innerHTML += `<div><span class="sw" style="background:${yc(y)}"></span>${y}</div>`;
+    });
+
+    // year tick labels under the band
+    const yt = document.getElementById('yearticks');
+    const years = [...new Set(chrono.map(h => h.date_completed.slice(0,4)))];
+    yt.innerHTML = years.map(y => `<span>${y}</span>`).join('');
+
+    // ===== the scrub itself =====
+    const scrub = document.getElementById('scrub');
+    const readout = document.getElementById('readout');
+    const setTime = f => {
+        const t = t0 + f * (t1 - t0);
+        let count = 0, miles = 0;
+        entries.forEach(e => {
+            const on = e.t <= t;
+            if (on && !map.hasLayer(e.g)) e.g.addTo(map);
+            if (!on && map.hasLayer(e.g)) e.g.remove();
+            e.row.classList.toggle('future', !on);
+            if (on) { count++; miles += e.miles; }
+        });
+        const d = new Date(t);
+        readout.innerHTML = `<b>${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}</b>
+            <span class="stats">${count} hikes · ${Math.round(miles).toLocaleString()} miles of ink</span>`;
+    };
+    scrub.addEventListener('input', () => { stop(); setTime(scrub.value / 1000); });
+
+    // play: the Atlas draws itself over ~35 seconds
+    const playBtn = document.getElementById('play');
+    let timer = null;
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; playBtn.innerHTML = '&#9654;'; } };
+    playBtn.onclick = () => {
+        if (timer) { stop(); return; }
+        if (+scrub.value >= 995) scrub.value = 0;
+        playBtn.innerHTML = '&#10073;&#10073;';
+        timer = setInterval(() => {
+            scrub.value = +scrub.value + 1.2;
+            setTime(scrub.value / 1000);
+            if (+scrub.value >= 1000) stop();
+        }, 40);
+    };
+
+    // ?p=0..1 static preset for screenshots
+    const p = new URLSearchParams(location.search).get('p');
+    scrub.value = p !== null ? Math.round(+p * 1000) : 1000;
+    setTime(scrub.value / 1000);
+})();
+</script>
+</body>
+</html>

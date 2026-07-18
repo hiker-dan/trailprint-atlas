@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Flyover (Concepts 1+4)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    :root { --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c; }
+    html, body { margin:0; height:100%; font-family: Georgia, serif; }
+    #map { position:fixed; inset:0; background:#ece3ce; }
+    .parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+        opacity:0.42; z-index:250; pointer-events:none; }
+
+    .ui-card { position:fixed; z-index:1000; background:rgba(255,253,246,0.94); border:1px solid #d8ccae;
+        border-radius:12px; box-shadow:0 4px 16px rgba(60,50,30,0.22); }
+    .wordmark { top:14px; left:14px; padding:9px 16px; font-size:15px; color:var(--evergreen); font-weight:bold; }
+    .wordmark small { display:block; font-weight:normal; font-style:italic; color:var(--gravel); font-size:11px; }
+    .filters-pill { top:14px; right:14px; padding:9px 18px; font-size:13px; font-weight:bold; color:var(--evergreen); cursor:pointer; }
+    .cartouche { right:14px; bottom:96px; padding:11px 15px; font-size:11px; color:var(--stone); }
+    .cartouche b { display:block; color:var(--evergreen); margin-bottom:6px; }
+    .cartouche .sw { display:inline-block; width:18px; height:4px; border-radius:2px; margin-right:6px; vertical-align:middle; }
+    .cartouche div { margin:3px 0; }
+
+    /* ===== FLIGHT DECK ===== */
+    .deck { left:50%; transform:translateX(-50%); bottom:18px; padding:11px 16px;
+        display:flex; align-items:center; gap:10px; }
+    .deck button { border:1.5px solid var(--evergreen); background:#fffdf6; color:var(--evergreen);
+        border-radius:999px; font-family:Georgia, serif; font-size:13px; padding:8px 16px; cursor:pointer; }
+    .deck button:hover { background:var(--evergreen); color:#fff; }
+    .deck .begin { font-weight:bold; padding:10px 22px; font-size:14.5px; }
+    .deck .step { width:38px; padding:8px 0; text-align:center; }
+    .deck .leg { font-size:12px; color:var(--gravel); font-style:italic; min-width:86px; text-align:center; }
+
+    /* the postcard that greets each landing */
+    .postcard { left:14px; bottom:18px; width:280px; overflow:hidden; opacity:0; transform:translateY(14px);
+        transition:opacity 0.45s ease, transform 0.45s ease; pointer-events:none; }
+    .postcard.show { opacity:1; transform:none; pointer-events:auto; }
+    .postcard img { width:100%; height:150px; object-fit:cover; display:block; }
+    .postcard .pc-band { height:150px; }
+    .postcard .pc-body { padding:11px 15px 13px; border-top:4px solid var(--pc, #b9a97f); }
+    .postcard .pc-name { font-weight:bold; color:var(--evergreen); font-size:15px; line-height:1.2; }
+    .postcard .pc-meta { color:var(--stone); font-size:11.5px; margin-top:4px; }
+    .postcard .pc-stats { color:var(--gravel); font-size:11px; font-style:italic; margin-top:5px; }
+
+    .cheap { position:fixed; z-index:1000; left:50%; transform:translateX(-50%); top:14px; max-width:540px;
+        background:rgba(47,60,40,0.88); color:#f2ead8; font-size:11px; font-style:italic;
+        padding:7px 14px; border-radius:9px; line-height:1.45; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="cheap">Mockup (1+4). Cheap here → real build: banked/eased flight paths (not straight flyTo), trails draw on during approach, dwell scales with the hike's size, postcard gets the real popup craft, ambient altitude between legs, chapter stops per trip, keyboard hints.</div>
+<div class="ui-card wordmark">The Trailprint Atlas<small>every trail, on the land itself</small></div>
+<div class="ui-card filters-pill">Filters</div>
+<div class="ui-card cartouche" id="cartouche"><b>KEY</b></div>
+<div class="ui-card postcard" id="postcard"></div>
+<div class="ui-card deck" id="deck">
+    <button class="begin" id="begin" type="button">&#9654;&nbsp; Begin the survey</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const yc = y => ATLAS_CONFIG.COLOR_MAP[String(y)] || ATLAS_CONFIG.DEFAULT_COLOR;
+
+    const map = L.map('map', { zoomControl:false }).setView([37, -105], 5);
+    L.control.zoom({ position:'bottomright' }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer/tile/{z}/{y}/{x}', {
+        attribution:'Terrain © Esri', maxZoom:13 }).addTo(map);
+    const wash = document.createElement('div');
+    wash.className = 'parchment';
+    map.getContainer().appendChild(wash);
+
+    const [hikes, geo] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json())
+    ]);
+    const segs = {};
+    geo.features.forEach(f => {
+        const c = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        segs[f.properties.trail_id] = c.map(seg => seg.map(([lon, lat]) => [lat, lon]));
+    });
+
+    const num = h => +h.trail_id.split('_')[1];
+    const chrono = [...hikes].sort((a, b) => a.date_completed.localeCompare(b.date_completed) || num(a) - num(b));
+
+    // draw every trail up front; the flight spotlights them one by one
+    const entries = chrono.map(h => {
+        const col = yc(new Date(h.date_completed).getUTCFullYear());
+        const layers = [];
+        const s = segs[h.trail_id];
+        if (s) s.forEach(latlngs => {
+            layers.push(L.polyline(latlngs, { color:col, weight:7, opacity:0.18, interactive:false }).addTo(map));
+            layers.push(L.polyline(latlngs, { color:col, weight:2.6, opacity:0.9, interactive:false }).addTo(map));
+        });
+        else if (h.latitude) layers.push(L.circleMarker([h.latitude, h.longitude],
+            { radius:5, color:col, fillColor:col, fillOpacity:0.8, weight:1.5 }).addTo(map));
+        return { h, col, layers, center: s ? s[0][Math.floor(s[0].length / 2)] : (h.latitude ? [h.latitude, h.longitude] : null) };
+    }).filter(e => e.center);
+
+    const pts = entries.map(e => e.center);
+    const HOME_BOUNDS = L.latLngBounds(pts).pad(0.08);
+    map.fitBounds(HOME_BOUNDS);
+
+    const cart = document.getElementById('cartouche');
+    Object.keys(ATLAS_CONFIG.COLOR_MAP).forEach(y => {
+        cart.innerHTML += `<div><span class="sw" style="background:${yc(y)}"></span>${y}</div>`;
+    });
+
+    // ===== the flight =====
+    const deck = document.getElementById('deck');
+    const postcard = document.getElementById('postcard');
+    let leg = -1, flying = false, timer = null;
+
+    const spotlight = idx => entries.forEach((e, i) => e.layers.forEach(l => {
+        const on = idx < 0 || i === idx;
+        if (l.setStyle) l.setStyle({ opacity: (l.options.weight > 4 ? (on ? 0.3 : 0.05) : (on ? 1 : 0.25)) });
+    }));
+
+    const showPostcard = e => {
+        const d = new Date(e.h.date_completed);
+        const img = (e.h.images || [])[0];
+        postcard.style.setProperty('--pc', e.col);
+        postcard.innerHTML = `
+            ${img ? `<img src="${cloudinaryUrl(img, 'w_560,h_300,c_fill,g_auto,q_auto,f_auto')}" alt="">`
+                  : `<div class="pc-band" style="background:${e.col}"></div>`}
+            <div class="pc-body">
+                <div class="pc-name">${e.h.trail_name}</div>
+                <div class="pc-meta">${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()} · ${e.h.location}</div>
+                <div class="pc-stats">${(e.h.miles || 0).toFixed(1)} mi · ${(e.h.elevation_gain || 0).toLocaleString()} ft gain${e.h.hiked_with && e.h.hiked_with.length ? ' · with ' + e.h.hiked_with.join(', ') : ''}</div>
+            </div>`;
+        postcard.classList.add('show');
+    };
+
+    const goTo = (idx, instant) => {
+        leg = ((idx % entries.length) + entries.length) % entries.length;
+        const e = entries[leg];
+        spotlight(leg);
+        showPostcard(e);
+        document.getElementById('legnum').textContent = `leg ${leg + 1} of ${entries.length}`;
+        if (instant) map.setView(e.center, 12);
+        else map.flyTo(e.center, 12, { duration: 1.9 });
+    };
+
+    const nextLeg = () => { goTo(leg + 1); timer = setTimeout(nextLeg, 4400); };
+    const start = () => { flying = true; renderDeck(); nextLeg(); };
+    const pause = () => { flying = false; clearTimeout(timer); renderDeck(); };
+    const endFlight = () => {
+        pause(); leg = -1; spotlight(-1);
+        postcard.classList.remove('show');
+        map.flyToBounds(HOME_BOUNDS, { duration: 1.6 });
+        renderDeck(true);
+    };
+
+    function renderDeck(initial) {
+        if (initial || leg < 0 && !flying) {
+            deck.innerHTML = `<button class="begin" id="begin" type="button">&#9654;&nbsp; Begin the survey</button>`;
+            document.getElementById('begin').onclick = start;
+            const l = document.createElement('span'); l.className = 'leg'; l.id = 'legnum'; deck.appendChild(l);
+            return;
+        }
+        deck.innerHTML = `
+            <button class="step" id="prev" type="button">&#8249;</button>
+            <button id="pp" type="button">${flying ? '&#10073;&#10073;&nbsp; Pause' : '&#9654;&nbsp; Resume'}</button>
+            <button class="step" id="next" type="button">&#8250;</button>
+            <span class="leg" id="legnum">leg ${leg + 1} of ${entries.length}</span>
+            <button id="end" type="button">End flight</button>`;
+        document.getElementById('pp').onclick = () => flying ? pause() : start();
+        document.getElementById('prev').onclick = () => { pause(); goTo(leg - 1); renderDeck(); };
+        document.getElementById('next').onclick = () => { pause(); goTo(leg + 1); renderDeck(); };
+        document.getElementById('end').onclick = endFlight;
+    }
+    renderDeck(true);
+    document.addEventListener('keydown', e => {
+        if (leg < 0) return;
+        if (e.key === 'ArrowRight') { pause(); goTo(leg + 1); renderDeck(); }
+        if (e.key === 'ArrowLeft') { pause(); goTo(leg - 1); renderDeck(); }
+        if (e.key === 'Escape') endFlight();
+    });
+
+    // ?leg=N static preset for screenshots
+    const q = new URLSearchParams(location.search).get('leg');
+    if (q !== null) { goTo(+q, true); renderDeck(); }
+})();
+</script>
+</body>
+</html>

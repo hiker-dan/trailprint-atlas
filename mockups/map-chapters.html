@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — Trips &amp; Home Stretches + the Expedition Line</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    :root { --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c; --charcoal:#3d3a30; }
+    html, body { margin:0; height:100%; font-family: Georgia, 'Times New Roman', serif; overflow:hidden; }
+    #map { position:fixed; inset:0; background:#ece3ce; }
+
+    /* the Atlas basemap dressing (same recipe as the real page) */
+    .parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+        opacity:0.42; z-index:250; pointer-events:none; }
+    .hillshade-multiply { mix-blend-mode:multiply; }
+    .atlas-labels { z-index:240 !important; filter: sepia(0.45) saturate(0.6) contrast(0.92); }
+
+    /* ===== the veil: every chapter cut happens behind this ===== */
+    .veil { position:fixed; inset:0; z-index:4000; pointer-events:none;
+        background: radial-gradient(ellipse at 50% 45%, rgba(240,231,207,0.98) 0%, rgba(228,214,180,0.99) 100%);
+        opacity:0; transition:opacity 0.55s ease; display:flex; align-items:center; justify-content:center; }
+    .veil.on { opacity:1; }
+    .veil.fast { transition-duration:0.3s; }
+    .veil-text { text-align:center; color:var(--evergreen); opacity:0; transform:translateY(6px);
+        transition:opacity 0.45s ease 0.15s, transform 0.45s ease 0.15s; }
+    .veil.on .veil-text { opacity:1; transform:none; }
+    .veil-kicker { font-size:12px; text-transform:uppercase; letter-spacing:0.28em; color:var(--gravel); margin-bottom:10px; }
+    .veil-title { font-size:34px; letter-spacing:0.02em; }
+    .veil-sub { font-size:14px; font-style:italic; color:var(--stone); margin-top:10px; }
+
+    /* ===== the deck: the whole console — the field ledger lives INSIDE the
+           player now, a plaque on its left wing. One home for everything at
+           the foot of the map; the land above stays untouched. ===== */
+    .deck { position:fixed; z-index:1200; left:50%; transform:translateX(-50%); bottom:16px;
+        width:min(940px, calc(100vw - 60px)); padding:12px 20px 13px;
+        background:rgba(255,253,246,0.94); border:1px solid #d8ccae; border-radius:12px;
+        box-shadow:0 4px 16px rgba(60,50,30,0.22); }
+    .deck-grid { display:flex; gap:18px; align-items:stretch; }
+    .deck-plaque { flex:0 0 250px; min-width:0; padding-left:12px; padding-right:18px;
+        border-left:4px solid var(--lg, #d8ccae); border-right:1px solid #eee3cc;
+        transition:opacity 0.4s ease, border-color 0.4s ease; }
+    .deck-plaque.dim { opacity:0.35; }
+    .lg-inner { transition:opacity 0.24s ease; }
+    .lg-inner.swap { opacity:0; }
+    .lg-kicker { font-size:9px; font-weight:bold; text-transform:uppercase; letter-spacing:0.13em;
+        color:var(--gravel); margin-bottom:3px; }
+    .lg-name { font-size:15px; line-height:1.15; color:var(--evergreen); font-weight:bold;
+        display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .lg-loc { font-size:11px; font-style:italic; color:var(--stone); margin:2px 0 5px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .lg-stats { font-size:11.5px; color:var(--charcoal); }
+    .lg-with { font-size:11px; color:var(--stone); margin-top:2px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .lg-log { display:inline-block; margin-top:5px; font-size:9.5px; font-weight:bold; letter-spacing:0.08em;
+        text-transform:uppercase; color:var(--trail-green); text-decoration:none; }
+    .lg-log:hover { text-decoration:underline; }
+    .deck-main { flex:1; min-width:0; }
+    .deck-readout { text-align:center; font-size:13px; color:var(--evergreen); margin-bottom:7px; min-height:17px; }
+    .deck-readout b { font-size:15px; }
+    .deck-readout .st { color:var(--gravel); font-size:11.5px; font-style:italic; margin-left:8px; }
+    .deck-row { display:flex; align-items:center; gap:12px; }
+    .deck-row button { border:1.5px solid var(--evergreen); background:#fffdf6; color:var(--evergreen);
+        font-family:inherit; cursor:pointer; border-radius:999px; }
+    .deck-row button:hover { background:var(--evergreen); color:#fff; }
+    .d-begin { font-weight:bold; font-size:13px; padding:8px 18px; white-space:nowrap; }
+    .d-pp { width:34px; height:34px; font-size:12px; }
+    .d-step { width:29px; height:29px; font-size:14px; line-height:1; }
+    .d-end { width:29px; height:29px; font-size:11px; border-color:#c0a98a !important; color:var(--gravel) !important; }
+    .d-end:hover { background:#c0392b !important; border-color:#c0392b !important; color:#fff !important; }
+    .d-leg { font-size:11px; color:var(--gravel); font-style:italic; white-space:nowrap; }
+    .d-track { flex:1; position:relative; height:24px; }
+    .d-band { position:absolute; left:0; right:0; top:9px; height:6px; border-radius:3px; opacity:0.85; }
+    .d-track input { position:absolute; inset:0; width:100%; margin:0;
+        -webkit-appearance:none; appearance:none; background:transparent; cursor:pointer; }
+    .d-track input::-webkit-slider-thumb { -webkit-appearance:none; width:17px; height:17px; border-radius:50%;
+        background:#fffdf6; border:2.5px solid var(--evergreen); box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+    .d-track input::-moz-range-thumb { width:13px; height:13px; border-radius:50%;
+        background:#fffdf6; border:2.5px solid var(--evergreen); box-shadow:0 1px 4px rgba(0,0,0,0.3); }
+    .d-years { position:relative; height:11px; margin-top:1px; }
+    .d-years span { position:absolute; transform:translateX(-50%); font-size:9px; color:var(--gravel); }
+
+    .cheap { position:fixed; z-index:3000; left:50%; transform:translateX(-50%); top:12px; max-width:660px;
+        background:rgba(47,60,40,0.9); color:#f2ead8; font-size:11px; font-style:italic;
+        padding:7px 14px; border-radius:9px; line-height:1.45; text-align:center; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="cheap">Mockup v3 — <b>Trips &amp; Home Stretches, locked-off camera</b>. The camera never moves on screen:
+it parks on a scene (one location tag), trails draw themselves, and every relocation is a cut behind the veil —
+soft blink between parks, one combined ceremony slide + the Expedition Line between chapters. <b>?fast=1</b> triples the pace.</div>
+
+<div class="veil" id="veil"><div class="veil-text" id="veil-text"></div></div>
+
+<div class="deck">
+    <div class="deck-grid">
+        <div class="deck-plaque dim" id="plaque"><div class="lg-inner" id="lg-inner"></div></div>
+        <div class="deck-main">
+            <div class="deck-readout" id="readout"><b>The whole Atlas</b></div>
+            <div class="deck-row" id="controls"></div>
+            <div class="deck-row" style="margin-top:6px"><div class="d-track"><div class="d-band" id="d-band"></div><input type="range" id="scrub" min="0" value="0"></div></div>
+            <div class="d-years" id="d-years"></div>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const Q = new URLSearchParams(location.search);
+    const FAST = Q.has('fast') ? 0.35 : 1;
+    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const ROMAN = n => {
+        const T = [[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']];
+        let out = ''; T.forEach(([v, s]) => { while (n >= v) { out += s; n -= v; } }); return out;
+    };
+    const yc = y => ATLAS_CONFIG.COLOR_MAP[String(y)] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+    // ================= map + basemap stack (the real page's recipe) =================
+    const map = L.map('map', { zoomControl: false }).setView([39.8, -98.6], 5);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    const TILE = (url, opts = {}) => L.tileLayer(url, {
+        attribution: '', updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 8, ...opts });
+    const base = TILE('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
+        { subdomains: 'abcd', maxZoom: 18, zIndex: 200 }).addTo(map);
+    const hill = TILE('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+        { maxNativeZoom: 16, maxZoom: 18, zIndex: 210, opacity: 0.9, className: 'hillshade-multiply' }).addTo(map);
+    const labels = TILE('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
+        { subdomains: 'abcd', maxZoom: 18, opacity: 0.9, className: 'atlas-labels' }).addTo(map);
+    map.attributionControl.setPrefix('Mockup');
+    map.attributionControl.addAttribution('Terrain &copy; Esri &middot; Base &amp; labels &copy; CARTO &middot; &copy; OSM');
+    const wash = document.createElement('div');
+    wash.className = 'parchment';
+    map.getContainer().appendChild(wash);
+
+    // no side column anymore — the ledger lives in the deck, so scenes frame
+    // full-width with only the console's height reserved at the foot
+    const FRAME = { paddingTopLeft: L.point(44, 64), paddingBottomRight: L.point(44, 200), maxZoom: 13 };
+
+    /** The veil lifts only when every tile sheet reports itself loaded. */
+    function waitTiles(timeout = 2600) {
+        return new Promise(res => {
+            requestAnimationFrame(() => {
+                const pending = [base, hill, labels].filter(l => l.isLoading());
+                if (!pending.length) return res();
+                let n = pending.length;
+                const done = () => { if (--n === 0) res(); };
+                pending.forEach(l => l.once('load', done));
+                setTimeout(res, timeout);
+            });
+        });
+    }
+    /** Warm every tile a future framing will show, before the camera goes there. */
+    function prefetch(bounds) {
+        if (!bounds || !map._getBoundsCenterZoom) return;
+        const t = map._getBoundsCenterZoom(bounds, FRAME);
+        prefetchView(t.center, Math.round(t.zoom));
+    }
+    function prefetchView(center, zoom) {
+        const half = map.getSize().divideBy(2);
+        const pc = map.project(center, zoom);
+        const nw = map.unproject(pc.subtract(half), zoom), se = map.unproject(pc.add(half), zoom);
+        [base, hill, labels].forEach(layer => {
+            const z = Math.min(zoom, layer.options.maxNativeZoom || layer.options.maxZoom || zoom);
+            const xy = (lat, lng) => {
+                const n = Math.pow(2, z), rad = lat * Math.PI / 180;
+                return [Math.floor((lng + 180) / 360 * n),
+                    Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n)];
+            };
+            const [x1, y1] = xy(nw.lat, nw.lng), [x2, y2] = xy(se.lat, se.lng);
+            if ((x2 - x1 + 1) * (y2 - y1 + 1) > 60) return;
+            const subs = layer.options.subdomains || 'abc';
+            let i = 0;
+            for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++)
+                new Image().src = L.Util.template(layer._url, { s: subs[(i++) % subs.length], z, x, y, r: L.Browser.retina ? '@2x' : '' });
+        });
+    }
+
+    // ================= data =================
+    const [hikes, geo] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json())
+    ]);
+    const segs = {};
+    geo.features.forEach(f => {
+        const c = f.geometry.type === 'LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+        segs[f.properties.trail_id] = c.map(s => s.map(([lon, lat]) => [lat, lon]));
+    });
+    const num = h => +h.trail_id.split('_')[1];
+    const legs = [...hikes]
+        .filter(h => segs[h.trail_id] || typeof h.latitude === 'number')
+        .sort((a, b) => a.date_completed.localeCompare(b.date_completed) || num(a) - num(b));
+    const trailhead = h => segs[h.trail_id] ? segs[h.trail_id][0][0] : [h.latitude, h.longitude];
+    const legBounds = h => segs[h.trail_id]
+        ? L.latLngBounds(segs[h.trail_id].flat()).pad(0.12)
+        : L.latLng(trailhead(h)).toBounds(900);
+    const hav = (a, b) => {
+        const R = 6371, r = Math.PI / 180;
+        const dp = (b[0] - a[0]) * r, dl = (b[1] - a[1]) * r;
+        const s = Math.sin(dp / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dl / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(s));
+    };
+
+    // ============ THE STRUCTURE: trips you tagged, home stretches between them ============
+    // Home is the median of every untripped trailhead; an untripped hike more
+    // than 100 km out is a lone "sortie". Everything else is airtight data:
+    // a chapter is a tagged trip, a home stretch, or a sortie. Chronology is
+    // never reordered — only the camera's behavior changes per chapter kind.
+    const untripped = legs.filter(h => !h.trip_tag);
+    const med = arr => { const s = [...arr].sort((a, b) => a - b); return s[Math.floor(s.length / 2)]; };
+    const HOME_PT = [med(untripped.map(h => trailhead(h)[0])), med(untripped.map(h => trailhead(h)[1]))];
+    // 73 km: past the far edge of the true home range (Mugu Peak, 71 km) but
+    // inside Black Star Canyon (76 km) — day hikes beyond it are sorties
+    const SORTIE_KM = 73;
+    // Distance overrides trip tags: a tagged trip that never leaves the home
+    // range (Mount Lowe, Cooper Canyon — a night out in your own backyard)
+    // stays in the home chapter. Trip tags only NAME the away chapters. The
+    // margin is wide: local trips top out at 50 km, away trips start at 116.
+    const tripMaxKm = {};
+    legs.forEach(h => {
+        if (!h.trip_tag) return;
+        tripMaxKm[h.trip_tag] = Math.max(tripMaxKm[h.trip_tag] || 0, hav(trailhead(h), HOME_PT));
+    });
+    const kindOf = h => {
+        if (h.trip_tag) return tripMaxKm[h.trip_tag] > SORTIE_KM ? 'trip' : 'home';
+        return hav(trailhead(h), HOME_PT) > SORTIE_KM ? 'sortie' : 'home';
+    };
+
+    const chapters = [];
+    const chapterOf = [];
+    legs.forEach((h, i) => {
+        const kind = kindOf(h);
+        const key = kind === 'trip' ? h.trip_tag : (kind === 'sortie' ? 'sortie:' + h.trail_id : 'home');
+        const last = chapters[chapters.length - 1];
+        if (!last || last.key !== key || (kind === 'home' && last.kind !== 'home')) {
+            chapters.push({ key, kind, legIx: [] });
+        }
+        chapters[chapters.length - 1].legIx.push(i);
+        chapterOf[i] = chapters.length - 1;
+    });
+    const monthOf = h => { const d = new Date(h.date_completed); return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+    chapters.forEach(ch => {
+        const first = legs[ch.legIx[0]], last = legs[ch.legIx[ch.legIx.length - 1]];
+        ch.name = ch.kind === 'trip' ? first.trip_tag.replace(/ - [^-]*$/, '')
+            : ch.kind === 'sortie' ? first.location
+            : 'Back Home';
+        ch.sub = monthOf(first) === monthOf(last) ? monthOf(first) : `${monthOf(first)} – ${monthOf(last)}`;
+        const pts = [];
+        ch.legIx.forEach(i => (segs[legs[i].trail_id] || [[trailhead(legs[i])]]).forEach(sg => sg.forEach(p => pts.push(p))));
+        ch.bounds = L.latLngBounds(pts).pad(ch.kind === 'home' ? 0.12 : 0.15);
+    });
+
+    // ============ SCENES: the camera's parking spots ============
+    // Within a chapter, consecutive legs sharing one location tag are a
+    // scene — one parked framing, no camera movement at all between their
+    // drawings. A location change is a soft cut (a veil blink), never a
+    // glide. The camera on this page only ever parks or cuts.
+    const scenes = [];
+    const sceneOf = [];
+    legs.forEach((h, i) => {
+        const last = scenes[scenes.length - 1];
+        if (!last || last.chapter !== chapterOf[i] || last.location !== h.location) {
+            scenes.push({ chapter: chapterOf[i], location: h.location, legIx: [] });
+        }
+        scenes[scenes.length - 1].legIx.push(i);
+        sceneOf[i] = scenes.length - 1;
+    });
+    scenes.forEach(sc => {
+        const pts = [];
+        sc.legIx.forEach(i => (segs[legs[i].trail_id] || [[trailhead(legs[i])]]).forEach(sg => sg.forEach(p => pts.push(p))));
+        sc.bounds = L.latLngBounds(pts).pad(0.18);
+    });
+    const setSceneView = ix => map.fitBounds(scenes[sceneOf[ix]].bounds, { ...FRAME, animate: false });
+    /** Is the camera already sitting on this leg's shot? (It won't be after
+        the visitor wanders off and presses play again.) */
+    function viewMatchesScene(ix) {
+        if (!map._getBoundsCenterZoom) return false;
+        const t = map._getBoundsCenterZoom(scenes[sceneOf[ix]].bounds, FRAME);
+        return map.getZoom() === t.zoom && map.getCenter().distanceTo(t.center) < 3;
+    }
+
+    const HOME = L.latLngBounds(legs.map(trailhead)).pad(0.1);
+
+    // ================= ink =================
+    const inkGroup = L.layerGroup().addTo(map);
+    const threadGroup = L.layerGroup().addTo(map);
+    const inked = new Array(legs.length).fill(null);
+    function inkFor(h) {
+        const col = yc(new Date(h.date_completed).getUTCFullYear());
+        const g = L.layerGroup();
+        const s = segs[h.trail_id];
+        if (s) s.forEach(ll => {
+            L.polyline(ll, { color: col, weight: 6.5, opacity: 0.16, interactive: false }).addTo(g);
+            L.polyline(ll, { color: col, weight: 2.6, opacity: 0.92, interactive: false }).addTo(g);
+        });
+        else L.circleMarker(trailhead(h), { radius: 5, color: '#fff', weight: 1.5, fillColor: col, fillOpacity: 0.95 }).addTo(g);
+        return g;
+    }
+    const revealLeg = i => { if (!inked[i]) { inked[i] = inkFor(legs[i]); inked[i].addTo(inkGroup); } };
+    const unrevealLeg = i => { if (inked[i]) { inkGroup.removeLayer(inked[i]); inked[i] = null; } };
+
+    // ================= performances =================
+    async function drawTrail(h, tk) {
+        const s = segs[h.trail_id];
+        const col = yc(new Date(h.date_completed).getUTCFullYear());
+        if (!s) return pulsePoint(trailhead(h), col, tk);
+        const halo = s.map(ll => L.polyline(ll, { color: col, weight: 6.5, opacity: 0.16, interactive: false }).addTo(inkGroup));
+        const all = s.flat();
+        const dur = Math.min(2400, 1000 + (h.miles || 1) * 130) * FAST;
+        const line = L.polyline([all[0]], { color: col, weight: 2.6, opacity: 0.92, interactive: false }).addTo(inkGroup);
+        const pen = L.circleMarker(all[0], { radius: 4.5, color: '#fffdf6', weight: 1.6, fillColor: col, fillOpacity: 1 }).addTo(map);
+        const t0 = performance.now();
+        await new Promise(res => {
+            (function frame(now) {
+                if (tk !== token) return res();
+                const t = Math.min(1, (now - t0) / dur);
+                const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                const upto = Math.max(1, Math.round(e * all.length));
+                line.setLatLngs(all.slice(0, upto));
+                pen.setLatLng(all[Math.min(upto, all.length - 1)]);
+                t >= 1 ? res() : requestAnimationFrame(frame);
+            })(t0);
+        });
+        map.removeLayer(pen);
+        const g = L.layerGroup(); halo.forEach(l => { inkGroup.removeLayer(l); l.addTo(g); });
+        inkGroup.removeLayer(line); line.addTo(g); g.addTo(inkGroup);
+        return g;
+    }
+    async function pulsePoint(ll, col, tk) {
+        const dot = L.circleMarker(ll, { radius: 5, color: '#fff', weight: 1.5, fillColor: col, fillOpacity: 0.95 }).addTo(inkGroup);
+        for (let k = 0; k < 2; k++) {
+            if (tk !== token) return dot;
+            const ring = L.circleMarker(ll, { radius: 6, color: col, weight: 2, fill: false, opacity: 0.8 }).addTo(map);
+            const t0 = performance.now(), dur = 620 * FAST;
+            await new Promise(res => (function f(now) {
+                const t = Math.min(1, (now - t0) / dur);
+                ring.setRadius(6 + t * 20); ring.setStyle({ opacity: 0.8 * (1 - t) });
+                t >= 1 ? res() : requestAnimationFrame(f);
+            })(t0));
+            map.removeLayer(ring);
+        }
+        return dot;
+    }
+    /** The gently curved path of a journey line between two trailheads. */
+    function threadPts(a, b) {
+        const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const d = [b[0] - a[0], b[1] - a[1]];
+        const ctrl = [mid[0] - d[1] * 0.14, mid[1] + d[0] * 0.14];
+        const pts = [];
+        for (let i = 0; i <= 72; i++) {
+            const t = i / 72, u = 1 - t;
+            pts.push([u * u * a[0] + 2 * u * t * ctrl[0] + t * t * b[0], u * u * a[1] + 2 * u * t * ctrl[1] + t * t * b[1]]);
+        }
+        return pts;
+    }
+    // Every chapter boundary owns one journey line. syncThreads() renders the
+    // set exactly as it would look having watched through to leg ix — jumps
+    // and rapid steps land on a world with all its lines already inked.
+    const threadAt = new Map();   // chapter-entry leg index -> polyline
+    function syncThreads(ix) {
+        for (let i = 1; i < legs.length; i++) {
+            if (chapterOf[i] === chapterOf[i - 1]) continue;
+            const want = i <= ix;
+            if (want && !threadAt.has(i)) {
+                const line = L.polyline(threadPts(trailhead(legs[i - 1]), trailhead(legs[i])),
+                    { color: '#2f5c40', weight: 1.8, opacity: 0.3, dashArray: '7 7', interactive: false }).addTo(threadGroup);
+                threadAt.set(i, line);
+            } else if (!want && threadAt.has(i)) {
+                threadGroup.removeLayer(threadAt.get(i));
+                threadAt.delete(i);
+            }
+        }
+    }
+
+    /** The Expedition Line: trailhead to trailhead, exactly where you went. */
+    async function drawJourneyLine(a, b, tk) {
+        const pts = threadPts(a, b);
+        const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false }).addTo(threadGroup);
+        const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1 }).addTo(map);
+        const t0 = performance.now(), dur = 1900 * FAST;
+        await new Promise(res => (function f(now) {
+            if (tk !== token) return res();
+            const t = Math.min(1, (now - t0) / dur);
+            const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+            const upto = Math.max(1, Math.round(e * pts.length));
+            line.setLatLngs(pts.slice(0, upto));
+            pen.setLatLng(pts[Math.min(upto, pts.length - 1)]);
+            t >= 1 ? res() : requestAnimationFrame(f);
+        })(t0));
+        map.removeLayer(pen);
+        line.setStyle({ opacity: 0.3, weight: 1.8 });
+        return line;
+    }
+
+    // ================= veil + ledger =================
+    const veil = document.getElementById('veil'), veilText = document.getElementById('veil-text');
+    async function veilIn(html, hold = 650) {
+        veilText.innerHTML = html || '';
+        veil.classList.add('on');
+        await sleep((550 + (html ? hold : 0)) * FAST);
+    }
+    async function veilOut() { veil.classList.remove('on'); await sleep(560 * FAST); }
+
+    const plaque = document.getElementById('plaque'), lgInner = document.getElementById('lg-inner');
+    async function setPlaque(h) {
+        const col = yc(new Date(h.date_completed).getUTCFullYear());
+        const d = new Date(h.date_completed);
+        const isVp = h.hike_type === 'Viewpoint';
+        const html = `
+            <div class="lg-kicker">${h.hike_type} &middot; ${MONTHS[d.getUTCMonth()].slice(0, 3)} ${d.getUTCDate()}, ${d.getUTCFullYear()}</div>
+            <div class="lg-name">${h.trail_name}</div>
+            <div class="lg-loc">${h.location} &bull; ${h.region}</div>
+            ${isVp ? `<div class="lg-stats">A scenic stop along the way. No miles inked.</div>`
+                   : `<div class="lg-stats">${h.miles} mi &middot; ${(h.elevation_gain || 0).toLocaleString()} ft gain &middot; ${h.difficulty}</div>`}
+            ${h.hiked_with && h.hiked_with.length ? `<div class="lg-with">With ${h.hiked_with.join(', ')}</div>`
+                : (h.hike_size === 'Solo' ? '<div class="lg-with">Walked solo</div>' : '')}
+            <a class="lg-log" href="../hike.html?id=${h.trail_id}">Open the Field Log &rarr;</a>`;
+        if (!plaque.classList.contains('dim') && lgInner.innerHTML) {
+            lgInner.classList.add('swap');
+            await sleep(240);
+        }
+        plaque.style.setProperty('--lg', col);
+        lgInner.innerHTML = html;
+        plaque.classList.remove('dim');
+        lgInner.classList.remove('swap');
+    }
+    const dimPlaque = () => plaque.classList.add('dim');
+    function restPlaque() {
+        plaque.classList.add('dim');
+        plaque.style.setProperty('--lg', '#d8ccae');
+        lgInner.innerHTML = `<div class="lg-kicker">The field ledger</div>
+            <div class="lg-name">Every outing signs in here</div>
+            <div class="lg-loc">as its trail draws on the land</div>`;
+    }
+
+    // ================= camera: parked or cutting, nothing else =================
+    /** The soft cut: a quick textless veil blink. The new framing is set and
+        fully loaded behind it before it lifts — a clean cut, every time. */
+    async function softCut(applyView, tk) {
+        veil.classList.add('fast');
+        veilText.innerHTML = '';
+        veil.classList.add('on');
+        await sleep(320);
+        if (tk !== token) { veil.classList.remove('on', 'fast'); return; }
+        applyView();
+        await waitTiles(2000);
+        if (tk !== token) { veil.classList.remove('on', 'fast'); return; }
+        veil.classList.remove('on');
+        await sleep(320);
+        veil.classList.remove('fast');
+    }
+
+    // ================= the expedition engine =================
+    let token = 0, legIx = -1, playing = false;
+    const cancel = () => { token++; };
+    // round BEFORE wrapping to 0..7 — a near-due-east angle rounds to 8,
+    // which must wrap back to slot 0, not fall off the end of the list
+    const bearing8 = (a, b) => ['east','northeast','north','northwest','west','southwest','south','southeast']
+        [Math.round((Math.atan2(b[0] - a[0], (b[1] - a[1]) * Math.cos(a[0] * Math.PI / 180))) / (Math.PI / 4) + 8) % 8];
+
+    function readout(h) {
+        const el = document.getElementById('readout');
+        if (!h) {
+            const mi = Math.round(legs.reduce((s, x) => s + (x.miles || 0), 0));
+            el.innerHTML = `<b>The whole Atlas</b><span class="st">${legs.filter(x => x.hike_type !== 'Viewpoint').length} hikes · ${legs.filter(x => x.hike_type === 'Viewpoint').length} viewpoints · ${mi} miles of ink</span>`;
+            return;
+        }
+        const ch = chapters[chapterOf[legs.indexOf(h)]];
+        // within a home stretch the location tag is the running subtitle —
+        // zones change in the readout, never as a camera cut
+        const where = ch.kind === 'home' ? `${ch.name} · ${h.location}` : ch.name;
+        el.innerHTML = `<b>${monthOf(h)}</b><span class="st">${where}</span>`;
+    }
+
+    /**
+     * The ceremony between chapters — ONE combined slide now: who you're
+     * about to become ("Onward · 118 miles east / Joshua Tree Birthday
+     * Trip"), then the Expedition Line travels on the wide map, then a soft
+     * cut lands in the new chapter's first scene. Scene changes inside a
+     * chapter are just the soft cut, textless.
+     */
+    async function ceremony(prevIx, ix, tk) {
+        const chNew = chapters[chapterOf[ix]];
+        const chOld = prevIx < 0 ? null : chapters[chapterOf[prevIx]];
+        if (chOld === chNew) {
+            // a new scene, or the same scene after the visitor wandered off:
+            // either way, one soft cut snaps the camera back onto the shot
+            if ((prevIx >= 0 && sceneOf[prevIx] !== sceneOf[ix]) || !viewMatchesScene(ix)) {
+                await softCut(() => setSceneView(ix), tk);
+            }
+            return;
+        }
+        const outings = chNew.legIx.length > 1 ? ` · ${chNew.legIx.length} outings` : '';
+        if (!chOld) {
+            await veilIn(`<div class="veil-kicker">Chapter ${ROMAN(chapterOf[ix] + 1)}</div>
+                <div class="veil-title">${chNew.name}</div>
+                <div class="veil-sub">${chNew.sub}${outings}</div>`, 1800);
+            if (tk !== token) return;
+            setSceneView(ix);
+            await waitTiles(); if (tk !== token) return;
+            await veilOut();
+            return;
+        }
+        // one slide carries the whole journey: distance, destination, date
+        const a = trailhead(legs[prevIx]), b = trailhead(legs[ix]);
+        const miles = Math.round(hav(a, b) * 0.621);
+        dimPlaque();
+        await veilIn(`<div class="veil-kicker">${chNew.kind === 'home' ? 'Homeward' : 'Onward'} · ${miles} miles ${bearing8(a, b)} · Chapter ${ROMAN(chapterOf[ix] + 1)}</div>
+            <div class="veil-title">${chNew.name}</div>
+            <div class="veil-sub">${chNew.sub}${outings}</div>`, 2100);
+        if (tk !== token) return;
+        map.fitBounds(L.latLngBounds([a, b]).pad(0.4), { maxZoom: 9, animate: false });
+        await waitTiles(); if (tk !== token) return;
+        await veilOut(); if (tk !== token) return;
+        if (threadAt.has(ix)) { threadGroup.removeLayer(threadAt.get(ix)); threadAt.delete(ix); }
+        const line = await drawJourneyLine(a, b, tk);
+        threadAt.set(ix, line);
+        if (tk !== token) return;
+        await sleep(420 * FAST); if (tk !== token) return;
+        await softCut(() => setSceneView(ix), tk);
+    }
+
+    async function legSequence(prevIx, ix, tk) {
+        await ceremony(prevIx, ix, tk); if (tk !== token) return;
+        const h = legs[ix];
+        // the ledger, readout, and deck flip the moment the new hike's pen
+        // touches the map — never trailing the drawing
+        readout(h);
+        setPlaque(h);
+        document.getElementById('scrub').value = ix;
+        updateControls();
+        unrevealLeg(ix);
+        inked[ix] = await drawTrail(h, tk);   // the camera holds; the ink performs
+        if (tk !== token) return;
+        // the ranger reads the itinerary ahead: warm the next framing now
+        if (ix + 1 < legs.length && sceneOf[ix + 1] !== sceneOf[ix]) prefetch(scenes[sceneOf[ix + 1]].bounds);
+    }
+
+    async function playFrom(ix) {
+        cancel(); const tk = token;
+        playing = true; updateControls();
+        let prev = ix - 1;
+        for (let k = ix; k < legs.length; k++) {
+            legIx = k;
+            await legSequence(prev, k, tk); if (tk !== token) return;
+            prev = k;
+            const dwell = (legs[k].hike_type === 'Viewpoint' ? 1700 : 3000) * FAST;
+            await sleep(dwell); if (tk !== token) return;
+        }
+        await finale(tk);
+    }
+
+    async function finale(tk) {
+        dimPlaque();
+        await veilIn(`<div class="veil-kicker">The expedition rests</div>
+            <div class="veil-title">The whole Atlas</div>
+            <div class="veil-sub">every trail, on the land itself</div>`, 1500);
+        if (tk !== token) return;
+        legs.forEach((_, i) => revealLeg(i));
+        syncThreads(legs.length - 1);
+        threadGroup.eachLayer(l => l.setStyle && l.setStyle({ opacity: 0.45 }));
+        map.fitBounds(HOME, { animate: false });
+        await waitTiles(); if (tk !== token) return;
+        await veilOut();
+        playing = false; legIx = -1; readout(null); restPlaque(); updateControls();
+    }
+
+    function pause() { cancel(); playing = false; veil.classList.remove('on', 'fast'); updateControls(); }
+
+    // --- Stepping, with a breath: rapid ‹ › or arrow presses just flip the
+    //     ledger and counter. Only after ~1.2s of quiet does the map settle
+    //     on the chosen hike (one blink, everything to that point inked),
+    //     and the film resumes if it was playing when the stepping began. ---
+    let stepTarget = null, stepTimer = null, resumeAfterStep = false;
+    function step(dir) {
+        if (stepTarget === null) {
+            resumeAfterStep = playing;
+            stepTarget = legIx < 0 ? 0 : legIx;
+        }
+        cancel(); playing = false;
+        veil.classList.remove('on', 'fast');
+        stepTarget = Math.max(0, Math.min(legs.length - 1, stepTarget + dir));
+        legIx = stepTarget;
+        readout(legs[stepTarget]); setPlaque(legs[stepTarget]);
+        scrub.value = stepTarget;
+        updateControls();
+        clearTimeout(stepTimer);
+        stepTimer = setTimeout(() => {
+            const target = stepTarget, resume = resumeAfterStep;
+            stepTarget = null;
+            settleStep(target, resume);
+        }, 1200);
+    }
+    /** Land on the chosen hike: the world to just before it renders behind a
+        blink, then the hike itself plays (and the film rolls on if it was). */
+    async function settleStep(ix, resume) {
+        cancel(); const tk = token;
+        await softCut(() => {
+            legs.forEach((_, i) => i < ix ? revealLeg(i) : unrevealLeg(i));
+            syncThreads(ix - 1);
+            setSceneView(ix);
+        }, tk);
+        if (tk !== token) return;
+        if (resume) playFrom(ix);
+        else await legSequence(ix - 1, ix, tk);
+    }
+
+    /** Jump (scrub release, ?jump): everything to this point inked, at rest. */
+    function jumpTo(ix, blink = false) {
+        pause(); cancel(); const tk = token;
+        legIx = ix;
+        const apply = () => {
+            legs.forEach((_, i) => i <= ix ? revealLeg(i) : unrevealLeg(i));
+            syncThreads(ix);
+            setSceneView(ix);
+        };
+        if (blink) softCut(apply, tk); else apply();
+        readout(legs[ix]); setPlaque(legs[ix]);
+        scrub.value = ix;
+        updateControls();
+    }
+
+    // ================= deck wiring =================
+    const controls = document.getElementById('controls');
+    const tripCount = chapters.filter(c => c.kind === 'trip').length;
+    function updateControls() {
+        if (legIx < 0 && !playing) {
+            controls.innerHTML = `<button class="d-begin" id="d-begin" type="button">&#9654;&nbsp; Begin the expedition</button>
+                <span class="d-leg">${chapters.length} chapters · ${tripCount} expeditions · ${legs.length} outings</span>`;
+            document.getElementById('d-begin').onclick = async () => {
+                cancel(); const tk = token;
+                dimPlaque();
+                await veilIn(`<div class="veil-kicker">The Trailprint Atlas</div>
+                    <div class="veil-title">An expedition through four years</div>
+                    <div class="veil-sub">told one trail at a time</div>`, 1700);
+                if (tk !== token) return;
+                legs.forEach((_, i) => unrevealLeg(i));
+                threadGroup.clearLayers();
+                threadAt.clear();
+                await veilOut();
+                playFrom(0);
+            };
+            return;
+        }
+        const ch = chapters[chapterOf[Math.max(0, legIx)]];
+        controls.innerHTML = `
+            <button class="d-step" id="d-prev" type="button" title="Previous">&#8249;</button>
+            <button class="d-pp" id="d-pp" type="button">${playing ? '&#10073;&#10073;' : '&#9654;'}</button>
+            <button class="d-step" id="d-next" type="button" title="Next">&#8250;</button>
+            <span class="d-leg">leg ${legIx + 1} of ${legs.length} · Chapter ${ROMAN(chapterOf[Math.max(0, legIx)] + 1)} · ${ch.name}</span>
+            <button class="d-end" id="d-x" type="button" title="End">&#10005;</button>`;
+        document.getElementById('d-pp').onclick = () => playing ? pause() : playFrom(Math.max(0, legIx));
+        document.getElementById('d-prev').onclick = () => step(-1);
+        document.getElementById('d-next').onclick = () => step(1);
+        document.getElementById('d-x').onclick = async () => { pause(); cancel(); await finale(token); };
+    }
+    const scrub = document.getElementById('scrub');
+    scrub.max = legs.length - 1;
+    // while dragging: live preview (the ink grows and shrinks under the thumb);
+    // on release: one blink settles the world — trails AND journey lines —
+    // exactly as if you had watched through to that moment
+    scrub.addEventListener('input', () => {
+        cancel(); playing = false;
+        veil.classList.remove('on', 'fast');
+        const ix = +scrub.value;
+        legIx = ix;
+        legs.forEach((_, i) => i <= ix ? revealLeg(i) : unrevealLeg(i));
+        readout(legs[ix]); setPlaque(legs[ix]);
+        updateControls();
+    });
+    scrub.addEventListener('change', () => jumpTo(+scrub.value, true));
+
+    // the year band under the scrub: one equal slice per leg, colored by its
+    // year, so the thumb always rides the color of the year it's visiting
+    (function buildYearBand() {
+        const n = legs.length;
+        const yearOf = h => new Date(h.date_completed).getUTCFullYear();
+        const stops = [], labels = [];
+        let runStart = 0;
+        for (let i = 1; i <= n; i++) {
+            if (i === n || yearOf(legs[i]) !== yearOf(legs[runStart])) {
+                const y = yearOf(legs[runStart]);
+                const a = runStart / n * 100, b = i / n * 100;
+                stops.push(`${yc(y)} ${a.toFixed(1)}% ${b.toFixed(1)}%`);
+                labels.push(`<span style="left:${((a + b) / 2).toFixed(1)}%">${y}</span>`);
+                runStart = i;
+            }
+        }
+        document.getElementById('d-band').style.background = `linear-gradient(90deg, ${stops.join(', ')})`;
+        document.getElementById('d-years').innerHTML = labels.join('');
+    })();
+
+    map.on('dragstart', () => { if (playing) pause(); });
+    map.getContainer().addEventListener('wheel', () => { if (playing) pause(); }, { passive: true });
+    document.addEventListener('keydown', e => {
+        if (legIx < 0) return;
+        if (e.key === 'ArrowRight') step(1);
+        if (e.key === 'ArrowLeft') step(-1);
+        if (e.key === 'Escape') { pause(); cancel(); finale(token); }
+    });
+
+    // ================= rest state + screenshot hooks =================
+    legs.forEach((_, i) => revealLeg(i));
+    map.fitBounds(HOME, { animate: false });
+    readout(null); restPlaque(); updateControls();
+    if (Q.has('jump')) jumpTo(Math.min(legs.length - 1, +Q.get('jump')));
+    if (Q.has('thread')) syncThreads(legs.length - 1);
+})();
+</script>
+</body>
+</html>

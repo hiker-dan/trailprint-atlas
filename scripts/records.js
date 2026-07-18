@@ -103,7 +103,8 @@
             const miles = group.reduce((s, h) => s + (h.miles || 0), 0);
             const days = new Set(group.map(h => h.date_completed)).size;
             const lead = [...group].sort(compareHikesChronoDesc)[0];  // the trip's most recent hike
-            return { tag, miles, days, count: group.length, year: hikeYear(lead), lead };
+            // viewpoints ride along on trips but aren't hikes — count them apart
+            return { tag, miles, days, count: group.filter(h => !isViewpoint(h)).length, year: hikeYear(lead), lead };
         }).sort((a, b) => b.miles - a.miles);
 
         const card = (t, place, idx) => t ? photoCard({

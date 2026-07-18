@@ -141,10 +141,22 @@ function compareHikesChronoDesc(a, b) {
  * The canonical headline stats. Miles and elevation count EVERY hike,
  * including repeats of the same trail (Danny's Part V decision #1).
  */
+/**
+ * Viewpoints are logged in the Atlas but they are not hikes — a scenic stop
+ * with no trail walked. Sitewide rule (decided July 2026): never count a
+ * viewpoint in a "hikes" tally; either exclude it or name it a viewpoint.
+ * Where a count legitimately mixes both, call them "outings".
+ */
+function isViewpoint(hike) {
+    return hike.hike_type === 'Viewpoint';
+}
+
 function getAtlasStats(hikes) {
+    const trueHikes = hikes.filter(h => !isViewpoint(h));
     return {
-        totalHikes: hikes.length,
-        totalUniqueTrails: Object.keys(groupByTrail(hikes)).length,
+        totalHikes: trueHikes.length,
+        totalViewpoints: hikes.length - trueHikes.length,
+        totalUniqueTrails: Object.keys(groupByTrail(trueHikes)).length,
         totalMiles: hikes.reduce((sum, hike) => sum + (hike.miles || 0), 0),
         totalElevation: hikes.reduce((sum, hike) => sum + (hike.elevation_gain || 0), 0)
     };

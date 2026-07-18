@@ -337,17 +337,23 @@
 
     function buildTerritories(hikes, usSvgText) {
         // --- Per-territory tally ---
+        // Viewpoints count toward a territory's claim (you were there) but are
+        // tallied apart from hikes — Arizona, for one, is all viewpoints.
         const byTerr = {};
         hikes.forEach(h => {
             const abbr = (h.region || '').split(', ').pop().trim();
             if (!abbr) return;
-            if (!byTerr[abbr]) byTerr[abbr] = { abbr, hikes: 0, miles: 0, trails: new Set(), dates: [] };
-            byTerr[abbr].hikes++;
+            if (!byTerr[abbr]) byTerr[abbr] = { abbr, hikes: 0, viewpoints: 0, miles: 0, trails: new Set(), dates: [] };
+            if (isViewpoint(h)) {
+                byTerr[abbr].viewpoints++;
+            } else {
+                byTerr[abbr].hikes++;
+                byTerr[abbr].trails.add(h.trail_name);
+            }
             byTerr[abbr].miles += h.miles || 0;
-            byTerr[abbr].trails.add(h.trail_name);
             byTerr[abbr].dates.push(h.date_completed);
         });
-        const terrs = Object.values(byTerr).sort((a, b) => b.hikes - a.hikes);
+        const terrs = Object.values(byTerr).sort((a, b) => (b.hikes + b.viewpoints) - (a.hikes + a.viewpoints));
 
         // --- A hidden master SVG so we can measure each state path's bbox ---
         const usDoc = new DOMParser().parseFromString(usSvgText, 'image/svg+xml');
@@ -367,7 +373,7 @@
             tile.className = 'terr-tile';
             // US states deep-link the interactive map straight to that state's hikes.
             tile.href = isUS ? `map.html?state=${t.abbr}` : 'map.html';
-            tile.title = `${STATE_NAMES[t.abbr] || t.abbr}: ${t.hikes} hikes, ${t.trails.size} trails, ${Math.round(t.miles)} mi`;
+            tile.title = `${STATE_NAMES[t.abbr] || t.abbr}: ${t.hikes} hikes${t.viewpoints ? `, ${t.viewpoints} viewpoints` : ''}, ${t.trails.size} trails, ${Math.round(t.miles)} mi`;
 
             const silo = document.createElement('div');
             silo.className = 'terr-silo';
@@ -381,13 +387,13 @@
                 const bb = measure.getBBox();
                 const pad = Math.max(bb.width, bb.height) * 0.06 + 2;
                 const tsvg = svgEl('svg', { viewBox: `${bb.x - pad} ${bb.y - pad} ${bb.width + pad * 2} ${bb.height + pad * 2}` });
-                tsvg.appendChild(svgEl('path', { d, fill: densityColor(t.hikes), stroke: '#2f5c40', 'stroke-width': Math.max(bb.width, bb.height) * 0.012, 'stroke-linejoin': 'round' }));
+                tsvg.appendChild(svgEl('path', { d, fill: densityColor(t.hikes + t.viewpoints), stroke: '#2f5c40', 'stroke-width': Math.max(bb.width, bb.height) * 0.012, 'stroke-linejoin': 'round' }));
                 silo.appendChild(tsvg);
             } else {
                 // Fallback (e.g., a future international territory with no silhouette yet):
                 // a simple pennant marker so the tile still reads as a collected place.
                 const tsvg = svgEl('svg', { viewBox: '0 0 24 24' });
-                tsvg.appendChild(svgEl('path', { d: 'M7 22V3l11 3.5L7 10', fill: densityColor(t.hikes), stroke: '#2f5c40', 'stroke-width': 1, 'stroke-linejoin': 'round' }));
+                tsvg.appendChild(svgEl('path', { d: 'M7 22V3l11 3.5L7 10', fill: densityColor(t.hikes + t.viewpoints), stroke: '#2f5c40', 'stroke-width': 1, 'stroke-linejoin': 'round' }));
                 silo.appendChild(tsvg);
             }
 
@@ -397,7 +403,10 @@
 
             const count = document.createElement('div');
             count.className = 'terr-count';
-            count.innerHTML = `<b>${t.hikes}</b> hike${t.hikes === 1 ? '' : 's'} · ${t.trails.size} trail${t.trails.size === 1 ? '' : 's'}`;
+            const bits = [];
+            if (t.hikes) bits.push(`<b>${t.hikes}</b> hike${t.hikes === 1 ? '' : 's'} · ${t.trails.size} trail${t.trails.size === 1 ? '' : 's'}`);
+            if (t.viewpoints) bits.push(`${t.hikes ? '' : '<b>'}${t.viewpoints}${t.hikes ? '' : '</b>'} viewpoint${t.viewpoints === 1 ? '' : 's'}`);
+            count.innerHTML = bits.join(' · ');
 
             tile.append(silo, name, count);
             grid.appendChild(tile);

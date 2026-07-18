@@ -92,11 +92,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalMiles = tripHikes.reduce((sum, h) => sum + h.miles, 0);
         const totalFeet = tripHikes.reduce((sum, h) => sum + h.elevation_gain, 0);
 
+        const realHikes = tripHikes.filter(h => !isViewpoint(h)).length;
+        const vpCount = tripHikes.length - realHikes;
         const stats = [
             // "Hiking Days" claims exactly what it counts — days with a hike
             // logged, not the trip's total length.
             { value: dayCount, label: dayCount === 1 ? 'Hiking Day' : 'Hiking Days' },
-            { value: tripHikes.length, label: tripHikes.length === 1 ? 'Hike' : 'Hikes' },
+            { value: realHikes, label: realHikes === 1 ? 'Hike' : 'Hikes' },
+            // a viewpoint stop isn't a hike — it gets its own headline number
+            ...(vpCount ? [{ value: vpCount, label: vpCount === 1 ? 'Viewpoint' : 'Viewpoints' }] : []),
             { value: (Math.round(totalMiles * 10) / 10).toLocaleString(), label: 'Miles' },
             { value: totalFeet.toLocaleString(), label: 'Ft Climbed' }
         ];
@@ -306,7 +310,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         iconAnchor: [17, 17]
                     })
                 }).addTo(map);
-                bubble.bindTooltip(`${group.length} hikes — click to zoom in`);
+                bubble.bindTooltip(`${group.length} stops — click to zoom in`);
                 bubble.on('click', () => map.fitBounds(L.latLngBounds(latlngs).pad(0.6)));
                 clusterMarkers.push(bubble);
             }

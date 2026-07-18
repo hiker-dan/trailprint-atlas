@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- Hero tally ---
     const sharedCount = allHikes.length - soloCount;
     document.getElementById('crew-tally').innerText =
-        `${roster.length} companions · ${sharedCount} shared hikes · every name in the register below`;
+        `${roster.length} companions · ${sharedCount} shared outings · every name in the register below`;
 
     // --- The Core Crew cards ---
     const coreCrew = roster.filter(p => p.count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES);
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="crew-card-photo" ${cover ? `style="background-image: url('${cover}')"` : ''}></div>
             <div class="crew-card-body">
                 <div class="crew-card-name">${p.name}</div>
-                <div class="crew-card-count">${p.count} hikes together</div>
+                <div class="crew-card-count">${p.count} outings together</div>
                 <div class="crew-card-stats">${p.miles.toFixed(1)} mi &middot; ${p.feet.toLocaleString()} ft climbed</div>
                 <div class="crew-card-since">On the trail together since ${sinceYear}</div>
             </div>
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="crew-row" data-row="${i}">
             <button class="crew-row-line" type="button" aria-expanded="false">
                 <span class="crew-row-name">${p.name}</span>
-                <span class="crew-row-count">${p.count} ${p.count === 1 ? 'hike' : 'hikes'}</span>
+                <span class="crew-row-count">${p.count} ${p.count === 1 ? 'outing' : 'outings'}</span>
                 <span class="crew-row-stats">${p.miles.toFixed(1)} mi &middot; ${p.feet.toLocaleString()} ft</span>
                 <span class="crew-row-era"><span class="crew-era-track"><span class="crew-era-fill" style="left: ${left}%; width: ${width}%"></span></span><span class="crew-era-span">${span}</span></span>
                 <span class="crew-row-chevron">&#9662;</span>
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- The quiet footnote ---
     document.getElementById('crew-solo-line').innerText =
-        `…and ${soloCount} hikes walked alone.`;
+        `…and ${soloCount} outings walked alone.`;
 });
 
 /**

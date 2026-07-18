@@ -121,7 +121,7 @@
         const m = now.getUTCMonth(), thisYear = now.getUTCFullYear();
 
         const sub = document.getElementById('echoes-month');
-        if (sub) sub.textContent = `hikes that happened in ${FULL[m]}, in years past`;
+        if (sub) sub.textContent = `outings that happened in ${FULL[m]}, in years past`;
 
         const byYear = new Map();
         hikes.filter(h => hikeMonth(h) === m && hikeYear(h) < thisYear)

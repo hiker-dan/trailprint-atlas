@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (shared.length === 0) {
         document.getElementById('member-name').innerText = 'Off the Trail';
         document.getElementById('member-statline').innerHTML =
-            `No shared hikes found. <a href="crew.html" style="color:#fff">Back to the Trail Crew &rarr;</a>`;
+            `No shared outings found. <a href="crew.html" style="color:#fff">Back to the Trail Crew &rarr;</a>`;
         return;
     }
 
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.title = `${name} - Trail Crew - The Trailprint Atlas`;
     document.getElementById('member-name').innerText = name;
     document.getElementById('member-statline').innerText =
-        `${shared.length} hikes together · ${totalMiles.toFixed(1)} miles · ${totalFeet.toLocaleString()} ft climbed`;
+        `${shared.length} outings together · ${totalMiles.toFixed(1)} miles · ${totalFeet.toLocaleString()} ft climbed`;
     const firstYear = hikeYear(sorted[0]);
     const lastYear = hikeYear(sorted[sorted.length - 1]);
     document.getElementById('member-since').innerText = firstYear === lastYear
@@ -191,7 +191,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (singles.length > 0) {
         document.getElementById('member-scattered').style.display = 'block';
         document.getElementById('scattered-count').innerText =
-            `${singles.length} ${singles.length === 1 ? 'hike' : 'hikes'} beyond the regions above`;
+            `${singles.length} ${singles.length === 1 ? 'outing' : 'outings'} beyond the regions above`;
         const printsEl = document.getElementById('member-prints');
         singles.forEach(hike => {
             const card = document.createElement('a');

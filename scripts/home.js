@@ -448,6 +448,9 @@ const AtlasIntro = {
         const stats = getAtlasStats(hikes);
         const startYear = hikes.reduce((min, h) => Math.min(min, hikeYear(h)), new Date().getUTCFullYear());
         document.getElementById('odo-range').textContent = startYear;
+        // viewpoints don't ride the reels — they're not hikes — but they get their line
+        const extra = document.getElementById('odo-extra');
+        if (extra && stats.totalViewpoints) extra.textContent = ` · plus ${stats.totalViewpoints} scenic viewpoints`;
 
         const odoDefs = [
             { value: stats.totalHikes, label: 'Hikes' },

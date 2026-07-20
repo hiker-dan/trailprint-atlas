@@ -49,48 +49,48 @@
             <div class="wordmark-sub" id="wordmark-sub">every trail, on the land itself</div>
         </div>
 
-        <!-- the trail register (drawer) — tucked at rest; the map breathes -->
-        <aside class="ui-card register tucked" id="register-panel">
-            <div class="register-head">
-                <h2>The Trail Register</h2>
-                <button class="register-collapse" id="register-collapse" type="button" title="Tuck the register away">&#8249;</button>
-            </div>
-            <div id="trail-search-container"><input type="search" id="trail-search-input" placeholder="Search trails or places&hellip;"></div>
-            <div id="trail-list-container"></div>
-        </aside>
-        <button class="ui-card register-tab" id="register-tab" type="button" title="Open the trail register">Register</button>
+        <!-- the finder: the trail register, summoned. A slim search pill that
+             opens a floating list of every trail; typing filters the list
+             (never the map), choosing one flies to it. -->
+        <div class="finder" id="finder">
+            <input type="search" id="trail-search-input" class="ui-card finder-input" placeholder="Find a trail&hellip;" autocomplete="off">
+            <div class="ui-card finder-results" id="trail-list-container"></div>
+        </div>
 
         <!-- the field card: one docked home for trail info in every mode.
              Replaces the old anchored popups — it never covers the trail,
              which frames itself in the space to the card's right. -->
         <aside class="ui-card field-card" id="field-card" aria-live="polite"></aside>
 
-        <!-- filters pocket -->
-        <div class="filters-wrap">
-            <button class="ui-card filters-pill" id="filter-toggle-btn" type="button">Filters</button>
-            <div class="ui-card" id="filter-panel">
-                <h4>Sift the Atlas</h4>
-                <div class="filter-group"><label>Year</label><div class="filter-options" id="year-filter-options"></div></div>
-                <div class="filter-group"><label>Hike Type</label><div class="filter-options" id="type-filter-options"></div></div>
-                <div class="filter-group"><label>Difficulty</label><div class="filter-options" id="difficulty-filter-options"></div></div>
-                <div class="filter-group"><label>Company</label><div class="filter-options" id="size-filter-options"></div></div>
-                <div id="active-filters-display" style="display: none;"></div>
-                <div class="filter-count" id="filter-count"></div>
-                <button id="reset-filters-btn" type="button">Reset Filters</button>
+        <!-- the control rail: ONE card. Filters, the key, and the basemap
+             wardrobe live behind tabs — a single contained tooltip, one
+             panel open at a time, so nothing can overlap or fall off
+             screen. Tapping the active tab folds the card shut. -->
+        <div class="control-rail">
+            <div class="ui-card rail-card" id="rail-card">
+                <div class="rail-tabs" id="rail-tabs">
+                    <button type="button" data-pane="filters">Filters</button>
+                    <button type="button" data-pane="key">Key</button>
+                    <button type="button" data-pane="basemap">Map</button>
+                </div>
+                <div class="rail-body">
+                    <div class="rail-pane" id="pane-filters">
+                        <div class="filter-group"><label>Year</label><div class="filter-options" id="year-filter-options"></div></div>
+                        <div class="filter-group"><label>Hike Type</label><div class="filter-options" id="type-filter-options"></div></div>
+                        <div class="filter-group"><label>Difficulty</label><div class="filter-options" id="difficulty-filter-options"></div></div>
+                        <div class="filter-group"><label>Company</label><div class="filter-options" id="size-filter-options"></div></div>
+                        <div id="active-filters-display" style="display: none;"></div>
+                        <div class="filter-count" id="filter-count"></div>
+                        <button id="reset-filters-btn" type="button">Reset Filters</button>
+                    </div>
+                    <div class="rail-pane" id="pane-key"><div id="legend-body"></div></div>
+                    <div class="rail-pane basemap-chips" id="pane-basemap">
+                        <button type="button" data-base="atlas" class="active">Atlas</button>
+                        <button type="button" data-base="topo">Topo</button>
+                        <button type="button" data-base="satellite">Satellite</button>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <!-- the map key, docked as a cartouche (folded at rest) -->
-        <div class="ui-card cartouche folded" id="legend-cartouche">
-            <button class="cartouche-head" id="legend-toggle" type="button">Key <span class="cartouche-caret">&#9662;</span></button>
-            <div class="cartouche-body" id="legend-body"></div>
-        </div>
-
-        <!-- basemap wardrobe -->
-        <div class="ui-card basemap-chips" id="basemap-chips">
-            <button type="button" data-base="atlas" class="active">Atlas</button>
-            <button type="button" data-base="topo">Topo</button>
-            <button type="button" data-base="satellite">Satellite</button>
         </div>
 
         <!-- the expedition deck: the whole console — the field plaque (the
@@ -100,15 +100,21 @@
             <div class="deck-grid">
                 <div class="deck-plaque dim" id="deck-plaque"><div class="lg-inner" id="lg-inner"></div></div>
                 <div class="deck-main">
-                    <div class="deck-readout" id="deck-readout"></div>
-                    <div class="deck-row">
+                    <!-- top row: readout left, transport right. The timeline
+                         below gets the console's FULL width — its size never
+                         changes during playback, only between visits as the
+                         data grows -->
+                    <div class="deck-top">
+                        <div class="deck-readout" id="deck-readout"></div>
                         <div class="deck-controls" id="deck-controls"></div>
-                        <div class="deck-track">
-                            <div class="deck-band" id="deck-band"></div>
-                            <input type="range" id="timeline-scrub" min="0" max="1000" value="1000" aria-label="Timeline">
-                        </div>
                     </div>
-                    <div class="deck-years" id="deck-years"></div>
+                    <div class="deck-track">
+                        <div class="deck-band" id="deck-band"></div>
+                        <input type="range" id="timeline-scrub" min="0" max="1000" value="1000" aria-label="Timeline">
+                        <!-- year labels live INSIDE the track so their
+                             percentages align with the band exactly -->
+                        <div class="deck-years" id="deck-years"></div>
+                    </div>
                 </div>
             </div>
         </div>

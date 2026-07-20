@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  body { margin: 0; font-family: Georgia, 'Times New Roman', serif; background: #efe8d6; color: #3d3a33; padding: 26px 34px; }
+  h1 { font-size: 21px; margin: 0 0 2px; }
+  .intro { font-size: 12px; color: #6b675c; margin-bottom: 18px; font-style: italic; }
+  .concept { background: #fbf7ec; border: 1px solid #ddd2b8; border-radius: 10px; padding: 16px 18px 14px; margin-bottom: 20px; }
+  .concept h2 { font-size: 16px; margin: 0; }
+  .concept h2 .num { color: #a89463; font-size: 13px; margin-right: 6px; }
+  .tag { font-size: 11.5px; color: #6b675c; margin: 2px 0 10px; }
+  svg.panel { display: block; width: 100%; height: auto; border-radius: 6px; }
+  .band { display: flex; gap: 5px; margin-top: 10px; }
+  .chip { flex: 1; text-align: center; }
+  .chip .sw { height: 24px; border-radius: 5px; }
+  .chip .yr { font-size: 8.5px; color: #6b675c; margin-top: 3px; letter-spacing: 0.02em; }
+  .grow { font-size: 11px; color: #6b675c; margin-top: 9px; }
+  .grow b { color: #3d3a33; }
+</style>
+</head>
+<body>
+<h1>The Year Colors — Five Expeditions</h1>
+<div class="intro">Same terrain, same trails, same repeat (a '23 trail rehiked in '26, its echo glowing beneath). Twelve-year band below each shows how it grows.</div>
+<div id="sheets"></div>
+<script>
+const CONCEPTS = [
+  { name: "The Incumbent", tag: "Today's palette, for comparison — the flat-UI defaults we've lived with.",
+    grow: "Grows by picking another default each year.",
+    colors: ["#3498db","#2ecc71","#f1c40f","#e67e22","#9b59b6","#16a085","#e74c3c","#2980b9","#f39c12","#8e44ad","#27ae60","#d35400"] },
+  { name: "Heritage Inks", tag: "The same five hues you know — blue '22, green '23, gold '24, orange '25, purple '26 — but mixed like a 1900s survey office would: deeper, inkier pigments that sit in the Atlas's earthy world without losing their pop. The gentlest change: every page keeps its year identity.",
+    grow: "Grows along a curated wheel of twelve survey inks — 2027 gets spruce teal, 2028 madder red… After twelve, the wheel turns again: by then the early years are faded echoes, so no two solid inks ever share a hillside.",
+    colors: ["#33638F","#41794F","#D28F1F","#BC5B2A","#7C5194","#2F7F87","#A8433E","#6A7F35","#4E5FA8","#AF5F7E","#3A6B5D","#8C6D3F"] },
+  { name: "The Wildflower Almanac", tag: "Every year is a native wildflower's ink: '22 Silver Lupine, '23 California Poppy, '24 Indian Paintbrush, '25 Ceanothus, '26 Goldfields. Bold botanical color with a story — each new year of your life gets a flower and a line in the field guide.",
+    grow: "Grows forever the way a field guide does: there is always another wildflower. Each January, the Atlas names the new year's flower.",
+    colors: ["#5763AE","#E4710F","#C13A32","#7259A8","#D99E20","#4C8A46","#B04A6E","#3E7CB8","#D97F35","#9C64B8","#48699C","#C4508C"] },
+  { name: "Blaze & Signpost", tag: "The paints that actually mark trails: blaze blue, trail-crew green, blaze orange, ranger red, signpost plum. The loudest of the five — enamel-on-wood color made to be seen across a canyon, for a site where the trails ARE the show.",
+    grow: "Grows through the sign-shop rack: gold, lake teal, clay, berry, moss, cobalt, ochre… a dozen enamels before the rack repeats.",
+    colors: ["#1E6FA8","#3E8A3E","#EE6114","#B5342E","#7A4E8E","#D9A016","#1F8A80","#A9603C","#C24E75","#5E7F2C","#47549E","#8A6A2F"] },
+  { name: "Park Poster", tag: "Pigments lifted from the vintage national-park posters: dusk teal, poster green, sun gold, sunset vermilion, canyon violet. Nostalgic, flat, confident — the closest match to the engraved-atlas mood while still glowing against the parchment.",
+    grow: "Grows down the poster rack — sky blue '27, adobe rose '28, sage olive '29, lake indigo '30… twelve prints before any repeat.",
+    colors: ["#23707B","#55803B","#E0A226","#CE5226","#6F4F8C","#3D7BAE","#BC5F63","#7E8A3C","#3C5497","#D07A2E","#2E6B4F","#93537F"] },
+  { name: "The Compass Rose", tag: "The engineered one: each year turns the color wheel by the golden angle (137.5°) inside a fixed earthy band, so consecutive years are always far apart and the sequence NEVER runs out. 2022 anchors on your familiar blue; 2040 already has a color waiting.",
+    grow: "Grows by formula, not by taste: hue = 210° + 137.5° × (year − 2022). Decades of hikes, zero future decisions.",
+    colors: Array.from({length: 12}, (_, i) => {
+      const h = (210 + 137.5 * i) % 360;
+      const light = (h > 40 && h < 90) ? 40 : 46;   // golds run darker so they hold on parchment
+      return `hsl(${h.toFixed(1)}, 56%, ${light}%)`;
+    }) }
+];
+
+// one shared terrain panel: parchment, soft ridges, a park, a road, water —
+// a stand-in for the Atlas basemap so every palette is judged on the same land
+const TRAILS = [
+  { d: "M55 185 C80 140 70 100 105 85 C140 70 150 115 185 105", yr: "'22", ci: 0 },
+  { d: "M255 190 C270 150 300 160 310 120 C318 90 350 85 360 115 C370 145 340 160 330 187", yr: "'23", ci: 1 },
+  { d: "M450 185 C470 140 500 150 520 110 C535 80 560 95 585 75", yr: "'24", ci: 2 },
+  { d: "M650 190 C670 150 665 115 700 100 C735 85 745 125 780 118", yr: "'25", ci: 3 },
+  { d: "M865 185 C885 150 875 110 905 95 C930 83 950 120 975 108", yr: "'26", ci: 4 }
+];
+function panel(colors) {
+  let s = `<svg class="panel" viewBox="0 0 1040 230">
+    <defs><filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="14"/></filter></defs>
+    <rect width="1040" height="230" fill="#f5efe0"/>
+    <ellipse cx="180" cy="60" rx="190" ry="70" fill="#e6ddc2" filter="url(#soft)"/>
+    <ellipse cx="560" cy="40" rx="240" ry="60" fill="#e2d8bd" filter="url(#soft)"/>
+    <ellipse cx="380" cy="170" rx="200" ry="70" fill="#dfe6c6" filter="url(#soft)"/>
+    <ellipse cx="850" cy="80" rx="200" ry="80" fill="#e8dfc6" filter="url(#soft)"/>
+    <path d="M900 230 C940 200 1000 205 1040 190 L1040 230 Z" fill="#d6e2e6"/>
+    <path d="M0 205 C200 195 420 215 640 205 C820 197 950 205 1040 198" stroke="#f0dda6" stroke-width="5" fill="none"/>
+    <path d="M120 120 C160 110 200 125 240 118 M480 140 C520 130 560 145 600 138 M760 150 C800 140 840 155 880 148"
+          stroke="#d9cfb2" stroke-width="1" fill="none" opacity="0.8"/>`;
+  // the five years
+  TRAILS.forEach(t => {
+    const c = colors[t.ci];
+    const m = t.d.match(/^M([\d.]+) ([\d.]+)/);
+    s += `<path d="${t.d}" stroke="${c}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+          <circle cx="${m[1]}" cy="${m[2]}" r="4.5" fill="${c}" stroke="#fffdf6" stroke-width="1.5"/>
+          <text x="${+m[1] + 12}" y="${+m[2] + 13}" font-size="12" fill="#8a8472" font-style="italic">${t.yr}</text>`;
+  });
+  // the repeat: a '23 trail rehiked in '26 — old ink glows beneath the new
+  const rd = "M665 60 C700 40 740 55 775 38 C805 24 830 45 860 35";
+  s += `<path d="${rd}" stroke="${colors[1]}" stroke-width="11" fill="none" stroke-linecap="round" opacity="0.28"/>
+        <path d="${rd}" stroke="${colors[4]}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.9"/>
+        <circle cx="665" cy="60" r="4.5" fill="${colors[4]}" stroke="#fffdf6" stroke-width="1.5"/>
+        <circle cx="665" cy="60" r="8" fill="none" stroke="#f1c40f" stroke-width="2.5"/>
+        <text x="680" y="78" font-size="12" fill="#8a8472" font-style="italic">'23 again in '26</text>`;
+  return s + '</svg>';
+}
+let html = '';
+CONCEPTS.forEach((c, i) => {
+  const chips = c.colors.map((col, k) =>
+    `<div class="chip"><div class="sw" style="background:${col}"></div><div class="yr">${2022 + k}</div></div>`).join('');
+  html += `<div class="concept">
+      <h2><span class="num">${i === 0 ? '—' : 'No. ' + i}</span>${c.name}</h2>
+      <div class="tag">${c.tag}</div>
+      ${panel(c.colors)}
+      <div class="band">${chips}</div>
+      <div class="grow"><b>How it grows:</b> ${c.grow}</div>
+    </div>`;
+});
+document.getElementById('sheets').innerHTML = html;
+</script>
+</body>
+</html>

@@ -28,11 +28,17 @@ map.attributionControl.addAttribution('Terrain, topo &amp; imagery &copy; Esri &
 // This ensures the primary trail is always drawn on top of its "ghost" trails.
 map.createPane('mainTrailPane');
 map.getPane('mainTrailPane').style.zIndex = 450;
+// The Expedition Line rides its own pane so the whole thread web can fade as
+// one: it is cinema apparatus, shown only while the engine is animating —
+// at rest, the trails own the map alone (see .threads-on in map.css).
+map.createPane('threadPane');
+map.getPane('threadPane').style.zIndex = 430;
 
-// --- Zoom-aware icon reveal ---
-// Below this zoom, trail-start icons fade out (via CSS) so the trailprints
-// own the view; the line dash patterns still tell the outing style.
-const ICON_REVEAL_ZOOM = 10;
+// --- Zoom-aware stamp reveal ---
+// Below this zoom the engraved stamps fold back into their trailhead dots
+// (via CSS on .stamp-seat) so the trailprints own the wide view; the stamps
+// bloom again as you approach a region.
+const ICON_REVEAL_ZOOM = 11;
 const updateIconVisibility = () => {
     map.getContainer().classList.toggle('icons-zoomed-out', map.getZoom() < ICON_REVEAL_ZOOM);
 };
@@ -49,15 +55,15 @@ updateIconVisibility();
 //               read like a 2010s embed.
 //   Satellite — the real ground, with place names.
 // ===========================================================================
-// Every basemap layer glides through camera flights instead of churning:
-// updateWhenIdle/updateWhenZooming defer tile requests until the camera
-// settles (mid-flight the existing tiles scale smoothly, like motion blur in
-// a tracking shot), and keepBuffer holds a wide apron of tiles so pans don't
-// reveal bare paper. Landings resolve fast because prefetchTiles() (below)
-// warms the destination's tiles before the camera gets there.
+// Tiles load EAGERLY (Leaflet's defaults): requests go out while the camera
+// is still moving, so free roaming feels immediate — deferring until idle
+// was tried with the old camera flights and made every pan trail bare paper.
+// The expedition never sees churn either way: its cuts happen behind the
+// veil, with prefetchTiles() warming each landing. keepBuffer holds a wide
+// apron of loaded tiles so small pans never reveal the paper beneath.
 const TILE = (url, opts = {}) => L.tileLayer(url, {
     className: 'fadeable-tile-layer', opacity: 0, attribution: '',
-    updateWhenIdle: true, updateWhenZooming: false, keepBuffer: 8, ...opts
+    updateWhenIdle: false, updateWhenZooming: true, keepBuffer: 8, ...opts
 });
 const VOYAGER_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
 const HILLSHADE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
@@ -99,7 +105,6 @@ const topoUnder = UNDER(TOPO_URL, { zIndex: 191, className: 'fadeable-tile-layer
 const imageryUnder = UNDER(IMAGERY_URL, { zIndex: 191 });
 
 const ALL_TILE_LAYERS = [atlasBaseUnder, topoUnder, imageryUnder, atlasBaseLayer, hillshadeLayer, topoLayer, imageryLayer, placesLayer, atlasLabelsLayer];
-ALL_TILE_LAYERS.forEach(l => l.addTo(map));
 
 // the parchment wash that ties the Atlas outfit to the hero film
 const parchmentWash = document.createElement('div');
@@ -112,14 +117,37 @@ const BASEMAPS = {
     satellite: { tiles: new Map([[imageryUnder, 1], [imageryLayer, 1], [placesLayer, 1]]), wash: false }
 };
 let currentBasemap = 'atlas';
+// Only the active outfit's sheets ride on the map. An opacity-0 tile layer
+// still FETCHES every tile the camera crosses — with all three outfits
+// mounted, each pan paid for nine layers' worth of requests, which is what
+// made free roaming feel sluggish. Now the others dismount after the
+// crossfade and remount on demand.
 function setBasemap(key) {
     currentBasemap = key;
     const conf = BASEMAPS[key];
-    ALL_TILE_LAYERS.forEach(l => l.setOpacity(conf.tiles.get(l) || 0));
+    ALL_TILE_LAYERS.forEach(l => {
+        const target = conf.tiles.get(l) || 0;
+        if (target > 0) {
+            if (!map.hasLayer(l)) {
+                l.addTo(map);
+                // let the fresh sheet paint at 0 first so the fade-in runs
+                requestAnimationFrame(() => requestAnimationFrame(() => l.setOpacity(target)));
+            } else {
+                l.setOpacity(target);
+            }
+        } else {
+            l.setOpacity(0);
+        }
+    });
+    clearTimeout(setBasemap._t);
+    setBasemap._t = setTimeout(() => {
+        const cur = BASEMAPS[currentBasemap].tiles;
+        ALL_TILE_LAYERS.forEach(l => { if (!cur.get(l) && map.hasLayer(l)) map.removeLayer(l); });
+    }, 700);
     parchmentWash.classList.toggle('on', conf.wash);
     document.querySelectorAll('.basemap-chips button').forEach(b => b.classList.toggle('active', b.dataset.base === key));
 }
-document.getElementById('basemap-chips').addEventListener('click', e => {
+document.getElementById('pane-basemap').addEventListener('click', e => {
     if (e.target.dataset.base) setBasemap(e.target.dataset.base);
 });
 setBasemap('atlas');
@@ -129,12 +157,15 @@ setBasemap('atlas');
 // ===========================================================================
 let allHikesData = [];          // trail groups (hikes grouped by trail_name)
 let allTrailGeometries = {};
-const allTrailsGroup = L.featureGroup().addTo(map);
 let layerReferences = {};       // trail_name -> { layer, firstT, row, bounds }
 let iconNudges = {};
 let legs = [];                  // every visible hike, chronological — the expedition's flight plan
 let t0 = 0, t1 = 1;             // the timeline's ends (first & last hike)
-let nowT = Infinity;            // the moment the map is showing
+let nowT = Infinity;            // the moment the map is showing (for the readout)
+let inkIx = -1;                 // how far the ink has been laid, by LEG ORDER —
+                                // same-day trip siblings share a date, so time
+                                // alone can never drive the reveal
+let legIndexById = {};          // trail_id -> position in the itinerary
 let fullBounds = null;
 
 // Deep-link support: map.html?state=CA opens zoomed to that state's hikes.
@@ -192,14 +223,17 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
             mode = 'expedition';
             const ix = Math.max(0, Math.min(legs.length - 1, +LEG_PARAM));
             legIx = ix;
+            inkIx = ix;
             nowT = legs[ix].t;
             applyReveal();
             syncThreads(ix);
-            setSceneView(ix);
+            setShotView(ix);
             setPlaque(legs[ix].h);
             syncScrub();
             updateDeck();
-            if (params.get('cinema')) setCinema(true);
+            if (params.get('cinema')) { setCinema(true); setThreads(true); }
+            // &dbg=1: expose the landed zoom to headless checks via the title
+            if (params.get('dbg')) document.title = `z${map.getZoom()} shot${shotOfLeg[ix]} legs${shots[shotOfLeg[ix]].legIxs.length}`;
         }
     })
     .catch(error => console.error('Error loading map data:', error));
@@ -242,15 +276,16 @@ function computeIconNudges(trailGroups) {
     return nudges;
 }
 
-// --- Trail Spotlight (unchanged): an open popup dims every other trail ---
+// --- Trail Spotlight: a focused trail dims every other one ---
 let spotlightTrailName = null;
+function eachTrailLayer(ref, fn) {
+    ref.visits.forEach(v => { if (v.mode !== 'off') v.lines.forEach(fn); });
+    ref.markers.forEach(fn);
+}
 function applySpotlight() {
     for (const name in layerReferences) {
         const focused = !spotlightTrailName || name === spotlightTrailName;
-        const group = layerReferences[name].layer;
-        const members = [];
-        if (group.eachLayer) { group.eachLayer(l => members.push(l)); } else { members.push(group); }
-        members.forEach(l => {
+        eachTrailLayer(layerReferences[name], l => {
             if (l instanceof L.Marker) {
                 l.setOpacity(focused ? 1 : 0.2);
             } else if (l.setStyle) {
@@ -263,47 +298,225 @@ function applySpotlight() {
 }
 
 // ===========================================================================
-// Rendering: build every layer, then let the timeline decide what's on land
+// Rendering: time-aware ink. Every VISIT to a trail owns its own stroke —
+// the newest visible visit rides solid in its year's color, earlier visits
+// fade to echo whispers beneath it, and nothing later than nowT exists yet.
+// One rendering truth for playback and free exploration alike. (Replaced
+// the static latest-color + ghost-halo rendering, which leaked future
+// years into the expedition's past.)
 // ===========================================================================
+// Trailhead stamps (replaced gen-1's floating PNG pins, July 2026): each
+// trailhead is a small year-ink dot at the exact point plus an engraved
+// stamp seated beside it — printed on the paper like a quad-sheet symbol.
+// The seat offsets away from the trail's own ink and blooms only past
+// ICON_REVEAL_ZOOM; farther out, the dots own the view.
+
+/** Which way is "away from the ink"? Opposite the bisector of the trail's
+    opening and closing bearings out of the trailhead — for an out-and-back
+    that's straight back down the approach, for a loop it's outside the
+    loop's mouth. Returned in screen pixels (y runs south). */
+function stampVector(segs) {
+    const pts = segs[0], tail = segs[segs.length - 1];
+    const a = pts[0];
+    const k = Math.cos(a[0] * Math.PI / 180);         // shrink east-west degrees to true distance
+    const unit = p => {
+        const x = (p[1] - a[1]) * k, y = p[0] - a[0];
+        const m = Math.hypot(x, y);
+        return m ? [x / m, y / m] : [0, 0];
+    };
+    const probe = arr => arr[Math.max(1, Math.min(arr.length - 1, Math.round(arr.length * 0.06)))];
+    const u1 = unit(probe(pts));
+    const u2 = unit(probe([...tail].reverse()));
+    let sx = u1[0] + u2[0], sy = u1[1] + u2[1];
+    let m = Math.hypot(sx, sy);
+    if (m < 0.35) { sx = -u1[1]; sy = u1[0]; m = 1; } // through-route: step aside instead
+    const R = 16;
+    return { dx: -sx / m * R, dy: sy / m * R };
+}
+
+function makeStampIcon(hike, vec, gold, isVp) {
+    const cls = 'stamp' + (gold ? ' gold' : '');
+    // viewpoints carry no dot of their own — their ink IS a dot already
+    const html = `<div class="stamp-core" style="color:${yearColorOf(hike)}">`
+        + (isVp ? '' : '<span class="stamp-dot"></span>')
+        + `<span class="stamp-seat" style="transform:translate(${vec.dx.toFixed(1)}px,${vec.dy.toFixed(1)}px)">${atlasStampSvg(hike.hike_type)}</span></div>`;
+    return L.divIcon({ className: cls, html, iconSize: [0, 0], iconAnchor: [0, 0] });
+}
+
+function attachTrailInteractions(layer, trailName, ref) {
+    layer.on('click', () => {
+        // the same click bubbles on to the map, whose handler would
+        // immediately close the card we're about to open — swallow it
+        suppressMapClick = true;
+        setTimeout(() => { suppressMapClick = false; }, 0);
+        focusTrail(trailName);
+    });
+    layer.on('mouseover', () => {
+        if (ref.warmed) return;
+        ref.warmed = true;
+        const photoId = cardBannerPhotoId([...ref.group].sort(compareHikesChronoDesc));
+        if (photoId) {
+            new Image().src = cloudinaryUrl(photoId, CARD_BANNER_TRANSFORM);
+            new Image().src = cloudinaryUrl(photoId, CARD_BLUR_TRANSFORM);
+        }
+    });
+}
+
+function buildTrailRef(hikesForTrail) {
+    const trailName = hikesForTrail[0].trail_name;
+    const allPts = [];
+    const ref = {
+        name: trailName, group: hikesForTrail, row: null, warmed: false,
+        nudgeX: iconNudges[trailName] || 0,
+        visits: [], markers: [], sig: null, msig: null,
+        firstT: Math.min(...hikesForTrail.map(h => new Date(h.date_completed).getTime()))
+    };
+    [...hikesForTrail].sort(compareHikesChrono).forEach(h => {
+        const col = yearColorOf(h);
+        const segs = allTrailGeometries[h.trail_id] || null;
+        const lines = [];
+        if (segs) {
+            segs.forEach(ll => {
+                ll.forEach(p => allPts.push(p));
+                lines.push(L.polyline(ll, { color: col, weight: 5, opacity: 0.85, baseOpacity: 0.85, pane: 'mainTrailPane' }));
+            });
+        } else if (typeof h.latitude === 'number') {
+            // a viewpoint's ink is its dot — always visible, unlike the
+            // zoom-gated icon above it
+            allPts.push([h.latitude, h.longitude]);
+            lines.push(L.circleMarker([h.latitude, h.longitude],
+                { radius: 4.5, color: '#fffdf6', weight: 1.5, fillColor: col, fillOpacity: 0.95, opacity: 1, baseOpacity: 1, pane: 'mainTrailPane' }));
+        } else {
+            return;
+        }
+        lines.forEach(l => attachTrailInteractions(l, trailName, ref));
+        // a viewpoint's stamp perches straight above its dot
+        const vec = segs ? stampVector(segs) : { dx: 0, dy: -16 };
+        ref.visits.push({ h, t: new Date(h.date_completed).getTime(), tag: h.trip_tag, segs, lines, vec, col, mode: 'off' });
+    });
+    if (!ref.visits.length) return null;
+    ref.bounds = L.latLngBounds(allPts);
+    return ref;
+}
+
+/** An echo's ink: the year's color mixed toward dusk, so a same-year halo
+    still reads against the fresh stroke laid over it. */
+const deepen = hex => {
+    const n = parseInt(hex.slice(1), 16);
+    const d = c => Math.round(c * 0.72);
+    return `rgb(${d(n >> 16 & 255)},${d(n >> 8 & 255)},${d(n & 255)})`;
+};
+
+/** Restyle one visit's stroke: solid ink, echo whisper, or not yet walked.
+    The CSS stroke transition turns solid→echo into the fade Danny asked for. */
+function styleVisit(v, target) {
+    if (v.mode === target) return;
+    v.mode = target;
+    if (target === 'off') {
+        v.lines.forEach(l => map.removeLayer(l));
+        return;
+    }
+    const solid = target === 'solid';
+    // An echo is a HALO, not a thinner line: repeat visits mostly retrace the
+    // same ground, and a narrow echo would hide entirely beneath the newer
+    // solid stroke. Wider + faint + DEEPENED (the year's ink at dusk), it
+    // glows out from under the new stroke — still unmistakably its year, but
+    // visible even when the new visit is the very same color. The .echo-ink
+    // class slows the stroke transition so a halo blooms in organically
+    // rather than snapping.
+    v.lines.forEach(l => {
+        if (!map.hasLayer(l)) l.addTo(map);
+        const el = l.getElement ? l.getElement() : null;
+        if (el) el.classList.toggle('echo-ink', !solid);
+        if (l instanceof L.CircleMarker) {
+            l.setRadius(solid ? 4.5 : 8);
+            l.setStyle({ fillColor: solid ? v.col : deepen(v.col), opacity: solid ? 1 : 0.35, fillOpacity: solid ? 0.95 : 0.3 });
+            l.options.baseOpacity = solid ? 1 : 0.35;
+        } else {
+            l.setStyle({ color: solid ? v.col : deepen(v.col), weight: solid ? 5 : 11, opacity: solid ? 0.85 : 0.35 });
+            l.options.baseOpacity = solid ? 0.85 : 0.35;
+        }
+        if (solid && l.bringToFront) l.bringToFront();
+    });
+}
+
+/** Bring one trail's ink and markers in line with the reveal (leg order,
+    never raw dates — same-day trip siblings must arrive one at a time). */
+function applyTrailInk(ref) {
+    const arrived = ref.visits.filter(v => legIndexById[v.h.trail_id] <= inkIx);
+    const vis = arrived.filter(v => v.h.trail_id !== holdLegId);
+    const last = vis.length ? vis[vis.length - 1] : null;
+    // a multi-day journey is one visit-event: every leg sharing the newest
+    // visit's trip_tag stays solid together
+    const solidSet = new Set();
+    if (last) vis.forEach(v => { if (v === last || (last.tag && v.tag === last.tag)) solidSet.add(v); });
+    const sig = `${vis.length}|${last ? last.h.trail_id : ''}`;
+    if (ref.sig !== sig) {
+        ref.sig = sig;
+        ref.visits.forEach(v => styleVisit(v, !vis.includes(v) ? 'off' : (solidSet.has(v) ? 'solid' : 'echo')));
+    }
+    // markers follow the newest visit-event. The gold ring counts HISTORY
+    // (every arrived visit, held one included) so a redraw never strips it.
+    const events = new Set(arrived.map(v => v.tag ? 'tag:' + v.tag : v.h.trail_id));
+    const msig = last ? `${last.h.trail_id}|${events.size > 1}` : '';
+    if (ref.msig !== msig) {
+        ref.msig = msig;
+        const gold = events.size > 1;
+        const want = last ? [...solidSet].sort((a, b) => a.t - b.t) : [];
+        const kindOf = v => `${v.h.hike_type}|${isViewpoint(v.h)}`;
+        // When the standing markers can carry the new state (same count, same
+        // stamp kinds — the usual case when a repeat visit lands), mutate them
+        // in place: a teardown would make the gold ring POP into existence,
+        // where a class toggle lets the CSS transitions bloom it in.
+        const same = want.length && ref.markers.length === want.length &&
+            want.every((v, k) => ref.markers[k]._stampKind === kindOf(v));
+        if (same) {
+            want.forEach((v, k) => {
+                const m = ref.markers[k];
+                m.setLatLng(v.segs ? v.segs[0][0] : [v.h.latitude, v.h.longitude]);
+                const el = m.getElement();
+                if (!el) return;
+                el.classList.toggle('gold', gold && k === 0);
+                el.querySelector('.stamp-core').style.color = yearColorOf(v.h);
+                el.querySelector('.stamp-seat').style.transform =
+                    `translate(${(v.vec.dx + (k === 0 ? ref.nudgeX : 0)).toFixed(1)}px,${v.vec.dy.toFixed(1)}px)`;
+            });
+        } else {
+            ref.markers.forEach(m => map.removeLayer(m));
+            ref.markers = [];
+            want.forEach((v, k) => {
+                const start = v.segs ? v.segs[0][0] : [v.h.latitude, v.h.longitude];
+                const vec = { dx: v.vec.dx + (k === 0 ? ref.nudgeX : 0), dy: v.vec.dy };
+                const m = L.marker(start, {
+                    icon: makeStampIcon(v.h, vec, gold && k === 0, isViewpoint(v.h))
+                });
+                m._stampKind = kindOf(v);
+                attachTrailInteractions(m, ref.name, ref);
+                m.addTo(map);
+                ref.markers.push(m);
+            });
+        }
+    }
+}
+
 function renderMapLayers(trailGroupsToRender) {
     resetExpedition();                      // a re-render always lands in off-trail mode
-    allTrailsGroup.clearLayers();
+    for (const name in layerReferences) {
+        const old = layerReferences[name];
+        old.visits.forEach(v => v.lines.forEach(l => map.removeLayer(l)));
+        old.markers.forEach(m => map.removeLayer(m));
+    }
     layerReferences = {};
     spotlightTrailName = null;
 
     const legList = [];
     trailGroupsToRender.forEach(hikesForTrail => {
-        const trailName = hikesForTrail[0].trail_name;
-        const layer = renderTrailGroup(hikesForTrail, {
-            isInteractive: true,
-            onTrailClick: () => {
-                // the same click bubbles on to the map, whose handler would
-                // immediately close the card we're about to open — swallow it
-                suppressMapClick = true;
-                setTimeout(() => { suppressMapClick = false; }, 0);
-                focusTrail(trailName);
-            },
-            trailGeometries: allTrailGeometries,
-            iconNudges: iconNudges
-        });
-        if (!layer) return;
-
-        const firstT = Math.min(...hikesForTrail.map(h => new Date(h.date_completed).getTime()));
-        layerReferences[trailName] = { layer, firstT, row: null, group: hikesForTrail };
+        const ref = buildTrailRef(hikesForTrail);
+        if (!ref) return;
+        layerReferences[ref.name] = ref;
         hikesForTrail.forEach(h => {
             if (typeof h.latitude !== 'number' && !allTrailGeometries[h.trail_id]) return;
-            legList.push({ t: new Date(h.date_completed).getTime(), h, name: trailName });
-        });
-
-        let bannerWarmed = false;
-        layer.on('mouseover', () => {
-            if (bannerWarmed) return;
-            bannerWarmed = true;
-            const photoId = cardBannerPhotoId([...hikesForTrail].sort(compareHikesChronoDesc));
-            if (photoId) {
-                new Image().src = cloudinaryUrl(photoId, CARD_BANNER_TRANSFORM);
-                new Image().src = cloudinaryUrl(photoId, CARD_BLUR_TRANSFORM);
-            }
+            legList.push({ t: new Date(h.date_completed).getTime(), h, name: ref.name });
         });
     });
 
@@ -316,7 +529,14 @@ function renderMapLayers(trailGroupsToRender) {
     if (legs.length) { t0 = legs[0].t; t1 = legs[legs.length - 1].t; }
     nowT = t1;
     legIx = legs.length - 1;
-    holdTrailName = null;
+    inkIx = legs.length - 1;
+    legIndexById = {};
+    legs.forEach((l, i) => {
+        legIndexById[l.h.trail_id] = i;
+        const ref = layerReferences[l.name];
+        if (ref && (ref.firstLegIx === undefined || i < ref.firstLegIx)) ref.firstLegIx = i;
+    });
+    holdLegId = null;
     buildExpedition();
     buildTimelineChrome();
     syncScrub();
@@ -327,26 +547,29 @@ function renderMapLayers(trailGroupsToRender) {
     const count = document.getElementById('filter-count');
     if (count) count.textContent = `Showing ${shown} of ${allHikesData.length} trails`;
 
-    fullBounds = allTrailsGroup.getLayers().length ? allTrailsGroup.getBounds().pad(0.1) : null;
+    fullBounds = null;
+    for (const name in layerReferences) {
+        const b = layerReferences[name].bounds;
+        fullBounds = fullBounds ? fullBounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
+    }
+    if (fullBounds) fullBounds = fullBounds.pad(0.1);
     if (!pendingFocusState && fullBounds) map.fitBounds(fullBounds);
 }
 
 /** Which trails exist yet, at the moment the map is showing? */
 function applyReveal() {
     let hikeCount = 0, vpCount = 0, miles = 0;
-    legs.forEach(l => {
-        if (l.t > nowT) return;
+    legs.forEach((l, i) => {
+        if (i > inkIx) return;
         if (isViewpoint(l.h)) vpCount++; else hikeCount++;
         miles += l.h.miles || 0;
     });
     for (const name in layerReferences) {
         const ref = layerReferences[name];
-        // holdTrailName keeps a trail off the land while its draw animation
-        // performs; the register row already lights up (its day has come)
-        const on = ref.firstT <= nowT && name !== holdTrailName;
-        if (on && !allTrailsGroup.hasLayer(ref.layer)) allTrailsGroup.addLayer(ref.layer);
-        if (!on && allTrailsGroup.hasLayer(ref.layer)) allTrailsGroup.removeLayer(ref.layer);
-        if (ref.row) ref.row.classList.toggle('future', ref.firstT > nowT);
+        // per-visit ink: the newest visible visit solid, earlier ones echo;
+        // holdLegId keeps the leg being drawn off the land until it lands
+        applyTrailInk(ref);
+        if (ref.row) ref.row.classList.toggle('future', ref.firstLegIx > inkIx);
     }
     const d = new Date(Math.min(nowT, t1));
     const readout = document.getElementById('deck-readout');
@@ -357,7 +580,7 @@ function applyReveal() {
         const ch = chapters[chapterOfLeg[legIx]];
         const where = ch.kind === 'home' ? `${ch.name} · ${legs[legIx].h.location}` : ch.name;
         readout.innerHTML = `<b>${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}</b>
-            <span class="deck-stats">${where}</span>`;
+            <span class="deck-stats">Chapter ${ROMAN(chapterOfLeg[legIx] + 1)} · ${where}</span>`;
         return;
     }
     const atEnd = nowT >= t1;
@@ -399,7 +622,6 @@ const CARD_BANNER_TRANSFORM = 'w_600,h_300,c_fill,q_auto,f_auto';
 const CARD_BLUR_TRANSFORM = 'w_40,h_20,c_fill,q_auto:low,e_blur:300,f_auto';
 const fieldCardEl = document.getElementById('field-card');
 let cardTrailName = null;
-let registerAutoTucked = false;     // did the card tuck the register itself?
 let suppressMapClick = false;       // a trail click also bubbles to the map
 
 function cardBannerPhotoId(sortedHikes) {
@@ -429,10 +651,9 @@ function buildFieldCardHtml(hikesForTrail, currentHike) {
                 <span class="fc-kind">${rep.hike_type}</span>
             </div>`;
     } else {
-        const iconFile = ATLAS_CONFIG.ICON_MAP[rep.hike_type] || 'day-hike-icon.png';
         bannerHtml = `
             <div class="fc-banner fc-banner-fallback" style="background-color: ${yearColor};">
-                <img src="assets/icons/${iconFile}" alt="${rep.hike_type}" class="hike-icon">
+                ${atlasStampSvg(rep.hike_type)}
                 <span class="fc-kind">${rep.hike_type}</span>
             </div>`;
     }
@@ -481,9 +702,6 @@ function showFieldCard(hikesForTrail, currentHike) {
         else photo.addEventListener('load', () => photo.classList.add('loaded'), { once: true });
     }
     fieldCardEl.querySelector('.fc-close').addEventListener('click', () => closeFieldCard());
-    // the card lives where the register does — tuck the drawer out of its way
-    const panel = document.getElementById('register-panel');
-    if (!panel.classList.contains('tucked')) { registerAutoTucked = true; panel.classList.add('tucked'); }
     spotlightTrailName = trailName;
     applySpotlight();
     markActiveRow(trailName);
@@ -492,10 +710,6 @@ function showFieldCard(hikesForTrail, currentHike) {
 function closeFieldCard() {
     cardTrailName = null;
     fieldCardEl.classList.remove('show');
-    if (registerAutoTucked) {
-        registerAutoTucked = false;
-        document.getElementById('register-panel').classList.remove('tucked');
-    }
     spotlightTrailName = null;
     applySpotlight();
     markActiveRow(null);
@@ -510,7 +724,7 @@ function markActiveRow(trailName) {
 // --- Framing: fit a trail into the open space beside the card + deck.
 //     Every frame precedes a card, so the left padding always reserves its
 //     column — the trail centers itself in the space that remains. ---
-const FRAME_MAX_ZOOM = 14;
+const FRAME_MAX_ZOOM = 16;   // free-mode clicks frame as close as the expedition's shots
 function cardFramePadding() {
     return {
         paddingTopLeft: L.point(356, 76),
@@ -520,10 +734,14 @@ function cardFramePadding() {
 
 /** The bounds a trail (or viewpoint) will be framed to. */
 function refTargetBounds(ref) {
-    const b = ref.layer.getBounds ? ref.layer.getBounds() : null;
-    if (b && b.isValid()) return b;
-    const h = ref.group.find(hk => typeof hk.latitude === 'number');
-    return h ? L.latLng(h.latitude, h.longitude).toBounds(900) : null;   // a viewpoint frames its neighborhood
+    if (ref.bounds && ref.bounds.isValid()) {
+        // a lone point (viewpoint) frames its neighborhood, not a pinprick
+        if (ref.bounds.getSouthWest().equals(ref.bounds.getNorthEast())) {
+            return ref.bounds.getCenter().toBounds(900);
+        }
+        return ref.bounds;
+    }
+    return null;
 }
 
 /**
@@ -598,9 +816,10 @@ function focusTrail(trailName) {
     if (playing) haltPlayback();   // clicking a trail takes the wheel
     // the trail may sit ahead of the timeline's moment — walk time forward
     // to its first hike so it exists to visit
-    if (ref.firstT > nowT) {
-        nowT = ref.firstT;
-        legIx = lastLegAt(nowT);
+    if (ref.firstLegIx > inkIx) {
+        inkIx = ref.firstLegIx;
+        nowT = legs[inkIx].t;
+        legIx = inkIx;
         syncScrub();
         applyReveal();
         if (mode === 'expedition') updateDeck();
@@ -627,7 +846,7 @@ function focusTrail(trailName) {
 let mode = 'free';              // 'free' | 'expedition'
 let playing = false;
 let legIx = -1;
-let holdTrailName = null;       // suppresses a trail's reveal until its draw lands
+let holdLegId = null;           // suppresses one visit's ink until its draw lands
 let expToken = 0;
 const cancelRun = () => { expToken++; };
 const DWELL_MS = 3000;
@@ -697,8 +916,8 @@ async function softCut(applyView, tk) {
     veilEl.classList.remove('fast');
 }
 
-// --- the structure: chapters and scenes, rebuilt with every render ---
-let chapters = [], chapterOfLeg = [], scenes = [], sceneOfLeg = [];
+// --- the structure: chapters, scenes, and shots, rebuilt with every render ---
+let chapters = [], chapterOfLeg = [], scenes = [], sceneOfLeg = [], shots = [], shotOfLeg = [];
 function buildExpedition() {
     chapters = []; chapterOfLeg = []; scenes = []; sceneOfLeg = [];
     threadAt.clear();
@@ -753,19 +972,58 @@ function buildExpedition() {
         });
         sc.bounds = L.latLngBounds(pts).pad(0.18);
     });
+    // SHOTS: the camera's actual parking spots. A scene whose stops are
+    // scattered (Joshua Tree spans a whole park) would force one soft, wide
+    // frame — so consecutive scene legs merge into a shot only while their
+    // union still frames tight (zoom 12 or closer). Lone stops get the
+    // closest, crispest frame the padding allows.
+    shots = []; shotOfLeg = [];
+    const shotPad = L.point(
+        SCENE_FRAME.paddingTopLeft.x + SCENE_FRAME.paddingBottomRight.x,
+        SCENE_FRAME.paddingTopLeft.y + SCENE_FRAME.paddingBottomRight.y
+    );
+    const legShotBounds = i => {
+        const s = allTrailGeometries[legs[i].h.trail_id];
+        return s ? L.latLngBounds(s.flat()).pad(0.3) : L.latLng(legs[i].head).toBounds(900);
+    };
+    legs.forEach((l, i) => {
+        const b = legShotBounds(i);
+        const last = shots[shots.length - 1];
+        if (last && last.scene === sceneOfLeg[i]) {
+            const union = L.latLngBounds(last.bounds.getSouthWest(), last.bounds.getNorthEast()).extend(b);
+            if (map.getBoundsZoom(union, false, shotPad) >= 12) {
+                last.bounds = union;
+                last.legIxs.push(i);
+                shotOfLeg[i] = shots.length - 1;
+                return;
+            }
+        }
+        shots.push({ scene: sceneOfLeg[i], bounds: b, legIxs: [i] });
+        shotOfLeg[i] = shots.length - 1;
+    });
 }
-const setSceneView = ix => map.fitBounds(scenes[sceneOfLeg[ix]].bounds, { ...SCENE_FRAME, animate: false });
-function viewMatchesScene(ix) {
+// One cap for every shot, and a close one: the bounds already say how big a
+// shot is, so a wide cluster fits wide naturally, while anything tight — a
+// lone trail, a viewpoint, a repeat retracing the same ground — earns a true
+// close-up. z16 is the hillshade's native ceiling, so even the tightest frame
+// stays crisp. (Capping by leg COUNT was tried and burned us: two same-trail
+// repeat legs merged into a "multi" shot and got the wide-angle lens for a
+// single trail's footprint.)
+const shotFitOpts = () => ({ ...SCENE_FRAME, maxZoom: 16 });
+const setShotView = ix => map.fitBounds(shots[shotOfLeg[ix]].bounds, { ...shotFitOpts(shotOfLeg[ix]), animate: false });
+function viewMatchesShot(ix) {
     if (!map._getBoundsCenterZoom) return false;
-    const t = map._getBoundsCenterZoom(scenes[sceneOfLeg[ix]].bounds, SCENE_FRAME);
+    const si = shotOfLeg[ix];
+    const t = map._getBoundsCenterZoom(shots[si].bounds, shotFitOpts(si));
     return map.getZoom() === t.zoom && map.getCenter().distanceTo(t.center) < 3;
 }
-const prefetchScene = si => { if (scenes[si]) prefetchTiles(scenes[si].bounds, SCENE_FRAME); };
+const prefetchShot = si => { if (shots[si]) prefetchTiles(shots[si].bounds, shotFitOpts(si)); };
 
 // --- journey lines: every chapter boundary owns one; syncThreads renders
 //     the set exactly as it would look having watched through to leg ix ---
 const threadGroup = L.layerGroup().addTo(map);
 const threadAt = new Map();
+const setThreads = on => map.getContainer().classList.toggle('threads-on', on);
 function threadPts(a, b) {
     const mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
     const d = [b[0] - a[0], b[1] - a[1]];
@@ -783,7 +1041,7 @@ function syncThreads(ix) {
         const want = i <= ix;
         if (want && !threadAt.has(i)) {
             const line = L.polyline(threadPts(legs[i - 1].head, legs[i].head),
-                { color: '#2f5c40', weight: 1.8, opacity: 0.3, dashArray: '7 7', interactive: false }).addTo(threadGroup);
+                { color: '#2f5c40', weight: 1.8, opacity: 0.3, dashArray: '7 7', interactive: false, pane: 'threadPane' }).addTo(threadGroup);
             threadAt.set(i, line);
         } else if (!want && threadAt.has(i)) {
             threadGroup.removeLayer(threadAt.get(i));
@@ -794,8 +1052,8 @@ function syncThreads(ix) {
 /** The Expedition Line: trailhead to trailhead, exactly where you went. */
 async function drawJourneyLine(a, b, tk) {
     const pts = threadPts(a, b);
-    const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false }).addTo(threadGroup);
-    const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1 }).addTo(map);
+    const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false, pane: 'threadPane' }).addTo(threadGroup);
+    const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1, pane: 'threadPane' }).addTo(map);
     const t0ms = performance.now(), dur = 1900;
     await new Promise(res => (function f(now) {
         if (tk !== expToken) return res();
@@ -889,8 +1147,8 @@ async function ceremony(prevIx, ix, tk) {
     const chNew = chapters[chapterOfLeg[ix]];
     const chOld = prevIx < 0 ? null : chapters[chapterOfLeg[prevIx]];
     if (chOld === chNew) {
-        if ((prevIx >= 0 && sceneOfLeg[prevIx] !== sceneOfLeg[ix]) || !viewMatchesScene(ix)) {
-            await softCut(() => setSceneView(ix), tk);
+        if ((prevIx >= 0 && shotOfLeg[prevIx] !== shotOfLeg[ix]) || !viewMatchesShot(ix)) {
+            await softCut(() => setShotView(ix), tk);
         }
         return;
     }
@@ -900,7 +1158,7 @@ async function ceremony(prevIx, ix, tk) {
             <div class="veil-title">${chNew.name}</div>
             <div class="veil-sub">${chNew.sub}${outings}</div>`, 1800);
         if (tk !== expToken) return;
-        setSceneView(ix);
+        setShotView(ix);
         await waitTiles(); if (tk !== expToken) return;
         await veilOut();
         return;
@@ -920,7 +1178,7 @@ async function ceremony(prevIx, ix, tk) {
     threadAt.set(ix, line);
     if (tk !== expToken) return;
     await sleep(420); if (tk !== expToken) return;
-    await softCut(() => setSceneView(ix), tk);
+    await softCut(() => setShotView(ix), tk);
 }
 
 async function legSequence(prevIx, ix, tk) {
@@ -928,25 +1186,29 @@ async function legSequence(prevIx, ix, tk) {
     const leg = legs[ix];
     // the console flips the moment the new hike's pen touches the map
     nowT = leg.t;
-    const ref = layerReferences[leg.name];
-    holdTrailName = (ref && !allTrailsGroup.hasLayer(ref.layer)) ? leg.name : null;
+    inkIx = ix;
+    // hold only THIS visit's ink: on a repeat trail the earlier strokes stay
+    // solid until the new drawing lands, then fade to echoes beneath it.
+    // A viewpoint's dot shows immediately — the pulse rings around it.
+    holdLegId = isViewpoint(leg.h) ? null : leg.h.trail_id;
     applyReveal();
     setPlaque(leg.h);
     syncScrub();
     updateDeck();
     const temps = await drawTrailAnim(leg, tk);
     if (tk !== expToken) { temps.forEach(l => map.removeLayer(l)); return; }
-    holdTrailName = null;
-    applyReveal();   // the real trail (icons and all) takes over the ink
+    holdLegId = null;
+    applyReveal();   // the real visit (icons and all) takes over; prior ink whispers
     requestAnimationFrame(() => temps.forEach(l => map.removeLayer(l)));
     // the ranger reads the itinerary ahead: warm the next framing now
-    if (ix + 1 < legs.length && sceneOfLeg[ix + 1] !== sceneOfLeg[ix]) prefetchScene(sceneOfLeg[ix + 1]);
+    if (ix + 1 < legs.length && shotOfLeg[ix + 1] !== shotOfLeg[ix]) prefetchShot(shotOfLeg[ix + 1]);
 }
 
 async function playFrom(ix) {
     cancelRun(); const tk = expToken;
     mode = 'expedition';
     playing = true;
+    setThreads(true);
     setCinema(true);
     updateDeck();
     let prev = ix - 1;
@@ -975,7 +1237,8 @@ async function startExpedition() {
     if (tk !== expToken) return;
     nowT = t0 - 1;
     legIx = -1;
-    holdTrailName = null;
+    inkIx = -1;
+    holdLegId = null;
     applyReveal();
     threadGroup.clearLayers();
     threadAt.clear();
@@ -986,6 +1249,7 @@ async function startExpedition() {
 
 async function finale(tk) {
     playing = false;
+    setThreads(false);   // the resting Atlas is pure trailprints — no rigging
     dimPlaque();
     await veilIn(`<div class="veil-kicker">The expedition rests</div>
         <div class="veil-title">The whole Atlas</div>
@@ -994,10 +1258,16 @@ async function finale(tk) {
     mode = 'free';
     nowT = t1;
     legIx = legs.length - 1;
-    holdTrailName = null;
+    inkIx = legs.length - 1;
+    legIndexById = {};
+    legs.forEach((l, i) => {
+        legIndexById[l.h.trail_id] = i;
+        const ref = layerReferences[l.name];
+        if (ref && (ref.firstLegIx === undefined || i < ref.firstLegIx)) ref.firstLegIx = i;
+    });
+    holdLegId = null;
     applyReveal();
-    syncThreads(legs.length - 1);
-    threadGroup.eachLayer(l => l.setStyle && l.setStyle({ opacity: 0.45 }));
+    syncThreads(legs.length - 1);   // registry stays whole for a later resume
     if (fullBounds) map.fitBounds(fullBounds, { animate: false });
     await waitTiles(); if (tk !== expToken) { setCinema(false); return; }
     await veilOut();
@@ -1016,6 +1286,7 @@ function endExpedition() {
 function haltPlayback() {
     cancelRun();
     playing = false;
+    setThreads(false);
     setCinema(false);
     veilEl.classList.remove('on', 'fast');
     updateDeck();
@@ -1026,6 +1297,7 @@ function resetExpedition() {
     cancelRun();
     mode = 'free';
     playing = false;
+    setThreads(false);
     legIx = -1;
     setCinema(false);
     veilEl.classList.remove('on', 'fast');
@@ -1060,13 +1332,15 @@ function step(dir) {
 }
 async function settleStep(ix, resume) {
     cancelRun(); const tk = expToken;
+    setThreads(true);   // a step replays its leg — the line web is in play
     legIx = ix;
+    inkIx = ix - 1;
     nowT = ix > 0 ? legs[ix - 1].t : t0 - 1;
-    holdTrailName = null;
+    holdLegId = null;
     await softCut(() => {
         applyReveal();
         syncThreads(ix - 1);
-        setSceneView(ix);
+        setShotView(ix);
     }, tk);
     if (tk !== expToken) return;
     if (resume) playFrom(ix);
@@ -1076,13 +1350,15 @@ async function settleStep(ix, resume) {
 /** Land anywhere in time with the whole world rendered to that point. */
 async function settleJump(ix) {
     cancelRun(); const tk = expToken;
+    setThreads(false);   // a jump lands at rest — no rigging until play resumes
     legIx = ix;
+    inkIx = ix;
     nowT = legs[ix].t;
-    holdTrailName = null;
+    holdLegId = null;
     await softCut(() => {
         applyReveal();
         syncThreads(ix);
-        setSceneView(ix);
+        setShotView(ix);
     }, tk);
     if (tk !== expToken) return;
     setPlaque(legs[ix].h);
@@ -1120,12 +1396,11 @@ function updateDeck() {
         document.getElementById('deck-begin').onclick = startExpedition;
         return;
     }
-    const ch = chapters[chapterOfLeg[Math.max(0, legIx)]];
     c.innerHTML = `
         <button class="deck-step" id="deck-prev" type="button" title="Previous leg">&#8249;</button>
         <button class="deck-pp" id="deck-pp" type="button">${playing ? '&#10073;&#10073;' : '&#9654;'}</button>
         <button class="deck-step" id="deck-next" type="button" title="Next leg">&#8250;</button>
-        <span class="deck-leg">leg ${legIx + 1} of ${legs.length} · Chapter ${ROMAN(chapterOfLeg[Math.max(0, legIx)] + 1)} · ${ch ? ch.name : ''}</span>
+        <span class="deck-leg">leg ${legIx + 1} of ${legs.length}</span>
         <button class="deck-end" id="deck-end" type="button" title="End the expedition">&#10005;</button>`;
     document.getElementById('deck-pp').onclick = () => {
         if (playing) haltPlayback();
@@ -1220,6 +1495,7 @@ function clearAllFilters() {
     }
     activeFilters.search = '';
     document.getElementById('trail-search-input').value = '';
+    document.querySelectorAll('#trail-list-container .trail-list-item').forEach(row => { row.style.display = ''; });
     document.querySelectorAll('.filter-tag.active').forEach(tag => tag.classList.remove('active'));
 }
 
@@ -1243,10 +1519,22 @@ function applyFilters() {
 }
 
 function setupEventListeners() {
-    document.getElementById('filter-toggle-btn').addEventListener('click', () => {
-        document.getElementById('filter-panel').classList.toggle('visible');
+    // The rail card's tabs: one panel at a time; tapping the active tab
+    // folds the card shut.
+    const railCard = document.getElementById('rail-card');
+    const railTabs = document.getElementById('rail-tabs');
+    railTabs.addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const wasActive = btn.classList.contains('active');
+        railTabs.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        railCard.querySelectorAll('.rail-pane').forEach(pn => pn.classList.remove('active'));
+        if (wasActive) { railCard.classList.remove('open'); return; }
+        btn.classList.add('active');
+        document.getElementById('pane-' + btn.dataset.pane).classList.add('active');
+        railCard.classList.add('open');
     });
-    document.getElementById('filter-panel').addEventListener('click', (e) => {
+    document.getElementById('pane-filters').addEventListener('click', (e) => {
         const target = e.target;
         if (target.classList.contains('filter-tag')) {
             const { filterType, filterValue } = target.dataset;
@@ -1267,26 +1555,33 @@ function setupEventListeners() {
         clearAllFilters();
         applyFilters();
     });
-    document.getElementById('trail-search-input').addEventListener('input', (e) => {
-        activeFilters.search = e.target.value.toLowerCase();
-        applyFilters();
+    // The finder: search-first trail navigation (the register, summoned).
+    // Typing filters the LIST only — the map keeps every trail; the filters
+    // panel is where the map itself gets sifted.
+    const finder = document.getElementById('finder');
+    const finderInput = document.getElementById('trail-search-input');
+    const openFinder = () => finder.classList.add('open');
+    finderInput.addEventListener('focus', openFinder);
+    finderInput.addEventListener('input', () => {
+        openFinder();
+        const q = finderInput.value.toLowerCase();
+        document.querySelectorAll('#trail-list-container .trail-list-item').forEach(row => {
+            row.style.display = !q || row.textContent.toLowerCase().includes(q) ? '' : 'none';
+        });
+    });
+    document.addEventListener('pointerdown', (e) => {
+        if (!finder.contains(e.target)) finder.classList.remove('open');
+    });
+    finderInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { finder.classList.remove('open'); finderInput.blur(); }
     });
 
-    // Register rows: focus the trail — same card, same framing as a map click.
+    // Finder rows: focus the trail — same card, same framing as a map click.
     document.getElementById('trail-list-container').addEventListener('click', (e) => {
         const listItem = e.target.closest('.trail-list-item');
         if (!listItem) return;
+        finder.classList.remove('open');
         focusTrail(listItem.dataset.trailName);
-    });
-
-    // Register drawer tuck/reveal
-    const panel = document.getElementById('register-panel');
-    document.getElementById('register-collapse').addEventListener('click', () => panel.classList.add('tucked'));
-    document.getElementById('register-tab').addEventListener('click', () => panel.classList.remove('tucked'));
-
-    // Legend cartouche fold
-    document.getElementById('legend-toggle').addEventListener('click', () => {
-        document.getElementById('legend-cartouche').classList.toggle('folded');
     });
 
     // The timeline: grabbable in every mode. Dragging is a live preview (the
@@ -1300,12 +1595,13 @@ function setupEventListeners() {
         if (playing) haltPlayback();
         const ix = Math.max(0, Math.min(legs.length - 1, +scrub.value));
         legIx = ix;
+        inkIx = ix;
         nowT = legs[ix].t;
-        holdTrailName = null;
+        holdLegId = null;
         applyReveal();
         setPlaque(legs[ix].h);
         // scrubbing behind an open card un-inks its trail — let the card go too
-        if (cardTrailName && layerReferences[cardTrailName] && layerReferences[cardTrailName].firstT > nowT) closeFieldCard();
+        if (cardTrailName && layerReferences[cardTrailName] && layerReferences[cardTrailName].firstLegIx > inkIx) closeFieldCard();
         if (mode === 'expedition') updateDeck();
     });
     scrub.addEventListener('change', () => {
@@ -1322,11 +1618,11 @@ function renderLegend() {
         html += `<div class="legend-item"><span class="legend-trail-segment" style="background-color:${ATLAS_CONFIG.COLOR_MAP[year]};"></span>${year}</div>`;
     }
     html += '<div class="cartouche-label">Outing style</div>';
-    for (const type in ATLAS_CONFIG.ICON_MAP) {
-        html += `<div class="legend-item"><img src="assets/icons/${ATLAS_CONFIG.ICON_MAP[type]}" class="legend-icon hike-icon" alt=""> ${type}</div>`;
+    for (const type in ATLAS_CONFIG.STAMPS) {
+        html += `<div class="legend-item"><span class="legend-stamp">${atlasStampSvg(type)}</span>${type}</div>`;
     }
-    html += `<div class="legend-item"><img src="assets/icons/blank-icon.png" class="legend-icon hike-icon multi-year-icon-style" alt=""> Hiked more than once</div>`;
-    html += `<p class="legend-note">Icons appear as you zoom into a region.</p>`;
+    html += `<div class="legend-item"><span class="legend-stamp"><span class="legend-gold-dot"></span></span>Hiked more than once</div>`;
+    html += `<p class="legend-note">Stamps appear as you zoom into a region.</p>`;
     body.innerHTML = html;
 }
 

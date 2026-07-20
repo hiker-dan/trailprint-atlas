@@ -47,16 +47,15 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 
 /* --- cinema: the ranger-led expedition fades every control but the deck,
        leaving the land, the field card, and the timeline --- */
-.wordmark, .register-tab, .filters-wrap, .cartouche, .basemap-chips,
-.map-shell .leaflet-control-zoom { transition: opacity 0.5s ease; }
-.map-shell.cinema :is(.wordmark, .register, .register-tab, .filters-wrap, .cartouche, .basemap-chips, .leaflet-control-zoom) {
+.wordmark, .map-shell .leaflet-control-zoom { transition: opacity 0.5s ease; }
+.map-shell.cinema :is(.wordmark, .finder, .control-rail, .leaflet-control-zoom) {
     opacity: 0 !important; pointer-events: none !important;
 }
 
 /* --- at rest, the land takes focus: while the cursor is on the map itself,
        the side controls recede; reach toward one and it returns --- */
 @media (hover: hover) {
-    .map-shell:has(> #map:hover) :is(.wordmark, .register-tab, .filters-wrap, .cartouche, .basemap-chips, .leaflet-control-zoom) {
+    .map-shell:has(> #map:hover) :is(.wordmark, .finder, .control-rail, .leaflet-control-zoom) {
         opacity: 0.4;
     }
     /* the zoom control lives inside #map, so hovering it keeps #map:hover
@@ -76,37 +75,24 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
     text-shadow: 0 0 5px rgba(245, 238, 220, 0.95), 0 0 10px rgba(245, 238, 220, 0.85);
 }
 
-/* --- the trail register (drawer) --- */
-.register {
-    top: 72px; left: 14px; bottom: 132px; width: 274px;
-    display: flex; flex-direction: column; overflow: hidden;
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+/* --- the finder: the register, summoned. A search pill; the list floats
+       out beneath it and never owns a column of the page. --- */
+.finder { position: absolute; z-index: 1050; top: 62px; left: 14px; width: 274px; transition: opacity 0.5s ease; }
+.finder-input {
+    position: static; display: block; width: 100%; box-sizing: border-box;
+    padding: 9px 15px; border: 1px solid #d8ccae; border-radius: 999px;
+    background: rgba(255, 253, 246, 0.94); font-family: var(--font-body); font-size: 13px;
+    color: var(--charcoal); box-shadow: 0 4px 16px rgba(60, 50, 30, 0.22);
 }
-.register.tucked { transform: translateX(-320px); opacity: 0; pointer-events: none; }
-.register-tab {
-    top: 72px; left: 14px; padding: 8px 12px; cursor: pointer;
-    font-family: var(--font-display); font-size: 0.85em; color: var(--evergreen);
-    writing-mode: vertical-rl; letter-spacing: 0.12em;
-    opacity: 0; pointer-events: none; transition: opacity 0.3s ease 0.15s; border: 1px solid #d8ccae;
-}
-.register.tucked ~ .register-tab, .register.tucked + .register-tab { opacity: 1; pointer-events: auto; }
-.register-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px 9px 16px; border-bottom: 1px solid #eee3cc; }
-.register-head h2 { margin: 0; font-family: var(--font-display); font-size: 1.05em; color: var(--evergreen); letter-spacing: 0.03em; }
-.register-collapse { border: none; background: none; font-size: 1.3em; color: var(--gravel); cursor: pointer; padding: 0 6px; }
-.register-collapse:hover { color: var(--evergreen); }
-#trail-search-container { padding: 9px 12px; border-bottom: 1px solid #eee3cc; }
-#trail-search-input {
-    width: 100%; padding: 7px 10px; box-sizing: border-box;
-    border: 1px solid #d5cbae; border-radius: 8px; background: #fffdf6;
-    font-family: var(--font-body); font-size: 13px;
-}
-#trail-search-input:focus { outline: none; border-color: var(--trail-green); box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.15); }
-#trail-list-container { overflow-y: auto; flex: 1; }
+.finder-input:focus { outline: none; border-color: var(--trail-green); box-shadow: 0 0 0 2px rgba(74, 124, 89, 0.18); }
+.finder-results { position: static; display: none; margin-top: 8px; max-height: 44vh; overflow-y: auto; overflow-x: hidden; }
+.finder.open .finder-results { display: block; }
 .trail-list-item {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 14px; border-bottom: 1px dashed #eee3cc; cursor: pointer;
     transition: background-color 0.15s ease, opacity 0.3s ease;
 }
+.trail-list-item:last-child { border-bottom: none; }
 .trail-list-item:hover { background: #fbf7ea; }
 .trail-list-item.active { background: #f1f5f1; box-shadow: inset 3px 0 0 var(--trail-green); }
 .trail-list-item.future { opacity: 0.35; }
@@ -116,20 +102,32 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .tli-times { font-style: normal; font-size: 11px; color: var(--trail-green); font-weight: 700; }
 .tli-loc { display: block; font-size: 11px; color: var(--gravel); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* --- filters pocket --- */
-.filters-wrap { position: absolute; z-index: 1000; top: 14px; right: 14px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-.filters-pill {
-    position: static; padding: 9px 20px; cursor: pointer; border: 1px solid #d8ccae;
-    font-family: var(--font-body); font-weight: 700; font-size: 13px;
-    text-transform: uppercase; letter-spacing: 0.08em; color: var(--evergreen);
+/* --- the control rail: filters, key, basemaps in one column; an open
+       panel pushes its neighbors down, so nothing can ever overlap --- */
+.control-rail {
+    position: absolute; z-index: 1000; top: 14px; right: 14px;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+    transition: opacity 0.5s ease;
 }
-.filters-pill:hover { background: #fffdf6; }
-#filter-panel { position: static; display: none; width: 232px; padding: 14px 16px; }
-#filter-panel.visible { display: block; }
-#filter-panel h4 {
-    margin: 0 0 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em;
-    color: var(--evergreen); border-bottom: 1px solid #eee3cc; padding-bottom: 8px;
+.control-rail .ui-card { position: static; }
+
+/* --- the rail card: tabs across the top, one pane at a time below --- */
+.rail-card { overflow: hidden; }
+.rail-tabs { display: flex; }
+.rail-tabs button {
+    border: none; background: transparent; cursor: pointer;
+    padding: 10px 17px; font-family: var(--font-body); font-weight: 700; font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--stone);
+    transition: color 0.15s ease, box-shadow 0.15s ease;
 }
+.rail-tabs button:hover { color: var(--evergreen); }
+.rail-tabs button.active { color: var(--evergreen); box-shadow: inset 0 -2px 0 var(--trail-green); }
+.rail-body { display: none; width: 252px; max-height: min(430px, calc(100vh - 240px)); overflow-y: auto; border-top: 1px solid #eee3cc; }
+.rail-card.open .rail-body { display: block; }
+.rail-pane { display: none; padding: 13px 15px; }
+.rail-pane.active { display: block; }
+.rail-pane.basemap-chips.active { display: flex; gap: 6px; }
+
 .filter-group { margin-bottom: 10px; }
 .filter-group label {
     display: block; margin-bottom: 6px; font-weight: 700; font-size: 10.5px;
@@ -161,26 +159,18 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 }
 #reset-filters-btn:hover { border-color: var(--stone); color: var(--charcoal); }
 
-/* --- the map key, docked as a cartouche --- */
-.cartouche { right: 14px; bottom: 150px; width: 190px; overflow: hidden; }
-.cartouche-head {
-    width: 100%; border: none; background: none; cursor: pointer; text-align: left;
-    padding: 9px 14px; font-family: var(--font-display); font-size: 0.95em;
-    color: var(--evergreen); letter-spacing: 0.08em; text-transform: uppercase;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.cartouche-caret { transition: transform 0.25s ease; }
-.cartouche.folded .cartouche-caret { transform: rotate(-90deg); }
-.cartouche-body { max-height: 300px; overflow-y: auto; padding: 0 14px 12px; transition: max-height 0.3s ease, padding 0.3s ease; }
-.cartouche.folded .cartouche-body { max-height: 0; padding-top: 0; padding-bottom: 0; }
 .cartouche-label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gravel); margin: 9px 0 5px; font-weight: 700; }
 .legend-item { display: flex; align-items: center; margin-bottom: 5px; font-size: 12px; color: var(--stone); }
 .legend-trail-segment { display: inline-block; height: 4px; width: 24px; border-radius: 2px; margin-right: 9px; }
-.legend-icon { width: 22px; height: 22px; margin-right: 9px; }
+.legend-stamp { width: 22px; height: 22px; margin-right: 9px; flex: 0 0 auto; color: var(--charcoal); position: relative; }
+.legend-gold-dot {
+    position: absolute; left: 7px; top: 7px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--charcoal);
+    box-shadow: 0 0 0 1.5px #fffdf6, 0 0 0 3.5px #f1c40f;
+}
 .legend-note { font-size: 10.5px; font-style: italic; color: var(--gravel); margin: 8px 0 0; }
 
-/* --- basemap wardrobe chips --- */
-.basemap-chips { right: 14px; bottom: 96px; display: flex; padding: 4px; gap: 4px; }
+/* --- basemap wardrobe chips (a rail pane now) --- */
 .basemap-chips button {
     border: none; background: transparent; border-radius: 8px; padding: 6px 12px;
     font-family: var(--font-body); font-weight: 700; font-size: 12px; color: var(--stone); cursor: pointer;
@@ -236,11 +226,18 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 }
 .lg-log:hover { text-decoration: underline; }
 .deck-main { flex: 1; min-width: 0; }
-.deck-readout { text-align: center; font-size: 13.5px; color: var(--evergreen); margin-bottom: 7px; min-height: 18px; }
+/* readout left, transport right — one steady row, then the track below gets
+   the console's full width. The readout truncates rather than pushing the
+   controls; the leg counter has a reserved width so ticking digits never
+   nudge the buttons. Nothing here can resize the timeline mid-film. */
+.deck-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 9px; min-height: 36px; }
+.deck-readout {
+    flex: 1; min-width: 0; text-align: left; font-size: 13.5px; color: var(--evergreen);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .deck-readout b { font-family: var(--font-display); font-size: 15px; letter-spacing: 0.02em; }
 .deck-stats { color: var(--gravel); font-size: 12px; font-style: italic; margin-left: 9px; }
-.deck-row { display: flex; align-items: center; gap: 14px; }
-.deck-controls { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.deck-controls { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex: 0 0 auto; }
 .deck-controls button {
     border: 1.5px solid var(--evergreen); background: #fffdf6; color: var(--evergreen);
     font-family: var(--font-body); cursor: pointer; border-radius: 999px;
@@ -252,9 +249,9 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .deck-step { width: 30px; height: 30px; font-size: 15px; line-height: 1; }
 .deck-end { width: 30px; height: 30px; font-size: 12px; border-color: #c0a98a !important; color: var(--gravel) !important; }
 .deck-end:hover { background: #c0392b !important; border-color: #c0392b !important; color: #fff !important; }
-.deck-leg { font-size: 11.5px; color: var(--gravel); font-style: italic; white-space: nowrap; }
-.deck-track { position: relative; flex: 1; height: 26px; min-width: 120px; }
-.deck-band { position: absolute; left: 0; right: 0; top: 10px; height: 6px; border-radius: 3px; opacity: 0.85; }
+.deck-leg { font-size: 11.5px; color: var(--gravel); font-style: italic; white-space: nowrap; min-width: 84px; text-align: right; }
+.deck-track { position: relative; height: 28px; margin-bottom: 13px; }
+.deck-band { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px; opacity: 0.85; }
 .deck-track input {
     position: absolute; inset: 0; width: 100%; margin: 0;
     -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer;
@@ -269,31 +266,64 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
     background: #fffdf6; border: 2.5px solid var(--evergreen);
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
 }
-.deck-years { position: relative; height: 13px; margin-top: 2px; }
+.deck-years { position: absolute; left: 0; right: 0; top: 100%; height: 13px; }
 .deck-years span { position: absolute; transform: translateX(-50%); font-size: 9.5px; color: var(--gravel); }
 
-/* ============ carried over from the first generation ============ */
+/* ============ trailhead stamps (replaced the gen-1 PNG pins, July 2026) ============ */
 
-/* Custom hike icons: circular white puck so they pop on any basemap */
-.hike-icon {
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 50%;
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
+/* Each trailhead marker is a 0x0 divIcon holding two children: a small
+   year-ink dot at the exact trailhead, and the engraved stamp "seated"
+   beside it (the seat's inline transform is the away-from-the-ink offset
+   computed from the GPX). Printed on the paper, never a floating pin. */
+.stamp-core { position: absolute; left: 0; top: 0; transition: color 0.7s ease; animation: stamp-in 0.5s ease; }
+@keyframes stamp-in { from { opacity: 0; } }
+.stamp-dot {
+    position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px;
+    border-radius: 50%; background: currentColor;
+    box-shadow: 0 0 0 1.5px rgba(255, 253, 246, 0.95), 0 1px 3px rgba(30, 26, 18, 0.35);
+    pointer-events: auto; cursor: pointer;
+    transition: box-shadow 1.1s ease;
 }
-.multi-year-icon-style { border: 3px solid #f1c40f; box-sizing: border-box; }
+.stamp.gold .stamp-dot {
+    box-shadow: 0 0 0 1.5px rgba(255, 253, 246, 0.95), 0 0 0 3.5px #f1c40f, 0 1px 4px rgba(30, 26, 18, 0.35);
+}
+.stamp-seat {
+    position: absolute; left: -13px; top: -13px; width: 26px; height: 26px;
+    pointer-events: auto; cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease-in-out;
+}
+.stamp-glyph { display: block; width: 100%; height: 100%; }
+.stamp-glyph g { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+/* the glyph is drawn twice: a thick paper halo under fine ink lines, the
+   knockout that keeps a printed symbol readable over any terrain */
+.stamp-halo { stroke: #fffdf6; transition: stroke 1.1s ease; }
+.stamp-halo path, .stamp-halo rect, .stamp-halo circle { stroke-width: 4.4px; }
+.stamp-ink { stroke: currentColor; }
+.stamp-ink path, .stamp-ink rect, .stamp-ink circle { stroke-width: 1.7px; }
+.stamp-ink .d { stroke-width: 1.25px; }
+.stamp-halo .d { stroke-width: 3.9px; }
+/* trails hiked in more than one visit-event wear gold: a ring on the dot,
+   gold leaf behind the stamp */
+.stamp.gold .stamp-halo { stroke: #f6e27a; }
+/* far out, the dots own the view — stamps fold back into their trailheads
+   and bloom again as you approach (#map.icons-zoomed-out, set on zoomend) */
+#map.icons-zoomed-out .stamp-seat {
+    opacity: 0; transform: translate(0, 0) scale(0.35) !important; pointer-events: none;
+}
 
-/* --- Zoom-aware icon reveal --- */
-.leaflet-marker-icon.hike-icon { transition: opacity 0.3s ease-in-out; }
-.leaflet-zoom-anim .leaflet-marker-icon.hike-icon {
-    transition: opacity 0.3s ease-in-out, transform 0.25s cubic-bezier(0, 0, 0.25, 1);
-}
-#map.icons-zoomed-out .leaflet-marker-icon.trail-start-icon {
-    opacity: 0 !important;
-    pointer-events: none;
-}
+/* --- The Expedition Line pane: cinema apparatus only. The dashed journey
+       threads fade away whenever the engine rests and the visitor explores
+       freely; playback (or a self-led step) brings the web back. --- */
+.leaflet-thread-pane { opacity: 0; transition: opacity 0.9s ease; pointer-events: none; }
+#map.threads-on .leaflet-thread-pane { opacity: 1; }
 
 /* --- Trail spotlight --- */
-#map .leaflet-overlay-pane path { transition: stroke-opacity 0.3s ease-in-out; }
+#map .leaflet-overlay-pane path { transition: stroke-opacity 0.5s ease-in-out, stroke-width 0.5s ease-in-out, stroke 0.6s ease-in-out; }
+/* strokes settling into echo take their time — the halo blooms out from
+   under the new ink instead of snapping into place */
+#map .leaflet-overlay-pane path.echo-ink {
+    transition: stroke-opacity 1.5s ease, stroke-width 1.5s ease, stroke 1.5s ease;
+}
 
 /* --- The field card: the postcard craft, docked at the map's left edge.
        One consistent home in every mode — it never covers the trail, which
@@ -325,7 +355,9 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 }
 .fc-banner .fc-banner-photo.loaded { opacity: 1; }
 .fc-banner-fallback { height: 96px; display: flex; align-items: center; justify-content: center; }
-.fc-banner-fallback img.hike-icon { width: 44px; height: 44px; object-fit: contain; padding: 4px; }
+/* photo-less trails show their stamp in paper ink on the year-color field */
+.fc-banner-fallback .stamp-glyph { width: 54px; height: 54px; color: #fffdf6; }
+.fc-banner-fallback .stamp-halo { display: none; }
 .fc-kind {
     position: absolute; left: 10px; bottom: 8px;
     background: rgba(255, 253, 246, 0.92); color: var(--evergreen);

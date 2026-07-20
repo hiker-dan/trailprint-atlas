@@ -94,11 +94,33 @@ the hike as one desk seen from above. What shipped:
 - The **vitals band**: distance, gain, summit and grade as large engraved numerals in the
   title block, where a real survey sheet carries them.
 
-**Still open — the timeline nav / navigation architecture.** Deliberately parked, and the
-harder half of the original question. Not a styling problem: now that map.html and the hike
-pages are tightly bound, what is the right way to move between them, and does a per-hike
-timeline strip still earn its place or duplicate the map page? The beloved scroll-through-time
-strip is kept as-is until that session happens.
+**Resolved July 2026 — The Continuous Expedition (navigation architecture).** Five concepts,
+two working mockups (`mockups/hike-shared-spine.html`, `mockups/atlas-continuous.html`);
+Danny chose the Continuous Expedition. The architecture:
+- **The map is the Atlas's one navigation surface.** Clicking any trail — or any dot on the
+  re-inked spine — raises a **sheet** (an abbreviated light table) over the land: camera cuts
+  behind the veil to frame the trail in the strip the sheet leaves open; the land stays alive
+  (the sheet's acetate walks a marker on the real trail behind it); lowering the sheet returns
+  you exactly where you stood. `?sheet=tta_NN` keeps every risen sheet shareable.
+- **The full hike page survives** as the fully-fleshed destination, bridged from the sheet
+  ("Open the full Field Log"). Its timeline strip is **removed**, replaced by the return
+  door to the map — time-navigation lives in exactly one place.
+- **The spine replaces BOTH the hike timeline and the map's deck scrub**: the re-inked
+  `AtlasTimeline` component (all machinery kept: trip capsules, journal card, day chips,
+  same-day fanning, time-proportional gaps) gains the now-marker. The expedition player
+  animates it, grabbing it scrubs nowT, transport docks into the band. One clock.
+
+Build order (each stage verified + OK'd before the next): **1. ✅** the sheet on map.html
+(raise/lower/veil/walker/URL, ink-flight fade, time-aware visit, develop sheen) · **2. ✅**
+hike.html trades its strip for the doors (sessionStorage handshake restoring camera + moment
++ basemap + sheet, across chip / nav link / browser-back) · **3. 🔜** the spine lands on
+map.html, absorbing the deck scrub + transport · **4.** trip page re-ink + retirements + docs.
+
+**Carried into stage 3 (Danny, July 2026):** returning from a full hike page restores the
+camera and the risen sheet, but the *expedition-player / animation* position still resets to
+the end. Deferred deliberately — stage 3 rebuilds the clock as the spine, so the restore of
+"where in the animation you were" is the same work; fix it there rather than patch the deck
+that's about to be retired.
 
 ### 2. Canada readiness  *(must precede the backlog)*
 The next trip to add (Whistler, BC) leaves the US. Work:

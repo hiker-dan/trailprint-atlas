@@ -547,6 +547,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         seal.innerHTML = atlasStampSvg(hike.hike_type);
         seal.title = hike.hike_type;
         seal.style.color = ink;
+        wireLandDoor(hike);
 
         // The vitals band. Viewpoints are not hikes: a scenic stop has no
         // distance worth featuring, and "0 MILES · 0 FT GAIN" says nothing
@@ -896,15 +897,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         $('side-col').style.display = 'none';
     }
 
+    /* ===================== the doors to the land ===================== */
+    // OUT: this trail, standing on the land — the map arrives with its sheet
+    // already risen on this very hike.
+    function wireLandDoor(hike) {
+        $('land-door').href = `map.html?sheet=${hike.trail_id}`;
+    }
+    // BACK: every road back must lead to the same place. When the visitor
+    // stepped through from the map (sessionStorage handshake, written by
+    // map.js), the return chip appears AND the nav's own "Interactive Map"
+    // link is rewritten to carry ?restore=land — so the chip, the nav, and
+    // the browser's back button all restore the land exactly: camera,
+    // timeline moment, basemap, risen sheet.
+    (function wireReturnDoors() {
+        let state = null;
+        try { state = JSON.parse(sessionStorage.getItem('atlasLandState')); } catch (e) { /* no door */ }
+        if (!(state && state.at && Date.now() - state.at < 6 * 3600 * 1000)) return;
+        $('return-chip').style.display = 'flex';
+        const navMapLink = document.querySelector('#top-bar-container a[href="map.html"]');
+        if (navMapLink) navMapLink.href = 'map.html?restore=land';
+    })();
+
     /* ===================== boot ===================== */
     window.addEventListener('popstate', (event) => {
         if (event.state && event.state.hikeId && allHikes) {
             const hike = allHikes.find(h => h.trail_id === event.state.hikeId);
-            if (hike) {
-                displayHike(hike, allHikes);
-                AtlasTimeline.setActiveHike(hike.trail_id);
-                AtlasTimeline.centerOnHike(hike.trail_id);
-            }
+            if (hike) displayHike(hike, allHikes);
         }
     });
 
@@ -915,7 +933,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         history.replaceState({ hikeId }, '');
 
         if (!hikeId) {
-            showEmptySheet('No sheet selected', 'Choose a hike from the map or the timeline above.');
+            showEmptySheet('No sheet selected', 'Choose a hike from the interactive map.');
             return;
         }
 
@@ -924,18 +942,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             showEmptySheet('Sheet not found', `No hike in the Atlas carries the id “${hikeId}”.`);
             return;
         }
-
-        // The timeline swaps content in place rather than reloading the page.
-        AtlasTimeline.init({
-            allHikes,
-            activeHikeId: hikeId,
-            onHikeSelect: (selected) => {
-                displayHike(selected, allHikes);
-                history.pushState({ hikeId: selected.trail_id }, '', `hike.html?id=${selected.trail_id}`);
-                AtlasTimeline.setActiveHike(selected.trail_id);
-                AtlasTimeline.centerOnHike(selected.trail_id);
-            }
-        });
 
         displayHike(hike, allHikes);
     } catch (error) {

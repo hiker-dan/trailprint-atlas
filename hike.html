@@ -26,7 +26,6 @@
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
-    <link rel="stylesheet" href="styles/timeline-nav.css"/>
     <link rel="stylesheet" href="styles/hike.css"/>
 </head>
 <body>
@@ -34,23 +33,10 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- The timeline strip — the spine of the Atlas, unchanged. Its future is
-         its own conversation (navigation architecture); the light-table redesign
-         deliberately left it alone. -->
-    <div id="sticky-header-wrapper">
-        <div id="timeline-nav-container">
-            <div id="timeline-mountainscape"></div>
-            <div id="timeline-viewport">
-                <div id="timeline-track"></div>
-            </div>
-            <div id="timeline-date-display">
-                <span id="timeline-floating-month"></span>
-                <span id="timeline-floating-year"></span>
-            </div>
-        </div>
-    </div>
-    <div id="timeline-global-tooltip"></div>
-    <div id="timeline-trip-card"></div>
+    <!-- The timeline strip is gone (The Continuous Expedition, July 2026):
+         time-navigation lives in exactly one place now — the map. This page
+         is a destination; its doors back to the land are in the collar and
+         the return chip below. -->
 
     <!-- ===================== THE LIGHT TABLE =====================
          One desk seen from above: the slides at left, the map sheet at
@@ -84,6 +70,10 @@
                             <div class="c-trip" id="c-trip"></div>
                         </div>
                         <div class="ct-right">
+                            <a class="land-door" id="land-door" href="map.html" title="See this trail standing on the land">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+                                <span>SEE ON<br>THE LAND</span>
+                            </a>
                             <button class="full-btn" id="full-btn" title="Give the map the whole table (Esc to return)" aria-label="Expand the map">
                                 <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1H1v5M10 1h5v5M10 15h5v-5M6 15H1v-5"/></svg>
                             </button>
@@ -165,6 +155,15 @@
         </div>
     </main>
 
+    <!-- The door back: appears only when the visitor stepped through from the
+         map — it returns the land exactly as they left it (camera, moment,
+         basemap, risen sheet) via the sessionStorage handshake. -->
+    <a class="return-chip" id="return-chip" href="map.html?restore=land" style="display:none">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6 8 12l6 6"/><path d="M20 4v16"/></svg>
+        <span><span class="rt">RETURN TO THE LAND</span><br>
+        <span class="rs">the map is where you left it</span></span>
+    </a>
+
     <!-- The lightbox: photos as gloriously as they deserve -->
     <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
         <button class="lb-close" id="modal-close-btn" title="Close" aria-label="Close">&times;</button>
@@ -190,8 +189,6 @@
     <script src="scripts/trail-renderer.js"></script>
     <!-- The Shape of the Day elevation profile -->
     <script src="scripts/shape-of-day.js"></script>
-    <!-- The shared timeline navigation strip -->
-    <script src="scripts/timeline-nav.js"></script>
     <!-- The light table -->
     <script src="scripts/hike-detail.js"></script>
     <!-- Shared script to update the 'Logbook' nav link -->

@@ -166,11 +166,19 @@ let inkIx = -1;                 // how far the ink has been laid, by LEG ORDER �
                                 // same-day trip siblings share a date, so time
                                 // alone can never drive the reveal
 let legIndexById = {};          // trail_id -> position in the itinerary
+let hikesById = {};             // trail_id -> hike record (the sheet's lookup)
 let fullBounds = null;
 
 // Deep-link support: map.html?state=CA opens zoomed to that state's hikes.
 const FOCUS_STATE = (new URLSearchParams(window.location.search).get('state') || '').trim().toUpperCase();
 let pendingFocusState = FOCUS_STATE;
+// A sheet arrival (?sheet= / ?restore=land) frames its own camera; the boot's
+// whole-Atlas fit must stand down or its animation can land after the trail
+// frame and shove the camera back out to the wide view.
+let pendingSheetBoot = (() => {
+    const p = new URLSearchParams(window.location.search);
+    return Boolean(p.get('sheet') || p.get('restore') === 'land');
+})();
 
 function zoomToState(abbr) {
     const pts = [];
@@ -234,6 +242,35 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
             if (params.get('cinema')) { setCinema(true); setThreads(true); }
             // &dbg=1: expose the landed zoom to headless checks via the title
             if (params.get('dbg')) document.title = `z${map.getZoom()} shot${shotOfLeg[ix]} legs${shots[shotOfLeg[ix]].legIxs.length}`;
+        }
+        // ?restore=land: the hike page's return door — put the land back
+        // exactly as it stood when the visitor stepped through to the log.
+        if (params.get('restore') === 'land' && LEG_PARAM === null) {
+            if (restoreLandState()) { pendingSheetBoot = false; return; }
+        }
+        // ?sheet=tta_NN: arrive straight onto a risen sheet (a shared link).
+        // replaceState, not push — the arrival IS the first history entry.
+        const SHEET_PARAM = params.get('sheet');
+        if (SHEET_PARAM && hikesById[SHEET_PARAM] && LEG_PARAM === null) {
+            // The browser's own back button is a full reload of this URL, so
+            // it must behave exactly like the return chip: if the handshake
+            // matches this sheet, the whole moment comes back — timeline
+            // position, basemap, everything — not just the risen sheet.
+            const hs = freshLandState();
+            if (hs && hs.sheet === SHEET_PARAM && restoreLandState()) { pendingSheetBoot = false; return; }
+            const h = hikesById[SHEET_PARAM];
+            const ref = layerReferences[h.trail_name];
+            if (ref) {
+                // cold: a shared link has no "before" — lowering stays on the trail
+                raiseSheet(ref, h, { instant: true, pushUrl: false, cold: true });
+                history.replaceState({ sheet: h.trail_id }, '', location.href);
+            }
+        }
+        // whatever the arrival was, later renders (filters) fit normally again;
+        // and a sheet boot that found nothing falls back to the whole Atlas
+        if (pendingSheetBoot) {
+            pendingSheetBoot = false;
+            if (!sheetHikeId && fullBounds) map.fitBounds(fullBounds, { animate: false });
         }
     })
     .catch(error => console.error('Error loading map data:', error));
@@ -531,8 +568,10 @@ function renderMapLayers(trailGroupsToRender) {
     legIx = legs.length - 1;
     inkIx = legs.length - 1;
     legIndexById = {};
+    hikesById = {};
     legs.forEach((l, i) => {
         legIndexById[l.h.trail_id] = i;
+        hikesById[l.h.trail_id] = l.h;
         const ref = layerReferences[l.name];
         if (ref && (ref.firstLegIx === undefined || i < ref.firstLegIx)) ref.firstLegIx = i;
     });
@@ -553,7 +592,7 @@ function renderMapLayers(trailGroupsToRender) {
         fullBounds = fullBounds ? fullBounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
     }
     if (fullBounds) fullBounds = fullBounds.pad(0.1);
-    if (!pendingFocusState && fullBounds) map.fitBounds(fullBounds);
+    if (!pendingFocusState && !pendingSheetBoot && fullBounds) map.fitBounds(fullBounds);
 }
 
 /** Which trails exist yet, at the moment the map is showing? */
@@ -721,6 +760,347 @@ function markActiveRow(trailName) {
     if (ref && ref.row) ref.row.classList.add('active');
 }
 
+// ===========================================================================
+// THE SHEET — the light table's quick glance, risen over the land
+// (The Continuous Expedition, stage 1). Free-exploration clicks raise it in
+// place of the old docked field card: the camera frames the trail into the
+// strip the sheet leaves open, the land stays alive behind it (the acetate
+// walks a marker on the real trail out there), and lowering it returns the
+// camera to where it stood. ?sheet=tta_NN keeps every risen sheet shareable.
+// ===========================================================================
+const sheetRiseEl = document.getElementById('sheet-rise');
+const sheetBodyEl = document.getElementById('ms-sheet');
+let sheetHikeId = null;          // trail_id of the hike the sheet is showing
+let sheetCameraBefore = null;    // where the land stood before the first raise
+let sheetWalker = null;          // the acetate's marker on the land
+let elevProfiles = null;         // data/elevations.json, fetched on first raise
+
+async function ensureElevations() {
+    if (!elevProfiles) {
+        elevProfiles = await fetch('data/elevations.json').then(r => r.json()).catch(() => ({}));
+    }
+    return elevProfiles;
+}
+
+/** The camera's frame while a sheet is up: the trail owns the left strip. */
+function sheetFramePadding() {
+    const w = sheetRiseEl.getBoundingClientRect().width || Math.min(700, window.innerWidth * 0.5);
+    return {
+        paddingTopLeft: L.point(56, 76),
+        paddingBottomRight: L.point(w + 40, 44)
+    };
+}
+
+/** "Name (Latin) — fact" in one condensed line for the sheet. */
+function sheetFfLine(text) {
+    if (!text) return '';
+    const m = text.match(/^\s*(.+?)\s*\(([^)]+)\)\s*(?:[—–-]\s*)?([\s\S]*)$/);
+    return m ? `<b>${m[1]}</b> <i>(${m[2]})</i> — ${m[3].trim()}` : text;
+}
+
+function buildSheetHtml(sorted, rep) {
+    const isVp = isViewpoint(rep);
+    const verb = isVp ? 'Visited' : 'Hiked';
+    const stampsHtml = sorted.length > 1
+        ? `<div class="ms-visits"><span class="ms-visits-label">${verb.toUpperCase()} ${sorted.length} TIMES</span>` +
+          sorted.map(h => `<button class="ms-stamp${h.trail_id === rep.trail_id ? ' current' : ''}" data-id="${h.trail_id}">
+              ${formatHikeDate(h.date_completed, { month: 'short', day: 'numeric', year: 'numeric' })}</button>`).join('') +
+          `</div>`
+        : '';
+    const vitals = [];
+    if (!(isVp && !rep.miles)) {
+        vitals.push([rep.miles, 'Miles'], [rep.elevation_gain.toLocaleString(), 'Feet climbed']);
+    }
+    if (rep.summit_trail && rep.summit_elevation) vitals.push([rep.summit_elevation.toLocaleString(), 'Summit (ft)']);
+    if (!(isVp && !rep.miles)) vitals.push([rep.difficulty, 'Grade']);
+    const withLine = (rep.hiked_with && rep.hiked_with.length)
+        ? `With ${rep.hiked_with.join(', ')}` : 'Walked solo';
+    const printsHtml = (rep.images || []).slice(0, 6).map((id, i) =>
+        `<div class="ms-print" data-id="${rep.trail_id}">
+            <img src="${cloudinaryUrl(id, 'w_320,h_214,c_fill,q_auto,f_auto')}" alt="Hike photo ${i + 1}" loading="lazy">
+            <div class="no">${String(i + 1).padStart(2, '0')}</div></div>`).join('');
+    const ff = [sheetFfLine(rep.flora), sheetFfLine(rep.fauna)].filter(Boolean).join('<br>');
+    return `
+        <button class="ms-lower" type="button" title="Lower the sheet (Esc)">
+            <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg> LOWER THE SHEET
+        </button>
+        <div class="ms-collar">
+            <div class="ms-kicker">THE TRAILPRINT ATLAS · SHEET NO. ${rep.trail_id.replace('tta_', '')} · ${rep.hike_type.toUpperCase()}</div>
+            <h2 class="ms-title">${rep.trail_name}</h2>
+            <div class="ms-sub">${rep.location} — ${rep.region} · ${verb} ${formatHikeDate(rep.date_completed)}</div>
+            <div class="ms-with">${withLine}</div>
+            ${stampsHtml}
+        </div>
+        ${vitals.length ? `<div class="ms-vitals">${vitals.map(([v, l]) =>
+            `<div class="ms-vital"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>`
+            : `<div class="ms-vitals"><div class="ms-vital"><div class="v">A SCENIC VIEWPOINT</div></div></div>`}
+        <div class="ms-acetate" id="ms-acetate" style="display:none">
+            <div class="ms-a-label"><span>THE SHAPE OF THE DAY</span>
+                <span class="aside">scrub — the marker walks the land behind this sheet</span>
+                <span class="readout" id="ms-a-readout"></span></div>
+            <div class="ms-a-chart" id="ms-a-chart"><div class="ms-a-hair" id="ms-a-hair"></div></div>
+        </div>
+        ${printsHtml ? `<div class="ms-k">The Slides</div><div class="ms-prints">${printsHtml}</div>` : ''}
+        ${rep.description ? `<div class="ms-k">Trail Notes</div><p class="ms-notes">${formatHikeText(rep.description)}</p>` : ''}
+        ${ff ? `<p class="ms-ff">${ff}</p>` : ''}
+        <a class="ms-bridge" href="hike.html?id=${rep.trail_id}">OPEN THE FULL FIELD LOG &rarr;</a>`;
+}
+
+/** Wires the acetate to the land: the profile drawn in the year's ink, and a
+    scrub marker that walks the REAL trail behind the sheet. */
+async function wireSheetAcetate(rep) {
+    const profiles = await ensureElevations();
+    // the visitor may have flipped sheets while the fetch was in flight
+    if (sheetHikeId !== rep.trail_id) return;
+    const profile = profiles[rep.trail_id];
+    const segs = allTrailGeometries[rep.trail_id];
+    const acetate = document.getElementById('ms-acetate');
+    if (!profile || !segs || !acetate) return;
+
+    const latlngs = [];
+    segs.forEach(seg => seg.forEach(p => latlngs.push(p)));
+    if (latlngs.length < 2) return;
+
+    const ink = yearColorOf(rep);
+    const W = 1000, H = 76, P = 5, B = H - 4;
+    const mn = Math.min(...profile), mx = Math.max(...profile);
+    const pts = profile.map((v, i) =>
+        `${(P + (W - 2 * P) * i / (profile.length - 1)).toFixed(1)},${(B - (B - P) * (v - mn) / ((mx - mn) || 1)).toFixed(1)}`).join(' ');
+    const chart = document.getElementById('ms-a-chart');
+    chart.insertAdjacentHTML('afterbegin',
+        `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+            <polygon points="${P},${B} ${pts} ${W - P},${B}" fill="${ink}" opacity="0.14"/>
+            <polyline points="${pts}" fill="none" stroke="${ink}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+         </svg>`);
+    acetate.style.display = '';
+
+    // cumulative distance -> honest position along the real trail
+    const cum = [0];
+    for (let i = 1; i < latlngs.length; i++) {
+        const dx = (latlngs[i][1] - latlngs[i - 1][1]) * Math.cos(latlngs[i][0] * Math.PI / 180);
+        const dy = latlngs[i][0] - latlngs[i - 1][0];
+        cum.push(cum[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    const total = cum[cum.length - 1];
+    const ptAt = f => {
+        const t = f * total;
+        for (let i = 1; i < cum.length; i++) if (cum[i] >= t) {
+            const s = (t - cum[i - 1]) / ((cum[i] - cum[i - 1]) || 1);
+            return [latlngs[i - 1][0] + (latlngs[i][0] - latlngs[i - 1][0]) * s,
+                    latlngs[i - 1][1] + (latlngs[i][1] - latlngs[i - 1][1]) * s];
+        }
+        return latlngs[latlngs.length - 1];
+    };
+
+    const hair = document.getElementById('ms-a-hair');
+    const readout = document.getElementById('ms-a-readout');
+    acetate.addEventListener('mousemove', (e) => {
+        const r = chart.getBoundingClientRect();
+        const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+        hair.style.visibility = readout.style.visibility = 'visible';
+        hair.style.left = (f * 100) + '%';
+        const i = Math.round(f * (profile.length - 1));
+        readout.textContent = `MILE ${(f * rep.miles).toFixed(1)} · ${profile[i].toLocaleString()} FT`;
+        if (!sheetWalker) sheetWalker = L.circleMarker(latlngs[0], {
+            radius: 7, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1,
+            interactive: false, pane: 'mainTrailPane'
+        }).addTo(map);
+        sheetWalker.setLatLng(ptAt(f));
+    });
+    acetate.addEventListener('mouseleave', () => {
+        hair.style.visibility = readout.style.visibility = 'hidden';
+        if (sheetWalker) { map.removeLayer(sheetWalker); sheetWalker = null; }
+    });
+}
+
+function syncSheetUrl(id) {
+    const params = new URLSearchParams(window.location.search);
+    if (id) params.set('sheet', id); else params.delete('sheet');
+    const qs = params.toString();
+    history.pushState({ sheet: id || null }, '', location.pathname + (qs ? '?' + qs : ''));
+}
+
+/**
+ * Raises the sheet for a trail (optionally pinned to one specific visit).
+ * Handles what focusTrail used to: halts playback, walks time forward so the
+ * trail exists on the land, spotlights it, and frames it into the open strip.
+ */
+function raiseSheet(ref, hike, { instant = false, pushUrl = true, cold = false } = {}) {
+    const sorted = [...ref.group].sort(compareHikesChronoDesc);
+    // Time-aware: the sheet shows the newest visit that exists at the
+    // timeline's current moment — standing in 2022, Barker Dam's sheet is
+    // the 2022 walk in the 2022 ink, not a spoiler from 2025. The date
+    // stamps still reach every other visit. If NO visit has arrived yet
+    // (a finder click on a future trail), the FIRST visit is the sheet and
+    // time walks forward to it below.
+    const rep = hike
+        || sorted.find(h => (legIndexById[h.trail_id] ?? Infinity) <= inkIx)
+        || sorted[sorted.length - 1];
+    if (playing) haltPlayback();
+    closeFieldCard();
+
+    // the trail may sit ahead of the timeline's moment — walk time forward
+    // to this visit so its ink exists to look at
+    const legIxOf = legIndexById[rep.trail_id];
+    if (legIxOf !== undefined && legIxOf > inkIx) {
+        inkIx = legIxOf;
+        nowT = legs[inkIx].t;
+        legIx = inkIx;
+        syncScrub();
+        applyReveal();
+        if (mode === 'expedition') updateDeck();
+    }
+
+    // Remember where the land stood so "lower the sheet" can return there —
+    // but only for a live click. A COLD raise (a page boot: a shared ?sheet=
+    // link, or the return-from-log restore) has no meaningful "before": the
+    // map is showing the wide default at that instant, and capturing it would
+    // fling the camera out to the whole continent on lower. Cold raises set
+    // this explicitly (the restore, from the saved handshake) or leave it null
+    // (a deep link), so lowering simply stays framed on the trail.
+    if (!sheetHikeId && !cold) sheetCameraBefore = { center: map.getCenter(), zoom: map.getZoom() };
+    sheetHikeId = rep.trail_id;
+    sheetBodyEl.innerHTML = buildSheetHtml(sorted, rep);
+    sheetBodyEl.scrollTop = 0;
+    sheetRiseEl.classList.add('up');
+    document.body.classList.add('sheet-open');
+
+    sheetBodyEl.querySelector('.ms-lower').addEventListener('click', () => lowerSheet());
+    sheetBodyEl.querySelectorAll('.ms-stamp').forEach(btn => btn.addEventListener('click', () => {
+        const h = ref.group.find(x => x.trail_id === btn.dataset.id);
+        if (h) raiseSheet(ref, h);
+    }));
+    sheetBodyEl.querySelectorAll('.ms-print').forEach(p => p.addEventListener('click', () => {
+        saveLandState();
+        window.location.href = `hike.html?id=${p.dataset.id}`;
+    }));
+    sheetBodyEl.querySelector('.ms-bridge').addEventListener('click', saveLandState);
+    // each slide develops when its own frame arrives (same treatment as the
+    // hike page's strip) — cached images are already complete here
+    sheetBodyEl.querySelectorAll('.ms-print img').forEach(img => {
+        const mount = img.closest('.ms-print');
+        const develop = () => mount.classList.add('loaded');
+        if (img.complete && img.naturalWidth) develop();
+        else {
+            img.addEventListener('load', develop, { once: true });
+            img.addEventListener('error', develop, { once: true });
+        }
+    });
+
+    spotlightTrailName = ref.name;
+    applySpotlight();
+    markActiveRow(ref.name);
+    frameLayer(ref, { instant, padding: sheetFramePadding() });
+    if (pushUrl) syncSheetUrl(rep.trail_id);
+    wireSheetAcetate(rep);
+}
+
+/**
+ * Lowers the sheet. restoreCamera returns the land to where it stood before
+ * the first raise (the pull + Esc); a bare-land click lowers in place, since
+ * that click usually means "let me look around here".
+ */
+function lowerSheet({ restoreCamera = true, pushUrl = true } = {}) {
+    if (!sheetHikeId) return;
+    sheetHikeId = null;
+    sheetRiseEl.classList.remove('up');
+    document.body.classList.remove('sheet-open');
+    if (sheetWalker) { map.removeLayer(sheetWalker); sheetWalker = null; }
+    spotlightTrailName = null;
+    applySpotlight();
+    markActiveRow(null);
+    if (pushUrl) syncSheetUrl(null);
+    if (restoreCamera && sheetCameraBefore) {
+        beginInkFlight();
+        map.flyTo(sheetCameraBefore.center, sheetCameraBefore.zoom);
+    }
+    sheetCameraBefore = null;
+}
+
+window.addEventListener('popstate', (e) => {
+    const id = e.state && e.state.sheet;
+    if (id) {
+        const h = hikesById[id];
+        const ref = h && layerReferences[h.trail_name];
+        if (ref) raiseSheet(ref, h, { pushUrl: false });
+    } else {
+        lowerSheet({ pushUrl: false });
+    }
+});
+
+/**
+ * The handshake with the full hike page. Stepping through to the Field Log
+ * photographs the land as it stands — camera, moment, basemap, risen sheet —
+ * and the hike page's "Return to the Land" door hands it back via
+ * map.html?restore=land, which restores all of it exactly.
+ */
+function saveLandState() {
+    try {
+        const c = map.getCenter();
+        // preSheet: where the land stood BEFORE this sheet rose, so a lowered
+        // sheet on the restored page returns to the same spot the live map
+        // would have — not the wide boot default.
+        const pre = sheetCameraBefore
+            ? { lat: sheetCameraBefore.center.lat, lng: sheetCameraBefore.center.lng, zoom: sheetCameraBefore.zoom }
+            : null;
+        sessionStorage.setItem('atlasLandState', JSON.stringify({
+            lat: c.lat, lng: c.lng, zoom: map.getZoom(),
+            basemap: currentBasemap, inkIx, sheet: sheetHikeId, preSheet: pre, at: Date.now()
+        }));
+    } catch (e) { /* private-mode storage refusal only costs the shortcut */ }
+}
+
+/** The saved handshake, if it exists and is fresh enough to trust. */
+function freshLandState() {
+    let s = null;
+    try { s = JSON.parse(sessionStorage.getItem('atlasLandState')); } catch (e) { return null; }
+    if (!s || !s.at || Date.now() - s.at > 6 * 3600 * 1000) return null;
+    return s;
+}
+
+function restoreLandState() {
+    const s = freshLandState();
+    if (!s) return false;
+    try { if (s.basemap && s.basemap !== currentBasemap) setBasemap(s.basemap); } catch (e) { /* wardrobe stays */ }
+    if (typeof s.inkIx === 'number' && legs.length) {
+        inkIx = Math.max(0, Math.min(legs.length - 1, s.inkIx));
+        legIx = inkIx;
+        nowT = legs[inkIx].t;
+        syncScrub();
+        applyReveal();
+    }
+    if (s.sheet && hikesById[s.sheet] && layerReferences[hikesById[s.sheet].trail_name]) {
+        const h = hikesById[s.sheet];
+        // cold raise: don't let it capture the wide boot view as the return
+        // camera — restore the TRUE pre-sheet spot from the handshake instead,
+        // so "lower the sheet" returns to where the visitor was roaming, not
+        // out to the whole continent. No preSheet (they'd deep-linked in) means
+        // lowering just stays framed on the trail.
+        raiseSheet(layerReferences[h.trail_name], h, { instant: true, pushUrl: false, cold: true });
+        sheetCameraBefore = s.preSheet
+            ? { center: L.latLng(s.preSheet.lat, s.preSheet.lng), zoom: s.preSheet.zoom }
+            : null;
+        history.replaceState({ sheet: h.trail_id }, '',
+            location.pathname + '?sheet=' + h.trail_id);
+        // Belt and braces: the boot also runs an ANIMATED whole-Atlas fit
+        // (renderMapLayers' tail), and depending on browser timing its
+        // completion can land AFTER this instant frame and shove the camera
+        // back to the wide view — the sheet up, the land fully zoomed out.
+        // Once the boot settles, verify and re-assert; frameLayer no-ops
+        // when the camera is already right.
+        const assertFrame = () => {
+            if (sheetHikeId !== h.trail_id) return;
+            const ref = layerReferences[h.trail_name];
+            if (ref) frameLayer(ref, { instant: true, padding: sheetFramePadding() });
+        };
+        setTimeout(assertFrame, 350);
+        setTimeout(assertFrame, 1200);
+    } else if (typeof s.lat === 'number') {
+        map.setView([s.lat, s.lng], s.zoom, { animate: false });
+    }
+    return true;
+}
+
 // --- Framing: fit a trail into the open space beside the card + deck.
 //     Every frame precedes a card, so the left padding always reserves its
 //     column — the trail centers itself in the space that remains. ---
@@ -751,19 +1131,32 @@ function refTargetBounds(ref) {
  * Returns 'noop' when the camera is already there, so callers can skip
  * waiting for a moveend that will never come.
  */
-function frameLayer(ref, { instant = false } = {}) {
+function frameLayer(ref, { instant = false, padding = null } = {}) {
     const b = refTargetBounds(ref);
     if (!b) return false;
-    const pad = cardFramePadding();
+    const pad = padding || cardFramePadding();
     const opts = { ...pad, maxZoom: FRAME_MAX_ZOOM };
     if (map._getBoundsCenterZoom) {
         const cz = map._getBoundsCenterZoom(b, opts);
         if (map.getZoom() === cz.zoom && map.getCenter().distanceTo(cz.center) < 2) return 'noop';
     }
-    prefetchTiles(b);
+    prefetchTiles(b, opts);
     if (instant) map.fitBounds(b, { ...opts, animate: false });
-    else map.flyToBounds(b, opts);
+    else { beginInkFlight(); map.flyToBounds(b, opts); }
     return true;
+}
+
+/** Dims the trail ink for the length of one camera flight (see map.css).
+    The timer is the safety line: if moveend never comes (an interrupted
+    flight mid-gesture), the ink must not stay ghosted forever. */
+let inkFlightTimer = null;
+function beginInkFlight() {
+    const c = map.getContainer();
+    c.classList.add('ink-flight');
+    const land = () => { clearTimeout(inkFlightTimer); c.classList.remove('ink-flight'); };
+    map.once('moveend', land);
+    clearTimeout(inkFlightTimer);
+    inkFlightTimer = setTimeout(land, 4500);
 }
 
 // --- Tile prefetch: we know where the camera is going before it moves, so
@@ -811,21 +1204,11 @@ function prefetchTiles(bounds, fitOpts) {
 
 /** Click a trail (on the map or in the register): spotlight + card + frame. */
 function focusTrail(trailName) {
+    // clicking a trail (or a finder row) raises its sheet over the land —
+    // the sheet handles the halt, the time-walk, the spotlight, the frame
     const ref = layerReferences[trailName];
     if (!ref) return;
-    if (playing) haltPlayback();   // clicking a trail takes the wheel
-    // the trail may sit ahead of the timeline's moment — walk time forward
-    // to its first hike so it exists to visit
-    if (ref.firstLegIx > inkIx) {
-        inkIx = ref.firstLegIx;
-        nowT = legs[inkIx].t;
-        legIx = inkIx;
-        syncScrub();
-        applyReveal();
-        if (mode === 'expedition') updateDeck();
-    }
-    showFieldCard(ref.group);
-    frameLayer(ref);
+    raiseSheet(ref);
 }
 
 // ===========================================================================
@@ -1224,6 +1607,7 @@ async function playFrom(ix) {
 
 async function startExpedition() {
     if (!legs.length) return;
+    lowerSheet({ restoreCamera: false });
     closeFieldCard();
     cancelRun(); const tk = expToken;
     mode = 'expedition';
@@ -1260,8 +1644,10 @@ async function finale(tk) {
     legIx = legs.length - 1;
     inkIx = legs.length - 1;
     legIndexById = {};
+    hikesById = {};
     legs.forEach((l, i) => {
         legIndexById[l.h.trail_id] = i;
+        hikesById[l.h.trail_id] = l.h;
         const ref = layerReferences[l.name];
         if (ref && (ref.firstLegIx === undefined || i < ref.firstLegIx)) ref.firstLegIx = i;
     });
@@ -1372,11 +1758,14 @@ map.getContainer().addEventListener('wheel', () => { if (playing) haltPlayback()
 // A click on bare land closes the card (a click on a trail is swallowed above).
 map.on('click', () => {
     if (suppressMapClick) { suppressMapClick = false; return; }
-    if (!playing) closeFieldCard();
+    // a click on bare land lowers the sheet IN PLACE — that click usually
+    // means "let me look around here", so the camera stays put
+    if (!playing) { lowerSheet({ restoreCamera: false }); closeFieldCard(); }
 });
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
         if (mode === 'expedition') endExpedition();
+        else if (sheetHikeId) lowerSheet();
         else closeFieldCard();
         return;
     }
@@ -1600,8 +1989,11 @@ function setupEventListeners() {
         holdLegId = null;
         applyReveal();
         setPlaque(legs[ix].h);
-        // scrubbing behind an open card un-inks its trail — let the card go too
+        // scrubbing behind an open card or sheet un-inks its trail — let it go too
         if (cardTrailName && layerReferences[cardTrailName] && layerReferences[cardTrailName].firstLegIx > inkIx) closeFieldCard();
+        if (sheetHikeId && legIndexById[sheetHikeId] !== undefined && legIndexById[sheetHikeId] > inkIx) {
+            lowerSheet({ restoreCamera: false });
+        }
         if (mode === 'expedition') updateDeck();
     });
     scrub.addEventListener('change', () => {

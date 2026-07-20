@@ -57,10 +57,20 @@
             <div class="ui-card finder-results" id="trail-list-container"></div>
         </div>
 
-        <!-- the field card: one docked home for trail info in every mode.
-             Replaces the old anchored popups — it never covers the trail,
-             which frames itself in the space to the card's right. -->
+        <!-- the field card: the cinema-era docked card. Free-exploration
+             clicks now raise the SHEET below instead; this stays dormant
+             pending the Continuous-Expedition cleanup stage. -->
         <aside class="ui-card field-card" id="field-card" aria-live="polite"></aside>
+
+        <!-- the sheet: the light table's quick glance, risen over the land
+             (The Continuous Expedition, July 2026). Clicking any trail
+             raises it at the right edge; the camera frames the trail in the
+             strip it leaves open, and the land stays alive behind it — the
+             sheet's acetate walks a marker on the real trail out there.
+             JS fills it per hike; ?sheet=tta_NN keeps it shareable. -->
+        <aside class="sheet-rise" id="sheet-rise" aria-live="polite">
+            <div class="ms-sheet" id="ms-sheet"></div>
+        </aside>
 
         <!-- the control rail: ONE card. Filters, the key, and the basemap
              wardrobe live behind tabs — a single contained tooltip, one

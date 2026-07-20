@@ -393,3 +393,147 @@ a.fc-open-log:hover { background-color: #3d684a; text-decoration: none; }
 
 /* Attribution stays subtle on parchment */
 .leaflet-control-attribution { background: rgba(255, 253, 246, 0.75) !important; font-size: 9.5px !important; }
+
+/* ===========================================================================
+   THE SHEET — the light table's quick glance, risen over the land
+   (The Continuous Expedition, stage 1, July 2026).
+   Rises from the bottom at the right edge; the camera frames the trail in
+   the strip it leaves open. z-order: above the console chrome (1000s),
+   below the veil (4000) — a cinema cut can still pass over a risen sheet.
+   =========================================================================== */
+.sheet-rise {
+    position: absolute; z-index: 2000; right: 14px; bottom: 0; top: 64px;
+    width: min(700px, 50vw);
+    transform: translateY(105%);
+    transition: transform 0.55s cubic-bezier(.3, 0, .25, 1);
+    pointer-events: none;
+}
+.sheet-rise.up { transform: translateY(0); pointer-events: auto; }
+
+/* the risen sheet borrows the light table's paper, not the console's card */
+.ms-sheet {
+    position: relative; height: 100%; overflow-y: auto; scrollbar-width: thin;
+    scrollbar-color: #d8ccae transparent;
+    background: #fffdf6; border: 1px solid #d8ccae; border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    box-shadow: 0 -8px 40px rgba(20, 15, 5, 0.45);
+    padding: 0 22px 18px;
+    font-family: var(--font-body);
+}
+/* the sheet beneath, peeking from the stack */
+.ms-sheet::before {
+    content: ''; position: absolute; inset: 0 -5px 0 auto; width: 5px;
+    background: #efe6c9; border: 1px solid #d8ccae; z-index: -1;
+}
+
+/* while the sheet is up, the console chrome steps aside (the sheet covers
+   the rail's column anyway; a half-hidden deck reads as a bug) */
+body.sheet-open .deck,
+body.sheet-open .control-rail { opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+
+.ms-lower {
+    position: sticky; top: 10px; z-index: 6; float: right; margin: 10px -4px 0 12px;
+    display: flex; align-items: center; gap: 7px; padding: 6px 13px; cursor: pointer;
+    border: 1px solid #a5854a; border-radius: 5px; background: #fbf6e6; color: #24401f;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
+    box-shadow: 0 1px 4px rgba(60, 45, 20, 0.22);
+    transition: background 0.25s, color 0.25s;
+}
+.ms-lower:hover { background: #2f5c40; color: #fffdf6; }
+.ms-lower svg { width: 11px; height: 11px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+
+.ms-collar { padding: 14px 0 8px; margin-bottom: 10px; border-bottom: 1.5px solid #2f5c40; }
+.ms-kicker { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.28em; color: #9a927c; margin-bottom: 5px; }
+.ms-title {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(16px, 1.6vw, 22px);
+    letter-spacing: 0.07em; line-height: 1.12; text-transform: uppercase; color: #24401f; margin: 0;
+}
+.ms-sub { font-size: 12.5px; font-style: italic; color: #6f6a58; margin-top: 4px; }
+.ms-with { font-size: 12px; color: #6f6a58; margin-top: 2px; }
+
+/* repeat visits: the sheet's date stamps re-fill it in place */
+.ms-visits { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 9px 0 1px; }
+.ms-visits-label { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.18em; color: #9a927c; }
+.ms-stamp {
+    border: 1px solid #d8ccae; border-radius: 999px; background: #faf5e6;
+    padding: 3px 11px; cursor: pointer; font-family: var(--font-body);
+    font-size: 11px; color: #3d3a30;
+}
+.ms-stamp:hover { border-color: #a5854a; background: #f4ecd6; }
+.ms-stamp.current { border-color: #2f5c40; background: #2f5c40; color: #fffdf6; }
+
+.ms-vitals { display: flex; margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid #d8ccae; }
+.ms-vital { flex: 1; text-align: center; padding: 0 8px; border-left: 1px solid #d8ccae; min-width: 0; }
+.ms-vital:first-child { border-left: none; }
+.ms-vital .v {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(17px, 1.6vw, 23px);
+    line-height: 1.04; color: #24401f; white-space: nowrap;
+}
+.ms-vital .l { margin-top: 4px; font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #9a927c; }
+
+.ms-acetate {
+    position: relative; padding: 8px 13px 5px; margin-bottom: 12px;
+    border: 1px solid rgba(90, 110, 140, 0.42); border-radius: 4px;
+    background: linear-gradient(160deg, rgba(252, 254, 255, 0.85), rgba(228, 239, 252, 0.75));
+    cursor: crosshair;
+}
+.ms-a-label { display: flex; justify-content: space-between; gap: 10px; font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.22em; color: #43597a; margin-bottom: 2px; }
+.ms-a-label .aside { font-family: var(--font-body); font-style: italic; font-size: 10px; letter-spacing: 0.02em; text-transform: none; color: #9a927c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-a-label .readout { font-weight: 700; color: #c0392b; visibility: hidden; white-space: nowrap; }
+.ms-a-chart { position: relative; }
+.ms-a-chart svg { display: block; width: 100%; height: 76px; }
+.ms-a-hair { position: absolute; top: 0; bottom: 0; width: 1px; background: #c0392b; visibility: hidden; }
+
+.ms-k { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.24em; color: #9a927c; text-transform: uppercase; margin: 6px 0 7px; }
+.ms-prints { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
+.ms-print {
+    flex: 0 0 132px; position: relative; background: linear-gradient(#fbf6e6, #f0e7cf);
+    border: 1px solid #cdbf9c; border-radius: 2px; padding: 6px 6px 15px;
+    box-shadow: 0 2px 6px rgba(60, 45, 20, 0.28); cursor: pointer; transition: transform 0.35s;
+}
+.ms-print img {
+    display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #e6dcc0;
+    filter: grayscale(1) brightness(0.86) contrast(1.05); transition: filter 0.6s ease;
+}
+.ms-print:hover { transform: scale(1.06); z-index: 4; }
+.ms-print:hover img { filter: none; }
+.ms-print .no { position: absolute; bottom: 2px; left: 7px; font-family: var(--font-display); font-size: 7px; letter-spacing: 0.2em; color: #9a927c; }
+
+.ms-notes { margin: 0 0 10px; font-size: 13px; line-height: 1.6; color: #3d3a30; }
+.ms-ff { margin: 0 0 12px; font-size: 11.5px; line-height: 1.55; color: #6f6a58; }
+.ms-ff b { color: #24401f; }
+
+.ms-bridge {
+    display: inline-block; font-family: var(--font-display); font-size: 10px;
+    letter-spacing: 0.16em; color: #2f5c40; font-weight: 700; text-decoration: none;
+    border-bottom: 1.5px solid rgba(47, 92, 64, 0.35); padding-bottom: 2px;
+}
+.ms-bridge:hover { border-bottom-color: #2f5c40; }
+
+/* --- the ink steps aside for the flight ---
+   Leaflet CSS-scales vector strokes during a zoom animation, so a 5px trail
+   flying from continental zoom to z15 briefly becomes a screen-filling slab
+   of color. During a framing flight the trail pane dims to a ghost and the
+   ink fades back in on landing — arrival reads as the ink settling onto the
+   land instead of a smear correcting itself. */
+.leaflet-mainTrail-pane { transition: opacity 0.4s ease; }
+.ink-flight .leaflet-mainTrail-pane { opacity: 0.1; }
+
+/* --- an undeveloped slide on the sheet: same "developing on the light box"
+   treatment as the hike page's strip, so a cold Cloudinary cache never
+   flashes a blank mount --- */
+.ms-print img { opacity: 0; transition: opacity 0.55s ease, filter 0.6s ease; }
+.ms-print.loaded img { opacity: 1; }
+.ms-print::after {
+    content: ''; position: absolute; inset: 6px 6px 15px; pointer-events: none;
+    background: linear-gradient(100deg, #e5dbbe 30%, #f5eeda 50%, #e5dbbe 70%);
+    background-size: 280% 100%;
+    animation: ms-develop 1.6s ease-in-out infinite;
+    transition: opacity 0.55s ease;
+}
+.ms-print.loaded::after { opacity: 0; animation: none; }
+@keyframes ms-develop {
+    from { background-position: 180% 0; }
+    to   { background-position: -80% 0; }
+}
+@media (prefers-reduced-motion: reduce) { .ms-print::after { animation: none; } }

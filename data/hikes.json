@@ -774,6 +774,10 @@
     "latitude": 37.25881,
     "longitude": -112.95105,
     "gpx_file": "Scout_Lookout_via_West_Rim_Trail_06.26.25.gpx",
+    "recorded_times": {
+      "start": "2025-06-26T15:33:31Z",
+      "end": "2025-06-26T18:05:01Z"
+    },
     "images": [
       "tta_88-scout-lookout-via-west-rim-trail-01",
       "tta_88-scout-lookout-via-west-rim-trail-02",

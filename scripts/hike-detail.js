@@ -172,8 +172,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             section.style.display = 'block';
 
+            // The clock usually rides on the GPX, but a track can be replaced
+            // (a recording that glitched, swapped for a clean route download)
+            // and lose its timestamps while the day's real hours are still
+            // known. `recorded_times` carries them; it wins when present.
             const track = await trackPromise;
-            renderOnTrailCard(track, data.utc_offset_seconds, sunrise, sunset);
+            const clock = hike.recorded_times
+                ? { startTime: new Date(hike.recorded_times.start), endTime: new Date(hike.recorded_times.end) }
+                : track;
+            renderOnTrailCard(clock, data.utc_offset_seconds, sunrise, sunset);
         } catch (err) {
             console.error('Could not load the hike almanac:', err);
         }
@@ -192,8 +199,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!track || !track.startTime || !track.endTime) return;
 
         const durationMs = track.endTime - track.startTime;
-        // A record longer than a waking day means a malformed track — stand down
-        if (durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
+        // A record longer than a waking day means a malformed track — stand
+        // down. NaN is checked explicitly: an unparseable date is still a
+        // truthy Date object, and every comparison against NaN is false, so
+        // it would otherwise sail through and print "NaNh NaNm".
+        if (isNaN(durationMs) || durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
 
         // GPX clocks are UTC. Shifting by the trail's offset (already fetched
         // with the weather) and reading with getUTC* yields the trail's wall

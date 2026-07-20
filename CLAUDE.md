@@ -132,6 +132,7 @@ needs new per-hike information, the first step is always to add the field to the
 | `all_trails_url`, `official_trail_url` | string\|null | External links. |
 | `latitude`, `longitude` | number | Trailhead coords — used for dots, viewpoint markers, weather. |
 | `gpx_file` | string\|null | Filename in `data/trails/`. Null for viewpoints / missing tracks. |
+| `recorded_times` | object | *Absent on all but one record — always guard.* `{ "start": "YYYY-MM-DDTHH:MM:SSZ", "end": "..." }`, **UTC**. The almanac's "On the Trail" clock normally rides on the GPX's own per-point timestamps; this field supplies it when a track has been **replaced** by a timeless AllTrails route download and the day's real hours are still known. Wins over the GPX when present. So far only `tta_88`, whose recording paused mid-hike and drew a false line on the return, so the route was re-downloaded for accuracy while the genuine 9:33 AM–12:05 PM window was preserved here (recovered from the original recording in git history). Add it by hand, like `fire_memorial` — not a wizard question. |
 | `images` | string[] | Cloudinary public IDs (no URL, no extension). |
 | `videos` | string[]\|null | YouTube URLs. *Field absent on older records* — always guard. |
 

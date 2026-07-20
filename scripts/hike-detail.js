@@ -1,268 +1,262 @@
 /**
- * This script powers the individual hike detail page (hike.html).
- * It fetches all hike data, builds a dynamic navigation timeline,
- * and displays the content for a specific hike based on the URL or user interaction.
+ * The hike page — The Cartographer's Light Table.
+ *
+ * One desk seen from above: the day's slides at left, the map sheet at
+ * centre with the elevation acetate bolted beneath it, the paperwork at
+ * right. Spec mockup: mockups/hike-light-table-v2.html
+ *
+ * Two structural rules (both deliberate, both easy to break by accident):
+ *   1. The maps NEVER pan or zoom. This page shows one GPX framed as large
+ *      as the sheet allows; roaming belongs to map.html.
+ *   2. The acetate is inside the sheet, under the map, so scrubbing the
+ *      day's shape always happens with the trail in view.
+ *
+ * The brass rail sweeps between two stacked, identically-framed maps (the
+ * topo survey clipped over the satellite land), so one drag wipes between
+ * the cartography and the real ground.
  */
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- Modal Setup ---
-    // Get modal elements once and set up their core functionality.
-    // This is done outside the fetch so we don't re-add listeners.
-    const modal = document.getElementById('photo-modal');
-    // ... (modal variables remain the same)
-    const modalImage = document.getElementById('modal-image');
-    const modalVideoContainer = document.getElementById('modal-video-container');
-    const closeModalBtn = document.getElementById('modal-close-btn');
-    const prevBtn = document.getElementById('modal-prev-btn');
-    const modalDotsContainer = document.getElementById('modal-dots-container');
-    const nextBtn = document.getElementById('modal-next-btn');
-    let currentModalIndex = 0;
-    let currentMediaSetInModal = []; // Will hold the media items for the modal
 
-    // --- Global State ---
-    let detailMap; // To hold the Leaflet map instance
-    let tileCycleInterval; // Tile-cycling timer, cleared between hikes to prevent leaks
-    let allHikes = null; // All hike records: fetched once on load, reused by timeline nav + back/forward
+    /* ===================== state ===================== */
+    let allHikes = null;      // fetched once; reused by the timeline and back/forward
+    let mapTopo = null;
+    let mapSat = null;
+    let routeBounds = null;
+    let walkers = [];         // the scrub marker, one per glass
+    let mediaItems = [];      // photos + videos for the lightbox
+    let currentMediaIndex = 0;
+    let currentTrack = null;  // the parsed GPX; the acetate redraws from it on resize
+    let currentInk = null;
 
-    // Helper function to extract video ID from various YouTube URL formats
+    // The acetate is a fixed height on this page. The map is the point, so the
+    // profile never grows to swallow it — the gridline step adapts instead.
+    const ACETATE_PLOT_PX = 92;
+
+    // How far the brass rail can travel toward each edge, and the knob's reach.
+    // The map's framing keeps the trail clear of both.
+    const RAIL_TRAVEL_MIN = 0.02;
+    const KNOB_RADIUS = 16;
+
+    const $ = id => document.getElementById(id);
+
+    /* ===================== the lightbox ===================== */
+    const lightbox = $('lightbox');
+    const modalImage = $('modal-image');
+    const modalVideoContainer = $('modal-video-container');
+    const filmStrip = $('modal-dots-container');
+    const lbTitle = $('lb-title');
+    const lbCount = $('lb-count');
+
     const getYoutubeId = (url) => {
-        // This regex handles standard, short, and other YouTube URL variations.
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
         const match = url.match(regExp);
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
-    const updateModalMedia = (newIndex) => {
-        if (currentMediaSetInModal.length === 0) return;
+    const PHOTO_FULL = 'w_1800,c_limit,q_auto,f_auto';
 
-        // Show or hide navigation arrows based on the number of media items.
-        const showNav = currentMediaSetInModal.length > 1;
-        prevBtn.style.display = showNav ? 'block' : 'none';
-        nextBtn.style.display = showNav ? 'block' : 'none';
+    function showMedia(newIndex) {
+        if (!mediaItems.length) return;
+        if (newIndex >= mediaItems.length) newIndex = 0;
+        if (newIndex < 0) newIndex = mediaItems.length - 1;
+        currentMediaIndex = newIndex;
+        const item = mediaItems[currentMediaIndex];
 
-        if (newIndex >= currentMediaSetInModal.length) newIndex = 0; // Wrap to the start
-        if (newIndex < 0) newIndex = currentMediaSetInModal.length - 1; // Wrap to the end
-        currentModalIndex = newIndex;
-        const item = currentMediaSetInModal[currentModalIndex];
-
-        // Hide both containers and stop any playing video
         modalImage.style.display = 'none';
         modalVideoContainer.style.display = 'none';
-        modalVideoContainer.innerHTML = '';
+        modalVideoContainer.innerHTML = '';   // stops a playing video on every flip
 
         if (item.type === 'photo') {
-            // Blur-up + neighbor preload (config.js): the adjacent photos warm
-            // in the background, so flipping in order lands sharp instantly.
-            const T = 'w_1200,h_1200,c_limit,q_auto,f_auto';
-            const photoIds = currentMediaSetInModal.filter(m => m.type === 'photo').map(m => m.id);
+            // blur-up + neighbour preload (config.js): the adjacent photos warm
+            // in the background, so flipping in order lands sharp instantly
+            const photoIds = mediaItems.filter(m => m.type === 'photo').map(m => m.id);
             const at = photoIds.indexOf(item.id);
-            const neighbors = photoIds.length > 1
+            const neighbours = photoIds.length > 1
                 ? [photoIds[(at + 1) % photoIds.length], photoIds[(at - 1 + photoIds.length) % photoIds.length]]
                 : [];
-            blurUpShow(modalImage, item.id, T, neighbors);
+            modalImage.classList.remove('loaded');
+            modalImage.onload = () => modalImage.classList.add('loaded');
+            blurUpShow(modalImage, item.id, PHOTO_FULL, neighbours);
+            if (modalImage.complete && modalImage.naturalWidth) modalImage.classList.add('loaded');
             modalImage.style.display = 'block';
         } else if (item.type === 'video') {
             const videoId = getYoutubeId(item.url);
             if (videoId) {
-                modalVideoContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                modalVideoContainer.style.display = 'flex';
+                modalVideoContainer.innerHTML =
+                    `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&showinfo=0"
+                        allow="autoplay; encrypted-media" allowfullscreen title="Hike video"></iframe>`;
+                modalVideoContainer.style.display = 'block';
             }
         }
 
-        // --- Populate modal dots ---
-        modalDotsContainer.innerHTML = ''; // Clear existing dots
-        if (currentMediaSetInModal.length > 1) {
-            currentMediaSetInModal.forEach((media, index) => {
-                const dot = document.createElement('div');
-                dot.className = 'media-dot';
-                if (media.type === 'video') dot.classList.add('video');
-                if (index === currentModalIndex) dot.classList.add('active');
-                dot.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(index); });
-                modalDotsContainer.appendChild(dot);
-            });
-        }
-    };
+        lbCount.textContent = `FRAME ${String(currentMediaIndex + 1).padStart(2, '0')} OF ${String(mediaItems.length).padStart(2, '0')}`;
+        filmStrip.querySelectorAll('.media-dot').forEach(dot => {
+            dot.classList.toggle('active', Number(dot.dataset.i) === currentMediaIndex);
+        });
+        const showNav = mediaItems.length > 1;
+        $('modal-prev-btn').style.display = showNav ? 'flex' : 'none';
+        $('modal-next-btn').style.display = showNav ? 'flex' : 'none';
+        filmStrip.style.display = showNav ? 'flex' : 'none';
+    }
 
-    // --- Setup Modal Listeners ---
-    prevBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex - 1); });
-    nextBtn.addEventListener('click', (e) => { e.stopPropagation(); updateModalMedia(currentModalIndex + 1); });
-    const closeModal = () => {
-        modal.classList.remove('visible');
-        // Crucially, stop any video that might be playing when the modal is closed.
+    const openLightbox = (i) => { lightbox.classList.add('visible'); showMedia(i); };
+    const closeLightbox = () => {
+        lightbox.classList.remove('visible');
         modalVideoContainer.innerHTML = '';
     };
-    closeModalBtn.addEventListener('click', closeModal);
-    modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 
-    // Timeline navigation (track, dots, trip capsules, journal card,
-    // tooltip, scrolling) lives in scripts/timeline-nav.js — the shared
-    // AtlasTimeline component, since trip.html uses the same strip.
+    $('modal-prev-btn').addEventListener('click', e => { e.stopPropagation(); showMedia(currentMediaIndex - 1); });
+    $('modal-next-btn').addEventListener('click', e => { e.stopPropagation(); showMedia(currentMediaIndex + 1); });
+    $('modal-close-btn').addEventListener('click', closeLightbox);
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 
-    /**
-     * Translates WMO weather codes into human-readable descriptions and emojis.
-     * @param {number} code - The WMO weather code from the Open-Meteo API.
-     * @returns {object} An object with 'description' and 'icon' properties.
-     */
-    function getWeatherInfo(code) {
-        const weatherMap = {
-            0: { description: 'Clear sky', icon: '☀️' },
-            1: { description: 'Mainly clear', icon: '🌤️' },
-            2: { description: 'Partly cloudy', icon: '⛅' },
-            3: { description: 'Overcast', icon: '☁️' },
-            45: { description: 'Fog', icon: '🌫️' },
-            48: { description: 'Depositing rime fog', icon: '🌫️' },
-            51: { description: 'Light drizzle', icon: '🌦️' },
-            53: { description: 'Moderate drizzle', icon: '🌦️' },
-            55: { description: 'Dense drizzle', icon: '🌧️' },
-            56: { description: 'Light freezing drizzle', icon: '🌨️' },
-            57: { description: 'Dense freezing drizzle', icon: '🌨️' },
-            61: { description: 'Slight rain', icon: '🌦️' },
-            63: { description: 'Moderate rain', icon: '🌧️' },
-            65: { description: 'Heavy rain', icon: '🌧️' },
-            66: { description: 'Light freezing rain', icon: '🌨️' },
-            67: { description: 'Heavy freezing rain', icon: '🌨️' },
-            71: { description: 'Slight snow fall', icon: '🌨️' },
-            73: { description: 'Moderate snow fall', icon: '🌨️' },
-            75: { description: 'Heavy snow fall', icon: '❄️' },
-            77: { description: 'Snow grains', icon: '❄️' },
-            80: { description: 'Slight rain showers', icon: '🌦️' },
-            81: { description: 'Moderate rain showers', icon: '🌧️' },
-            82: { description: 'Violent rain showers', icon: '🌧️' },
-            85: { description: 'Slight snow showers', icon: '🌨️' },
-            86: { description: 'Heavy snow showers', icon: '❄️' },
-            95: { description: 'Thunderstorm', icon: '⛈️' },
-            96: { description: 'Thunderstorm with slight hail', icon: '⛈️' },
-            99: { description: 'Thunderstorm with heavy hail', icon: '⛈️' },
-        };
-        return weatherMap[code] || { description: 'Weather data unavailable', icon: '🤷' };
-    }
-
-    /**
-     * Fetches and displays historical weather, sun data, and "On This Day" echoes for the hike.
-     * @param {object} hike - The hike data object.
-     * @param {Array} allHikes - The array of all hike objects.
-     */
-    async function fetchAndDisplayTimeSnapshot(hike, trackPromise) {
-        const almanacSection = document.getElementById('almanac-section');
-        // Reset and hide section before fetching
-        almanacSection.style.display = 'none';
-        document.getElementById('sunrise-time').innerText = '--';
-        document.getElementById('sunrise-weather-desc').innerText = 'Loading...';
-        document.getElementById('sunset-time').innerText = '--';
-        document.getElementById('sunset-weather-desc').innerText = 'Loading...';
-        document.getElementById('peak-weather-desc').innerText = 'Loading...';
-        document.getElementById('peak-weather-temp').innerText = '--';
-        document.getElementById('ontrail-card').style.display = 'none';
-
-        if (hike.latitude && hike.longitude && hike.date_completed) {
-            const date = hike.date_completed;
-            const lat = hike.latitude;
-            const lon = hike.longitude;
-            // Fetch daily max temp, sunrise/sunset, and hourly data for weather conditions.
-            const apiUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,sunrise,sunset&hourly=weathercode,temperature_2m&temperature_unit=fahrenheit&timezone=auto`;
-
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`API request failed: ${response.statusText}`);
-                const data = await response.json();
-
-                if (data.daily && data.hourly && data.daily.time.length > 0) {
-                    const dailyData = data.daily;
-                    const hourlyData = data.hourly;
-
-                    const sunriseISO = dailyData.sunrise[0];
-                    const sunsetISO = dailyData.sunset[0];
-
-                    const sunriseDate = new Date(sunriseISO);
-                    const sunsetDate = new Date(sunsetISO);
-
-                    // Get the hour index for sunrise and sunset to look up in the hourly arrays.
-                    const sunriseHourIndex = sunriseDate.getHours();
-                    const sunsetHourIndex = sunsetDate.getHours();
-
-                    // Extract sunrise weather data
-                    const sunriseWeatherCode = hourlyData.weathercode[sunriseHourIndex];
-                    const sunriseTemp = Math.round(hourlyData.temperature_2m[sunriseHourIndex]);
-                    const sunriseWeatherInfo = getWeatherInfo(sunriseWeatherCode);
-
-                    // Extract sunset weather data
-                    const sunsetWeatherCode = hourlyData.weathercode[sunsetHourIndex];
-                    const sunsetTemp = Math.round(hourlyData.temperature_2m[sunsetHourIndex]);
-                    const sunsetWeatherInfo = getWeatherInfo(sunsetWeatherCode);
-
-                    // Extract peak conditions data
-                    const peakTemp = Math.round(dailyData.temperature_2m_max[0]);
-                    // Use weather at 1 PM (13:00) for midday conditions
-                    const peakWeatherCode = hourlyData.weathercode[13];
-                    const peakWeatherInfo = getWeatherInfo(peakWeatherCode);
-
-
-                    // Format and display data
-                    const timeFormatOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
-                    document.getElementById('sunrise-time').innerText = sunriseDate.toLocaleTimeString('en-US', timeFormatOptions);
-                    document.getElementById('sunrise-weather-desc').innerHTML = `${sunriseWeatherInfo.icon} ${sunriseTemp}°F &bull; ${sunriseWeatherInfo.description}`;
-
-                    document.getElementById('sunset-time').innerText = sunsetDate.toLocaleTimeString('en-US', timeFormatOptions);
-                    document.getElementById('sunset-weather-desc').innerHTML = `${sunsetWeatherInfo.icon} ${sunsetTemp}°F &bull; ${sunsetWeatherInfo.description}`;
-
-                    document.getElementById('peak-weather-desc').innerText = `${peakWeatherInfo.icon} ${peakWeatherInfo.description}`;
-                    document.getElementById('peak-weather-temp').innerText = `${peakTemp}°F`;
-
-                    almanacSection.style.display = 'block';
-
-                    // The fourth card — "On the Trail" — appears only when the
-                    // GPX was a real recording (a track with a clock).
-                    const track = await trackPromise;
-                    renderOnTrailCard(track, data.utc_offset_seconds, sunriseDate, sunsetDate);
-                }
-            } catch (error) {
-                console.error('Error fetching time snapshot data:', error);
-                almanacSection.style.display = 'none';
-            }
-        }
-    }
-
-    /**
-     * Turns companion names into Trail Crew links: core-crew members (10+
-     * shared hikes) go to their member page, everyone else to the register.
-     */
-    function linkifyCrewNames(names, allHikes) {
-        const people = groupByCompanion(allHikes);
-        return names.map(name => {
-            const count = (people.get(name) || []).length;
-            const href = count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES
-                ? `crew-member.html?name=${encodeURIComponent(name)}`
-                : 'crew.html';
-            return `<a class="crew-name-link" href="${href}">${name}</a>`;
-        }).join(', ');
-    }
-
-    /**
-     * The fire memorial: a muted banner on trails that burned after Danny
-     * walked them. The GPX and photos on those pages are historical documents
-     * now, and the banner says so in one quiet sentence. The time gap is
-     * computed per hike ("six weeks" for Temescal, "eight months" for Sunset
-     * Peak), which is the whole reason the wording lands.
-     */
-    function renderFireMemorial(hike) {
-        const banner = document.getElementById('fire-memorial');
-        if (!hike.fire_memorial) {
-            banner.style.display = 'none';
+    document.addEventListener('keydown', (e) => {
+        if (lightbox.classList.contains('visible')) {
+            if (e.key === 'Escape') closeLightbox();
+            if (e.key === 'ArrowRight') showMedia(currentMediaIndex + 1);
+            if (e.key === 'ArrowLeft') showMedia(currentMediaIndex - 1);
             return;
         }
+        if (e.key === 'Escape' && document.body.classList.contains('sheet-full')) toggleFullSheet();
+    });
+
+    /* ===================== the weather almanac ===================== */
+    /** WMO weather codes in plain words. No emoji anywhere on this page. */
+    function weatherText(code) {
+        const map = {
+            0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+            45: 'Fog', 48: 'Depositing rime fog',
+            51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+            56: 'Light freezing drizzle', 57: 'Dense freezing drizzle',
+            61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+            66: 'Light freezing rain', 67: 'Heavy freezing rain',
+            71: 'Slight snowfall', 73: 'Moderate snowfall', 75: 'Heavy snowfall',
+            77: 'Snow grains', 80: 'Slight rain showers', 81: 'Moderate rain showers',
+            82: 'Violent rain showers', 85: 'Slight snow showers', 86: 'Heavy snow showers',
+            95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail'
+        };
+        return map[code] || 'Weather data unavailable';
+    }
+
+    async function renderAlmanac(hike, trackPromise) {
+        const section = $('almanac-section');
+        section.style.display = 'none';
+        $('ontrail-card').style.display = 'none';
+        if (!hike.latitude || !hike.longitude || !hike.date_completed) return;
+
+        const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${hike.latitude}&longitude=${hike.longitude}` +
+            `&start_date=${hike.date_completed}&end_date=${hike.date_completed}` +
+            `&daily=temperature_2m_max,sunrise,sunset&hourly=weathercode,temperature_2m&temperature_unit=fahrenheit&timezone=auto`;
+
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Almanac request failed: ${res.status}`);
+            const data = await res.json();
+            if (!data.daily || !data.hourly || !data.daily.time.length) return;
+
+            const sunrise = new Date(data.daily.sunrise[0]);
+            const sunset = new Date(data.daily.sunset[0]);
+            const fmt = { hour: 'numeric', minute: '2-digit', hour12: true };
+
+            const sunriseCode = data.hourly.weathercode[sunrise.getHours()];
+            const sunsetCode = data.hourly.weathercode[sunset.getHours()];
+            const sunriseTemp = Math.round(data.hourly.temperature_2m[sunrise.getHours()]);
+            const sunsetTemp = Math.round(data.hourly.temperature_2m[sunset.getHours()]);
+
+            $('sunrise-time').textContent = sunrise.toLocaleTimeString('en-US', fmt);
+            $('sunrise-weather-desc').textContent = `${sunriseTemp}°F · ${weatherText(sunriseCode)}`;
+            $('sunset-time').textContent = sunset.toLocaleTimeString('en-US', fmt);
+            $('sunset-weather-desc').textContent = `${sunsetTemp}°F · ${weatherText(sunsetCode)}`;
+            $('peak-weather-temp').textContent = `${Math.round(data.daily.temperature_2m_max[0])}°F`;
+            $('peak-weather-desc').textContent = weatherText(data.hourly.weathercode[13]);  // conditions at 1 PM
+
+            section.style.display = 'block';
+
+            const track = await trackPromise;
+            renderOnTrailCard(track, data.utc_offset_seconds, sunrise, sunset);
+        } catch (err) {
+            console.error('Could not load the hike almanac:', err);
+        }
+    }
+
+    /**
+     * The almanac's "On the Trail" row: the day's boots-on and boots-off clock,
+     * read from the GPX recording. Each hike record is one day's walk (a
+     * backpacking leg ends at camp), so the window never crosses midnight.
+     * The daylight ribbon says the rest without words: the trail-green band is
+     * the walk, laid over that day's actual night-day-night — a band that
+     * starts in the dark IS the alpine start.
+     */
+    function renderOnTrailCard(track, utcOffsetSeconds, sunriseDate, sunsetDate) {
+        const card = $('ontrail-card');
+        if (!track || !track.startTime || !track.endTime) return;
+
+        const durationMs = track.endTime - track.startTime;
+        // A record longer than a waking day means a malformed track — stand down
+        if (durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
+
+        // GPX clocks are UTC. Shifting by the trail's offset (already fetched
+        // with the weather) and reading with getUTC* yields the trail's wall
+        // clock — correct whether the hike was in California or Virginia.
+        const toWall = d => new Date(d.getTime() + utcOffsetSeconds * 1000);
+        const wallStart = toWall(track.startTime);
+        const wallEnd = toWall(track.endTime);
+        const fmtTime = (d) => {
+            const h12 = d.getUTCHours() % 12 || 12;
+            return `${h12}:${String(d.getUTCMinutes()).padStart(2, '0')} ${d.getUTCHours() >= 12 ? 'PM' : 'AM'}`;
+        };
+        $('ontrail-times').innerHTML =
+            `${fmtTime(wallStart)}<span class="ontrail-arrow">&rarr;</span>${fmtTime(wallEnd)}`;
+
+        let hrs = Math.floor(durationMs / 3600000);
+        let mins = Math.round((durationMs % 3600000) / 60000);
+        if (mins === 60) { hrs++; mins = 0; }
+        $('ontrail-duration').textContent =
+            hrs > 0 ? `${hrs}h ${mins}m on the trail` : `${mins} minutes on the trail`;
+
+        // one bar = that day, midnight to midnight
+        const minuteOfDay = d => d.getUTCHours() * 60 + d.getUTCMinutes();
+        // sunrise/sunset arrived as local wall-clock strings (timezone=auto),
+        // so the local getters read their wall-clock components directly
+        const sunriseMin = sunriseDate.getHours() * 60 + sunriseDate.getMinutes();
+        const sunsetMin = sunsetDate.getHours() * 60 + sunsetDate.getMinutes();
+        const pct = m => (m / 1440) * 100;
+
+        $('ontrail-ribbon').style.background = `linear-gradient(90deg,
+            #2c3e50 0%, #2c3e50 ${pct(sunriseMin) - 1.5}%,
+            #f2e3bb ${pct(sunriseMin) + 1.5}%, #f2e3bb ${pct(sunsetMin) - 1.5}%,
+            #2c3e50 ${pct(sunsetMin) + 1.5}%, #2c3e50 100%)`;
+
+        const band = $('ontrail-band');
+        band.style.left = `${pct(minuteOfDay(wallStart))}%`;
+        band.style.width = `${Math.max(pct(minuteOfDay(wallEnd)) - pct(minuteOfDay(wallStart)), 0.8)}%`;
+        card.style.display = 'block';
+    }
+
+    /* ===================== the fire memorial ===================== */
+    /**
+     * A muted notice on trails that burned after Danny walked them. The GPX and
+     * photos on those pages are historical documents now, and the banner says so
+     * in one quiet sentence. The gap is computed per hike ("six weeks" for
+     * Temescal, "eight months" for Sunset Peak) — that's why the wording lands.
+     */
+    function renderFireMemorial(hike) {
+        const banner = $('fire-memorial');
+        if (!hike.fire_memorial) { banner.style.display = 'none'; return; }
+
         // Both dates are date-only strings: parse as UTC per Atlas convention
         const fireDate = new Date(`${hike.fire_memorial.date}T00:00:00Z`);
         const hikeDate = new Date(`${hike.date_completed}T00:00:00Z`);
         const gap = fireGapText(fireDate - hikeDate);
         const monthYear = fireDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-        // A thin, single-weight line-drawn ember — vector, crisp at any size,
-        // matching the hand-drawn SVG language of the elevation profile.
+        // A thin, single-weight line-drawn ember — vector, crisp at any size
         const flameOuter = 'M12 1.5 C 9.2 8, 5.2 11.4, 5.2 18.4 a 6.8 6.8 0 0 0 13.6 0 C 18.8 12.6, 15.2 10.6, 14.2 5.6 C 13.3 8.6, 12.4 8.8, 12 1.5 Z';
         const flameInner = 'M12 13 C 10.6 15.6, 9.3 16.8, 9.3 19.6 a 2.7 2.7 0 0 0 5.4 0 C 14.7 16.9, 13.2 16, 12.7 14 C 12.4 15, 12 15, 12 13 Z';
 
         banner.innerHTML =
             `<span class="fire-memorial-mark">` +
-                `<svg width="21" height="30" viewBox="0 0 24 26" fill="none" stroke="#a8552e" ` +
+                `<svg width="19" height="27" viewBox="0 0 24 26" fill="none" stroke="#a8552e" ` +
                 `stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">` +
                 `<path d="${flameOuter}"/><path d="${flameInner}" stroke-width="1.1" opacity="0.7"/></svg>` +
             `</span>` +
@@ -278,7 +272,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
             'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen',
             'seventeen', 'eighteen', 'nineteen', 'twenty', 'twenty-one', 'twenty-two', 'twenty-three'];
-        const spell = (n) => WORDS[n] || String(n);
+        const spell = n => WORDS[n] || String(n);
         const days = Math.round(ms / 86400000);
         if (days < 70) {
             const weeks = Math.max(1, Math.round(days / 7));
@@ -287,668 +281,655 @@ document.addEventListener('DOMContentLoaded', async () => {
         const months = Math.round(days / 30.44);
         if (months === 12) return 'a year';
         if (months < 24) return `${spell(months)} months`;
-        const years = Math.round(months / 12);
-        return `${spell(years)} years`;
+        return `${spell(Math.round(months / 12))} years`;
+    }
+
+    /* ===================== small helpers ===================== */
+
+    /**
+     * Companion names become Trail Crew links: core crew (10+ shared outings)
+     * go to their member page, everyone else to the register.
+     */
+    function linkifyCrewNames(names, hikes) {
+        const people = groupByCompanion(hikes);
+        return names.map(name => {
+            const count = (people.get(name) || []).length;
+            const href = count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES
+                ? `crew-member.html?name=${encodeURIComponent(name)}`
+                : 'crew.html';
+            return `<a class="crew-name-link" href="${href}">${name}</a>`;
+        }).join(', ');
     }
 
     /**
-     * The almanac's "On the Trail" card: the day's boots-on and boots-off
-     * clock, read from the GPX recording. Each hike record is one day's walk
-     * (a backpacking leg ends at camp), so the window never crosses midnight.
-     * The daylight ribbon says the rest without words: the trail-green band is
-     * the walk, laid over that day's actual night-day-night — a band that
-     * starts in the dark IS the alpine start.
+     * "Bigtooth maple (Acer grandidentatum) — fact" as an engraved specimen slip.
+     *
+     * The separator can't be trusted: 128 records use an em dash and 76 run the
+     * fact straight on from the parenthetical. So the split keys off the Latin
+     * name in brackets, and this page prints the dash itself — every slip reads
+     * the same however its record was written.
      */
-    function renderOnTrailCard(track, utcOffsetSeconds, sunriseDate, sunsetDate) {
-        const card = document.getElementById('ontrail-card');
-        if (!track || !track.startTime || !track.endTime) return; // card stays hidden
-
-        const durationMs = track.endTime - track.startTime;
-        // A record longer than a waking day means a malformed track — stand down
-        if (durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
-
-        // GPX clocks are UTC. Shifting by the trail's offset (already fetched
-        // with the weather) and reading with getUTC* yields the trail's wall
-        // clock — correct whether the hike was in California or Virginia.
-        const toWall = (d) => new Date(d.getTime() + utcOffsetSeconds * 1000);
-        const wallStart = toWall(track.startTime);
-        const wallEnd = toWall(track.endTime);
-        const fmtTime = (d) => {
-            const h12 = d.getUTCHours() % 12 || 12;
-            const mins = String(d.getUTCMinutes()).padStart(2, '0');
-            return `${h12}:${mins} ${d.getUTCHours() >= 12 ? 'PM' : 'AM'}`;
-        };
-        document.getElementById('ontrail-times').innerHTML =
-            `${fmtTime(wallStart)} <span class="ontrail-arrow">&rarr;</span> ${fmtTime(wallEnd)}`;
-
-        let hrs = Math.floor(durationMs / 3600000);
-        let mins = Math.round((durationMs % 3600000) / 60000);
-        if (mins === 60) { hrs++; mins = 0; }
-        document.getElementById('ontrail-duration').innerText =
-            hrs > 0 ? `${hrs}h ${mins}m on the trail` : `${mins} minutes on the trail`;
-
-        // The daylight ribbon: one bar = that day, midnight to midnight
-        const minuteOfDay = (d) => d.getUTCHours() * 60 + d.getUTCMinutes();
-        // sunrise/sunset arrived as local wall-clock strings (timezone=auto),
-        // so the local getters read their wall-clock components directly
-        const sunriseMin = sunriseDate.getHours() * 60 + sunriseDate.getMinutes();
-        const sunsetMin = sunsetDate.getHours() * 60 + sunsetDate.getMinutes();
-        const pct = (m) => (m / 1440) * 100;
-
-        const ribbon = document.getElementById('ontrail-ribbon');
-        ribbon.style.background = `linear-gradient(90deg,
-            #2c3e50 0%, #2c3e50 ${pct(sunriseMin) - 1.5}%,
-            #f2e3bb ${pct(sunriseMin) + 1.5}%, #f2e3bb ${pct(sunsetMin) - 1.5}%,
-            #2c3e50 ${pct(sunsetMin) + 1.5}%, #2c3e50 100%)`;
-        ribbon.title = `Daylight ${fmtTime(new Date(Date.UTC(2000, 0, 1, sunriseDate.getHours(), sunriseDate.getMinutes())))} – ${fmtTime(new Date(Date.UTC(2000, 0, 1, sunsetDate.getHours(), sunsetDate.getMinutes())))}`;
-
-        const band = document.getElementById('ontrail-band');
-        band.style.left = `${pct(minuteOfDay(wallStart))}%`;
-        band.style.width = `${Math.max(pct(minuteOfDay(wallEnd)) - pct(minuteOfDay(wallStart)), 0.8)}%`;
-
-        card.style.display = 'block';
-    }
-
-    /**
-     * Generates a context-aware, natural-language title for an expedition.
-     * @param {object} hike - The hike data object.
-     * @returns {string} A formatted, human-readable title for the expedition.
-     */
-    function getExpeditionTitle(hike) {
-        const { difficulty, hike_type } = hike;
-        if (!difficulty || !hike_type) return 'Expedition Details'; // Fallback
-
-        switch (hike_type) {
-            case 'Day Hike':
-                return `${difficulty} Day Hike`;
-            case 'Viewpoint':
-                return 'A Scenic Viewpoint';
-            case 'Backpacking':
-                return `${difficulty} Backpacking Trip`;
-            case 'Day Trip':
-            case 'Overnight Trip':
-                return `${difficulty} ${hike_type} Hike`;
-            case 'Car Camping':
-                return `${difficulty} Camping Hike`;
-            default:
-                return `${difficulty} ${hike_type}`; // Fallback for any other types
+    function renderSlip(el, kicker, text) {
+        if (!text) { el.style.display = 'none'; el.innerHTML = ''; return; }
+        const head = `<div class="k">${kicker}</div>`;
+        const named = text.match(/^\s*(.+?)\s*\(([^)]+)\)\s*(?:[—–-]\s*)?([\s\S]*)$/);
+        if (named) {
+            const fact = named[3].trim();
+            el.innerHTML = head + `<b>${named[1]}</b> <span class="latin">(${named[2]})</span>` +
+                (fact ? ` — ${formatHikeText(fact)}` : '');
+        } else {
+            const cut = text.indexOf(' — ');
+            el.innerHTML = head + (cut > 0
+                ? `<b>${text.slice(0, cut)}</b> — ${formatHikeText(text.slice(cut + 3))}`
+                : formatHikeText(text));
         }
+        el.style.display = 'block';
     }
 
-    // --- NEW: Thematic color mapping for hero headers ---
-    const GEOGRAPHY_COLORS = {
-        'Desert': '#b88a5b', // Sandy brown
-        'Riparian Canyon': '#4a7c59', // Deep green
-        'Chaparral': '#8a8174', // Dusty sage
-        'Urban Edge': '#495057', // Slate gray
-        'Default': '#2c3e50' // Default dark blue-gray
-    };
+    /**
+     * Pulls a line back onto one row when it is only just too long.
+     *
+     * Letter-spaced display caps are mostly air, so tightening the tracking
+     * usually buys back the one word that spilled; body lines give up a little
+     * size instead. Each list is tried in order and the first setting that fits
+     * wins. If even the tightest step can't hold it — a genuinely long park
+     * name — the line goes back to its original setting and wraps, because two
+     * honest rows beat one squashed one.
+     */
+    function fitOneLine(el, steps) {
+        if (!el || !el.textContent.trim()) return;
+        el.style.whiteSpace = 'nowrap';
+        for (const step of steps) {
+            Object.assign(el.style, step);
+            if (!el.clientWidth) return;                    // not laid out yet
+            if (el.scrollWidth <= el.clientWidth) return;   // fits
+        }
+        Object.assign(el.style, steps[0]);
+        el.style.whiteSpace = 'normal';
+    }
+
+    /** The title block's three lines, each with its own room to give. */
+    function fitCollar() {
+        fitOneLine($('c-kicker'), [
+            { letterSpacing: '0.3em' }, { letterSpacing: '0.24em' },
+            { letterSpacing: '0.19em' }, { letterSpacing: '0.15em' },
+            { letterSpacing: '0.11em' }
+        ]);
+        fitOneLine($('c-sub'), [
+            { fontSize: '13px' }, { fontSize: '12.4px' },
+            { fontSize: '11.9px' }, { fontSize: '11.4px' }, { fontSize: '11px' }
+        ]);
+        fitOneLine($('c-trip'), [
+            { fontSize: '12.5px' }, { fontSize: '12px' }, { fontSize: '11.5px' }
+        ]);
+    }
+
+    /** Degrees-minutes-seconds for the sheet's corner coordinates. */
+    function dms(v, isLat) {
+        const hemi = isLat ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W');
+        // round to whole seconds FIRST, then split — rounding each part on its
+        // own prints impossibilities like 118°10′60″ instead of 118°11′00″
+        const total = Math.round(Math.abs(v) * 3600);
+        const d = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        return `${d}°${String(m).padStart(2, '0')}′${String(s).padStart(2, '0')}″ ${hemi}`;
+    }
+
+    /* ===================== the sheet's map ===================== */
 
     /**
-     * Draws the Shape of the Day: the elevation profile below the map.
-     * Scrubbing the chart glides a dot along the trail line on the map above,
-     * so the shape and the place read as one instrument.
+     * Frames both glasses on the route. Called on first render, on window
+     * resize, and after the full-sheet toggle — the map is locked, so this is
+     * the only thing that ever moves it.
      */
-    function renderShapeOfDay(gpxText) {
-        const section = document.getElementById('shape-section');
-        const track = AtlasShape.parseGpx(gpxText);
-        if (!track) {
-            section.style.display = 'none';
+    function frameMaps() {
+        if (!mapTopo || !mapSat) return;
+
+        // The rail is furniture, like the sheet's edge, and the trail must
+        // clear it at either extreme: the knob is a 32px disc centred on the
+        // rail, and the rail travels to 2% of the stage. Without this the
+        // brass circle sits on top of the track on wide routes.
+        const stageW = $('stage').clientWidth || 0;
+        const padX = Math.round(stageW * RAIL_TRAVEL_MIN) + KNOB_RADIUS + 14;
+
+        [mapTopo, mapSat].forEach(m => {
+            m.invalidateSize({ animate: false });
+            if (routeBounds) m.fitBounds(routeBounds, { padding: [Math.max(26, padX), 26], animate: false });
+        });
+        paintCorners();
+        paintScaleBar();
+    }
+
+    /**
+     * Redraws the profile at the acetate's current width. The chart maps one
+     * viewBox unit to one pixel, so it has to be rebuilt whenever that width
+     * changes — otherwise entering full-sheet would stretch it.
+     */
+    function drawAcetate() {
+        const chart = $('shape-chart');
+        if (!currentTrack || !chart.clientWidth) return;
+        chart.__atlasShapeClear?.();
+        AtlasShape.render(chart, currentTrack, {
+            plotHeight: ACETATE_PLOT_PX,
+            // the profile is drawn in this year's ink, on film
+            palette: { line: currentInk, fill: currentInk, label: '#43597a', grid: 'rgba(90,110,140,0.18)', tick: 'rgba(90,110,140,0.35)' },
+            onScrub: (sample) => walkers.forEach(w => {
+                w.setLatLng([sample.lat, sample.lon]);
+                w.setStyle({ opacity: 1, fillOpacity: 1 });
+            }),
+            onLeave: () => walkers.forEach(w => w.setStyle({ opacity: 0, fillOpacity: 0 }))
+        });
+    }
+
+    function relayout() {
+        fitCollar();
+        frameMaps();
+        drawAcetate();
+    }
+    window.addEventListener('resize', relayout);
+
+    function paintCorners() {
+        if (!mapTopo || !mapTopo._loaded) return;
+        const b = mapTopo.getBounds();
+        $('cnw').textContent = `${dms(b.getNorth(), true)}  ${dms(b.getWest(), false)}`;
+        $('cne').textContent = `${dms(b.getNorth(), true)}  ${dms(b.getEast(), false)}`;
+        $('csw').textContent = `${dms(b.getSouth(), true)}  ${dms(b.getWest(), false)}`;
+        $('cse').textContent = `${dms(b.getSouth(), true)}  ${dms(b.getEast(), false)}`;
+    }
+
+    /** A real scale bar: pick a round distance, then size the bar to match it. */
+    function paintScaleBar() {
+        if (!mapTopo || !mapTopo._loaded) return;
+        const size = mapTopo.getSize();
+        if (!size.x) return;
+        const midY = size.y / 2;
+        const west = mapTopo.containerPointToLatLng([0, midY]);
+        const east = mapTopo.containerPointToLatLng([size.x, midY]);
+        const milesPerPx = (west.distanceTo(east) / 1609.34) / size.x;
+
+        const NICE = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50];
+        const target = milesPerPx * 112;                       // aim for ~112px
+        const nice = NICE.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
+        const bar = document.querySelector('.scale-bar .bar');
+        bar.style.width = `${Math.round(nice / milesPerPx)}px`;
+        $('scale-t').textContent = `0 — ${nice < 1 ? nice : nice.toLocaleString()} MI`;
+    }
+
+    /* ----- the brass rail ----- */
+    let railX = 58;   // percent from the left; >50 favours the survey
+    function applyRail() {
+        const split = $('split');
+        const topoWrap = $('topo-wrap');
+        split.style.left = `${railX}%`;
+        topoWrap.style.clipPath = `inset(0 ${100 - railX}% 0 0)`;
+        $('lab-l').style.left = `${railX / 2}%`;
+        $('lab-r').style.left = `${(100 + railX) / 2}%`;
+        $('lab-l').style.opacity = railX > 20 ? 1 : 0;
+        $('lab-r').style.opacity = railX < 80 ? 1 : 0;
+        $('tab-topo').classList.toggle('on', railX >= 50);
+        $('tab-aerial').classList.toggle('on', railX < 50);
+    }
+    function sweepRail(to) {
+        const split = $('split');
+        const topoWrap = $('topo-wrap');
+        split.classList.add('snap');
+        topoWrap.classList.add('snap');
+        railX = to;
+        applyRail();
+        setTimeout(() => { split.classList.remove('snap'); topoWrap.classList.remove('snap'); }, 760);
+    }
+    $('tab-topo').addEventListener('click', () => sweepRail(96));
+    $('tab-aerial').addEventListener('click', () => sweepRail(4));
+    $('split').addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        const split = $('split');
+        split.setPointerCapture(e.pointerId);
+        split.classList.remove('snap');
+        $('topo-wrap').classList.remove('snap');
+        const move = (ev) => {
+            const r = $('stage').getBoundingClientRect();
+            const limit = RAIL_TRAVEL_MIN * 100;
+            railX = Math.min(100 - limit, Math.max(limit, ((ev.clientX - r.left) / r.width) * 100));
+            applyRail();
+        };
+        const up = () => { split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); };
+        split.addEventListener('pointermove', move);
+        split.addEventListener('pointerup', up);
+    });
+
+    function toggleFullSheet() {
+        // the pointer may never fire a leave across the layout change, so the
+        // readout and the trail walker are cleared by hand
+        $('shape-chart').__atlasShapeClear?.();
+        document.body.classList.toggle('sheet-full');
+        setTimeout(relayout, 60);
+    }
+    $('full-btn').addEventListener('click', toggleFullSheet);
+
+    /* ===================== the main render ===================== */
+
+    function displayHike(hike, hikes) {
+        const year = String(hikeYear(hike));
+        const ink = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
+        const sheetNo = hike.trail_id.replace('tta_', '');
+        const isVp = isViewpoint(hike);
+
+        document.title = `${hike.trail_name} - The Trailprint Atlas`;
+
+        /* ----- the collar ----- */
+        $('c-kicker').textContent =
+            `THE TRAILPRINT ATLAS · SHEET NO. ${sheetNo} · ${hike.hike_type.toUpperCase()}`;
+        $('c-title').textContent = hike.trail_name;
+        $('c-sub').textContent =
+            `${hike.location} — ${hike.region} · ${isVp ? 'Visited' : 'Hiked'} ${formatHikeDate(hike.date_completed)}`;
+
+        const tripLine = $('c-trip');
+        if (hike.trip_tag) {
+            const splitAt = hike.trip_tag.lastIndexOf(' - ');
+            const tripName = splitAt > 0 ? hike.trip_tag.slice(0, splitAt) : hike.trip_tag;
+            tripLine.innerHTML = `<a href="trip.html?tag=${encodeURIComponent(hike.trip_tag)}">Part of: ${tripName} &rarr;</a>`;
+        } else {
+            tripLine.innerHTML = '';
+        }
+
+        const seal = $('seal');
+        seal.innerHTML = atlasStampSvg(hike.hike_type);
+        seal.title = hike.hike_type;
+        seal.style.color = ink;
+
+        // The vitals band. Viewpoints are not hikes: a scenic stop has no
+        // distance worth featuring, and "0 MILES · 0 FT GAIN" says nothing
+        // true — those sheets carry the note in the lower collar instead.
+        const vitals = [];
+        if (!(isVp && !hike.miles)) {
+            vitals.push({ v: hike.miles, l: 'Miles' });
+            vitals.push({ v: hike.elevation_gain.toLocaleString(), l: 'Feet climbed' });
+        }
+        if (hike.summit_trail && hike.summit_elevation) {
+            vitals.push({ v: hike.summit_elevation.toLocaleString(), l: 'Summit (ft)' });
+        }
+        if (!(isVp && !hike.miles)) vitals.push({ v: hike.difficulty, l: 'Grade' });
+
+        const vitalsEl = $('vitals');
+        vitalsEl.innerHTML = vitals
+            .map(c => `<div class="vital"><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`)
+            .join('');
+        vitalsEl.style.display = vitals.length ? '' : 'none';
+
+        // The lower collar keeps what a map's lower margin actually carries:
+        // where this sheet came from, not its headline numbers.
+        const party = (hike.hiked_with && hike.hiked_with.length)
+            ? linkifyCrewNames(hike.hiked_with, hikes)
+            : 'Solo';
+        // Nothing here that the title block already says: the only sheets that
+        // need a headline down here are the ones with no numbers to feature.
+        const l1 = $('legend-1');
+        l1.textContent = isVp && !hike.miles ? 'A SCENIC VIEWPOINT' : '';
+        l1.style.display = l1.textContent ? '' : 'none';
+        $('legend-2').innerHTML =
+            `${hike.primary_geography} · Party: ${party} · surveyed in the ${year} ink`;
+
+        renderFireMemorial(hike);
+
+        /* ----- the two glasses ----- */
+        if (mapTopo) { mapTopo.remove(); mapTopo = null; }
+        if (mapSat) { mapSat.remove(); mapSat = null; }
+        walkers = [];
+        routeBounds = null;
+        // drop the previous hike's profile, or a resize would redraw it here
+        currentTrack = null;
+        currentInk = ink;
+
+        // Locked, by design: this page displays a route, it doesn't roam.
+        const LOCKED = {
+            attributionControl: false, zoomControl: false, dragging: false, touchZoom: false,
+            doubleClickZoom: false, scrollWheelZoom: false, boxZoom: false, keyboard: false,
+            tap: false, zoomSnap: 0, inertia: false
+        };
+        mapTopo = L.map('map-topo', LOCKED);
+        mapSat = L.map('map-sat', LOCKED);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri — Esri, DeLorme, NAVTEQ, TomTom, USGS, NPS'
+        }).addTo(mapTopo);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19,
+            attribution: 'Tiles &copy; Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+        }).addTo(mapSat);
+
+        // A view straight away, before the GPX lands: Leaflet refuses to add
+        // layers (or report bounds) to a map that has never been positioned,
+        // and the track arrives asynchronously. fitBounds refines this the
+        // moment the route's real extent is known.
+        [mapTopo, mapSat].forEach(m => m.setView([hike.latitude, hike.longitude], 14, { animate: false }));
+
+        applyRail();
+
+        /* ----- the route, drawn on both glasses ----- */
+        const shapeChart = $('shape-chart');
+        const acetate = $('acetate');
+        shapeChart.innerHTML = '';
+        let trackPromise = Promise.resolve(null);
+
+        if (hike.gpx_file) {
+            acetate.style.display = '';
+            const mapsForThisRender = mapTopo;
+            trackPromise = fetch(`data/trails/${hike.gpx_file}`)
+                .then(res => {
+                    if (!res.ok) throw new Error(`GPX fetch failed: ${res.status}`);
+                    return res.text();
+                })
+                .then(gpxText => {
+                    // The visitor may have jumped to another hike mid-fetch;
+                    // that map is gone, so quietly stand down.
+                    if (mapsForThisRender !== mapTopo) return null;
+                    return drawRoute(gpxText, hike, ink);
+                })
+                .catch(err => {
+                    console.error('Could not load the GPX track:', err);
+                    acetate.style.display = 'none';
+                    if (hike.latitude && hike.longitude) markTrailhead(hike, ink);
+                    return null;
+                });
+        } else {
+            // Viewpoints and tracks we never had: a stamp on the spot, no acetate
+            acetate.style.display = 'none';
+            markTrailhead(hike, ink);
+        }
+
+        /* ----- the slides ----- */
+        buildSlides(hike);
+
+        /* ----- the paperwork ----- */
+        const notes = $('description-content-container');
+        notes.innerHTML = hike.description
+            ? `<p>${formatHikeText(hike.description)}</p>`
+            : `<p>The field notes for this sheet are still being written.</p>`;
+        if (hike.notes) {
+            notes.insertAdjacentHTML('beforeend',
+                `<div class="journal-entry"><p>${formatHikeText(hike.notes)}</p></div>`);
+        }
+
+        const links = $('external-links-container');
+        links.innerHTML = '';
+        if (hike.all_trails_url) {
+            links.insertAdjacentHTML('beforeend',
+                `<a href="${hike.all_trails_url}" target="_blank" rel="noopener noreferrer">View on AllTrails &#8599;</a>`);
+        }
+        if (hike.official_trail_url) {
+            links.insertAdjacentHTML('beforeend',
+                `<a href="${hike.official_trail_url}" target="_blank" rel="noopener noreferrer">Official trail site &#8599;</a>`);
+        }
+
+        renderSlip($('flora-annotation'), 'Flora · pressed specimen', hike.flora);
+        renderSlip($('fauna-annotation'), 'Fauna · field sighting', hike.fauna);
+
+        renderLogbook(hike, hikes);
+        renderAlmanac(hike, trackPromise);
+
+        // First framing happens once the containers have their real size
+        requestAnimationFrame(() => { fitCollar(); frameMaps(); });
+    }
+
+    /**
+     * Draws the GPX on both glasses and wires the acetate to it. One fetch,
+     * one parse for the line and waypoints; AtlasShape re-reads the same text
+     * for the elevation profile.
+     */
+    function drawRoute(gpxText, hike, ink) {
+        const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
+        const latlngs = [...xml.querySelectorAll('trkpt')]
+            .map(pt => [parseFloat(pt.getAttribute('lat')), parseFloat(pt.getAttribute('lon'))])
+            .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+        if (latlngs.length < 2) {
+            $('acetate').style.display = 'none';
+            markTrailhead(hike, ink);
             return null;
         }
-        section.style.display = 'block';
 
-        // The scrub dot lives on the trail map; it dies with the map when the
-        // visitor moves to another hike, so no cleanup bookkeeping is needed.
-        const scrubDot = L.circleMarker([track.samples[0].lat, track.samples[0].lon], {
-            radius: 7, color: '#fff', weight: 2.5,
-            fillColor: '#2c3e50', fillOpacity: 0, opacity: 0, interactive: false
-        }).addTo(detailMap);
+        routeBounds = L.latLngBounds(latlngs);
+        frameMaps();   // the extent is known now — frame it before the ink draws
 
-        AtlasShape.render(document.getElementById('shape-chart'), track, {
-            onScrub: (sample) => {
-                scrubDot.setLatLng([sample.lat, sample.lon]);
-                scrubDot.setStyle({ opacity: 1, fillOpacity: 1 });
-            },
-            onLeave: () => {
-                scrubDot.setStyle({ opacity: 0, fillOpacity: 0 });
+        [mapTopo, mapSat].forEach(m => {
+            const line = L.polyline(latlngs, { color: ink, weight: 4, opacity: 0.96, interactive: false }).addTo(m);
+
+            // the ink draws itself in, the way it does on the map page
+            const path = line.getElement();
+            if (path && path.getTotalLength) {
+                const len = path.getTotalLength();
+                path.style.strokeDasharray = len;
+                path.style.strokeDashoffset = len;
+                path.getBoundingClientRect();   // force layout so the transition runs
+                path.style.transition = 'stroke-dashoffset 2.4s ease';
+                path.style.strokeDashoffset = 0;
+                setTimeout(() => {
+                    path.style.transition = 'none';
+                    path.style.strokeDasharray = 'none';
+                }, 2700);
             }
+
+            // trailhead: a year-ink dot at the exact point, the type's stamp beside it
+            L.circleMarker(latlngs[0], {
+                radius: 5, color: '#fffdf6', weight: 1.5, fillColor: ink, fillOpacity: 1, interactive: false
+            }).addTo(m);
+            L.marker(latlngs[0], {
+                interactive: false,
+                icon: L.divIcon({
+                    className: '', iconSize: [24, 24], iconAnchor: [-8, 30],
+                    html: `<span style="color:${ink};display:block;width:24px;height:24px">${atlasStampSvg(hike.hike_type)}</span>`
+                })
+            }).addTo(m);
+
+            // waypoints (18 of the tracks carry them). Native titles, not popups:
+            // the stage clips its overflow, and a popup would be cut off.
+            xml.querySelectorAll('wpt').forEach(wpt => {
+                const lat = parseFloat(wpt.getAttribute('lat'));
+                const lon = parseFloat(wpt.getAttribute('lon'));
+                if (isNaN(lat) || isNaN(lon)) return;
+                const name = wpt.querySelector('name')?.textContent || '';
+                L.circleMarker([lat, lon], {
+                    radius: 3.5, color: '#fffdf6', weight: 1.2,
+                    fillColor: '#3d3a30', fillOpacity: 0.85
+                }).addTo(m).bindTooltip(name || 'Waypoint', { direction: 'top' });
+            });
+
+            // the scrub marker the acetate walks along the trail
+            const walker = L.circleMarker(latlngs[0], {
+                radius: 6.5, color: '#fff', weight: 2, fillColor: '#c0392b',
+                fillOpacity: 0, opacity: 0, interactive: false, className: 'trail-walker'
+            }).addTo(m);
+            walkers.push(walker);
         });
 
+        /* ----- the acetate ----- */
+        const track = AtlasShape.parseGpx(gpxText);
+        if (!track) {
+            $('acetate').style.display = 'none';
+            return null;
+        }
+        currentTrack = track;
+        currentInk = ink;
+        drawAcetate();
         return track;
     }
 
-    /**
-     * Main function to clear and populate the page with a specific hike's details.
-     */
-    function displayHike(hike, allHikes) {
-
-                // --- Cleanup from previous render ---
-                document.getElementById('expedition-subtitle-container').innerHTML = '';
-
-                // --- NEW: Populate Hero Header ---
-                const hero = document.getElementById('hike-hero');
-                const heroTitle = hero.querySelector('#hike-title');
-                const heroLocation = hero.querySelector('#hike-location');
-                const heroDate = hero.querySelector('#hike-date');
-
-                document.title = `${hike.trail_name} - The Trailprint Atlas`;
-                heroTitle.innerText = hike.trail_name;
-                heroLocation.innerText = `${hike.location} • ${hike.region}`;
-                const formattedDate = formatHikeDate(hike.date_completed);
-                const datePrefix = hike.hike_type === 'Viewpoint' ? 'Visited on' : 'Hiked on';
-                heroDate.innerText = `${datePrefix} ${formattedDate}`;
-
-                // "Part of" chip: hikes on a trip link up to their chapter.
-                const tripLink = document.getElementById('hike-trip-link');
-                if (tripLink) {
-                    if (hike.trip_tag) {
-                        const splitAt = hike.trip_tag.lastIndexOf(' - ');
-                        const tripName = splitAt > 0 ? hike.trip_tag.slice(0, splitAt) : hike.trip_tag;
-                        tripLink.innerHTML = `<a href="trip.html?tag=${encodeURIComponent(hike.trip_tag)}">Part of: ${tripName} &rarr;</a>`;
-                        tripLink.style.display = 'block';
-                    } else {
-                        tripLink.innerHTML = '';
-                        tripLink.style.display = 'none';
-                    }
-                }
-
-                // Fire memorial banner (hidden on the unburned majority)
-                renderFireMemorial(hike);
-
-                // --- NEW: Set hero background color based on geography ---
-                const geoType = hike.primary_geography || 'Default';
-                const heroColor = GEOGRAPHY_COLORS[geoType] || GEOGRAPHY_COLORS['Default'];
-                hero.style.backgroundColor = heroColor;
-                // Remove any background image styling from previous renders
-                hero.style.backgroundImage = 'none';
-                
-                // --- Define helper function to create the correct icon ---
-                // This logic is mirrored from trail-renderer.js for consistency.
-                const getIcon = (hikeType) => {
-                    const iconFilename = ATLAS_CONFIG.ICON_MAP[hikeType] || 'day-hike-icon.png';
-                    return L.icon({
-                        iconUrl: `assets/icons/${iconFilename}`,
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 42],
-                        popupAnchor: [0, -32],
-                        shadowUrl: null,
-                        className: 'hike-icon'
-                    });
-                };
-
-                // --- Define a custom CSS-based icon for waypoints ---
-                const waypointIcon = L.divIcon({
-                    className: 'waypoint-marker',
-                    iconSize: [8, 8],   // Reduced size for a more subtle look
-                    iconAnchor: [4, 4]  // Keep the anchor centered
-                });
-
-                // --- Determine the correct trail color based on the year ---
-                const year = hikeYear(hike).toString();
-                const trailColor = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
-
-                // --- Initialize a non-interactive, cycling map ---
-                // If a map instance already exists, remove it to prevent errors.
-                if (detailMap) {
-                    detailMap.remove();
-                }
-                detailMap = L.map('hike-map', {
-                     // Disable all user interaction to make it a static visual.
-                    zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
-                    touchZoom: false, boxZoom: false, keyboard: false, tap: false
-                }).setView([39.82, -98.58], 4); // Default view
-
-                // Define the two base layers we want to cycle between
-                const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-                    className: 'fadeable-tile-layer' // Add class for CSS transition
-                });
-
-                // The topo layer will start transparent and fade in
-                const topoLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
-                    className: 'fadeable-tile-layer', // Add class for CSS transition
-                    opacity: 0 // Start transparent
-                });
-
-                // Add both layers to the map. Satellite is on the bottom, topo is on top (but transparent).
-                satelliteLayer.addTo(detailMap);
-                topoLayer.addTo(detailMap);
-
-                // Set up the cycling interval, clearing any timer left over from a previously viewed hike
-                const cycleDuration = 15000; // 15 seconds
-                if (tileCycleInterval) clearInterval(tileCycleInterval);
-                tileCycleInterval = setInterval(() => {
-                    // Check the current opacity of the top layer (topoLayer) and toggle it
-                    const newOpacity = topoLayer.options.opacity === 1 ? 0 : 1;
-                    topoLayer.setOpacity(newOpacity);
-                }, cycleDuration);
-
-                const shapeSection = document.getElementById('shape-section');
-                // Resolves to the parsed GPX track (or null): the almanac's
-                // "On the Trail" card awaits it for the day's start/end clock.
-                let trackPromise = Promise.resolve(null);
-                if (hike.gpx_file) {
-                    // Fetch the GPX text once: L.GPX parses it for the map, and
-                    // the Shape of the Day chart draws its profile from the same text.
-                    const mapForThisRender = detailMap;
-                    trackPromise = fetch(`data/trails/${hike.gpx_file}`)
-                        .then(response => {
-                            if (!response.ok) throw new Error(`GPX fetch failed: ${response.status}`);
-                            return response.text();
-                        })
-                        .then(gpxText => {
-                            // The visitor may have jumped to another hike mid-fetch;
-                            // the old map is gone, so quietly stand down.
-                            if (mapForThisRender !== detailMap) return;
-
-                            const gpxLayer = new L.GPX(gpxText, {
-                                async: true,
-                                polyline_options: { color: trailColor, weight: 5, opacity: 0.85 },
-                                marker_options: {
-                                    startIcon: getIcon(hike.hike_type),
-                                    endIconUrl: null, shadowUrl: null }
-                            }).on('addpoint', (e) => {
-                                // This event fires for each point (start, end, waypoint) the plugin finds.
-                                if (e.point_type === 'waypoint') {
-                                    // Forcefully apply our custom icon to all waypoints.
-                                    e.point.setIcon(waypointIcon);
-                                    e.point.bindPopup(`<b>${e.point.options.title}</b>`);
-                                }
-                            }).on('loaded', (e) => {
-                                // Add padding to ensure the trail is never cut off at the edges
-                                detailMap.fitBounds(e.target.getBounds(), { padding: [50, 50] });
-                            }).addTo(detailMap);
-
-                            return renderShapeOfDay(gpxText);
-                        })
-                        .catch((err) => {
-                            console.error('Could not load the GPX track:', err);
-                            shapeSection.style.display = 'none';
-                            return null;
-                        });
-                } else if (hike.latitude && hike.longitude) {
-                    shapeSection.style.display = 'none';
-                    // For hikes without a GPX file (like viewpoints), show a marker with the correct icon
-                    L.marker([hike.latitude, hike.longitude], { 
-                        icon: getIcon(hike.hike_type) 
-                    }).addTo(detailMap);
-                    detailMap.setView([hike.latitude, hike.longitude], 13);
-                }
-
-                // --- Find all hikes that share the same trail name for the logbook ---
-                const hikeGroup = allHikes.filter(h => h.trail_name === hike.trail_name);
-
-                // --- Populate Right Column ---
-                (function populateInfoColumn() {
-                    // --- BUGFIX: Cleanup from previous renders ---
-                    // Remove any dynamically created expedition details section to prevent duplication.
-                    const existingExpeditionSection = document.querySelector('.expedition-details-section');
-                    if (existingExpeditionSection) {
-                        existingExpeditionSection.remove();
-                    }
-
-                    // Reset the layout to its default state in case the previous hike had no media.
-                    const galleryContainer = document.getElementById('photo-gallery');
-                    const topVisualsGrid = galleryContainer.parentElement;
-                    galleryContainer.style.display = 'flex'; // Default is flex, making it visible.
-                    topVisualsGrid.style.gridTemplateColumns = '1fr 1fr'; // Default is two columns.
-
-                    // 1. Populate "Trail Vitals" with new card design
-                    const vitalsContainer = document.getElementById('trail-vitals-container');
-                    vitalsContainer.innerHTML = ''; // Clear previous
-
-                    const displayMiles = hike.miles === 0 ? '&lt;0.1' : hike.miles.toLocaleString();
-                    const displayElevation = hike.elevation_gain === 0 ? '&lt;0.1' : hike.elevation_gain.toLocaleString();
-
-                    // Miles Card
-                    vitalsContainer.innerHTML += `
-                        <div class="vital-card">
-                            <div class="vital-icon-wrapper">
-                                <img src="assets/icons/numbers-miles-icon.png" alt="Miles">
-                            </div>
-                            <div class="vital-text">
-                                <span class="value">${displayMiles}</span>
-                                <span class="label">Miles</span>
-                            </div>
-                        </div>`;
-
-                    // Elevation Card
-                    vitalsContainer.innerHTML += `
-                        <div class="vital-card">
-                            <div class="vital-icon-wrapper">
-                                <img src="assets/icons/numbers-elevation-icon.png" alt="Elevation">
-                            </div>
-                            <div class="vital-text">
-                                <span class="value">${displayElevation}</span>
-                                <span class="label">Elevation (ft)</span>
-                            </div>
-                        </div>`;
-
-                    if (hike.summit_trail && hike.summit_elevation) {
-                        // Summit Card
-                        vitalsContainer.innerHTML += `
-                            <div class="vital-card">
-                                <div class="vital-icon-wrapper">
-                                    <img src="assets/icons/numbers-summit-icon.png" alt="Summit">
-                                </div>
-                                <div class="vital-text">
-                                    <span class="value">${hike.summit_elevation.toLocaleString()}</span>
-                                    <span class="label">Summit (ft)</span>
-                                </div>
-                            </div>`;
-                    }
-
-                    // 2. Populate "Trail Notes" Section
-                    document.getElementById('description-content-container').innerHTML = '';
-                    const floraAnnotation = document.getElementById('flora-annotation');
-                    const faunaAnnotation = document.getElementById('fauna-annotation');
-                    floraAnnotation.style.display = 'none';
-                    faunaAnnotation.style.display = 'none';
-                    floraAnnotation.innerHTML = '';
-                    faunaAnnotation.innerHTML = '';
-
-                    const descriptionContainer = document.getElementById('description-content-container');
-                    descriptionContainer.innerHTML = `<p>${formatHikeText(hike.description)}</p>`;
-
-                    if (hike.flora) {
-                        floraAnnotation.innerHTML = `
-                            <div class="annotation-header">
-                                <img src="assets/icons/flora-icon.png" alt="Flora" class="annotation-icon">
-                                <span class="annotation-title">Flora Spotlight</span>
-                            </div>
-                            <div class="annotation-body">${formatHikeText(hike.flora)}</div>`;
-                        floraAnnotation.style.display = 'block';
-                    }
-                    if (hike.fauna) {
-                        faunaAnnotation.innerHTML = `
-                            <div class="annotation-header">
-                                <img src="assets/icons/fauna-icon.png" alt="Fauna" class="annotation-icon">
-                                <span class="annotation-title">Fauna Spotlight</span>
-                            </div>
-                            <div class="annotation-body">${formatHikeText(hike.fauna)}</div>`;
-                        faunaAnnotation.style.display = 'block';
-                    }
-
-                    // 3. Populate External Links
-                    document.getElementById('external-links-container').innerHTML = '';
-                    const linksContainer = document.getElementById('external-links-container');
-                    if (hike.all_trails_url) {
-                        linksContainer.innerHTML += `<a href="${hike.all_trails_url}" class="link-btn" target="_blank" rel="noopener noreferrer">View on AllTrails</a>`;
-                    }
-                    if (hike.official_trail_url) {
-                        linksContainer.innerHTML += `<a href="${hike.official_trail_url}" class="link-btn" target="_blank" rel="noopener noreferrer">Official Trail Site</a>`;
-                    }
-
-                    // 4. Populate the Photo Gallery with the Polaroid Card
-                    document.getElementById('photo-gallery').innerHTML = '';
-                    let crewHtml = '';
-                    if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
-                        crewHtml = `<div class="crew-details solo-journey">A Solo Journey.</div>`;
-                    } else if (hike.hiked_with && hike.hiked_with.length > 0) {
-                        crewHtml = `<div class="crew-details">With <strong>${linkifyCrewNames(hike.hiked_with, allHikes)}</strong>.</div>`;
-                    }
-
-                    // --- UNIFIED MEDIA GALLERY LOGIC ---
-                    const hasImages = hike.images && hike.images.length > 0;
-                    const hasVideos = hike.videos && hike.videos.length > 0;
-
-                    if (hasImages || hasVideos) {
-                        const expeditionTitle = getExpeditionTitle(hike);
-                        // 1. Combine photos and videos into a single media array
-                        const mediaItems = [];
-                        if (hasImages) {
-                            hike.images.forEach(id => mediaItems.push({ type: 'photo', id }));
-                        }
-                        if (hasVideos) {
-                            // Now we iterate over a simple array of URL strings
-                            hike.videos.forEach(url => mediaItems.push({ type: 'video', url: url }));
-                        }
-
-                        galleryContainer.innerHTML = `
-                            <div class="polaroid-card" id="polaroid-card">
-                                <div class="polaroid-image-container">
-                                    <img id="polaroid-main-image" class="polaroid-image" src="" alt="Expedition media" style="display: none;">
-                                    <div id="youtube-player-container" style="display: none;"></div>
-                                </div>
-                                <div class="polaroid-text">
-                                    <div class="media-context-title">${expeditionTitle}</div>
-                                    <div class="media-context-details">${crewHtml}</div>
-                                </div>
-                            </div>
-                        `;
-
-                        const imageContainer = document.querySelector('.polaroid-image-container');
-                        const mainPolaroidImage = document.getElementById('polaroid-main-image');
-                        const youtubePlayerContainer = document.getElementById('youtube-player-container');
-
-                        let currentMediaIndex = 0;
-
-                        const showMedia = (newIndex) => {
-                            if (newIndex >= mediaItems.length) newIndex = 0;
-                            if (newIndex < 0) newIndex = mediaItems.length - 1;
-                            currentMediaIndex = newIndex;
-                            const item = mediaItems[currentMediaIndex];
-
-                            // Hide everything first
-                            mainPolaroidImage.style.display = 'none';
-                            youtubePlayerContainer.style.display = 'none';
-                            youtubePlayerContainer.innerHTML = ''; // Stop video when switching
-
-                            if (item.type === 'photo') {
-                                mainPolaroidImage.src = cloudinaryUrl(item.id, 'w_800,h_600,c_limit,q_auto,f_auto');
-                                mainPolaroidImage.style.display = 'block';
-                            } else if (item.type === 'video') {
-                                const videoId = getYoutubeId(item.url);
-                                if (videoId) {
-                                    youtubePlayerContainer.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1&rel=0&iv_load_policy=3&showinfo=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                                    youtubePlayerContainer.style.display = 'block';
-                                }
-                            }
-
-                            // Update active dot
-                            document.querySelectorAll('.media-dot').forEach((dot, index) => {
-                                dot.classList.toggle('active', index === currentMediaIndex);
-                            });
-                        };
-
-                        // Only create navigation elements if there's more than one item
-                        if (mediaItems.length > 1) {
-                            // Create nav arrows
-                            const prevArrow = document.createElement('span');
-                            prevArrow.className = 'media-nav-arrow prev';
-                            prevArrow.innerHTML = '&lsaquo;';
-                            prevArrow.addEventListener('click', (e) => { e.stopPropagation(); showMedia(currentMediaIndex - 1); });
-
-                            const nextArrow = document.createElement('span');
-                            nextArrow.className = 'media-nav-arrow next';
-                            nextArrow.innerHTML = '&rsaquo;';
-                            nextArrow.addEventListener('click', (e) => { e.stopPropagation(); showMedia(currentMediaIndex + 1); });
-
-                            imageContainer.appendChild(prevArrow);
-                            imageContainer.appendChild(nextArrow);
-
-                            // Create dots
-                            const dotsContainer = document.createElement('div');
-                            dotsContainer.className = 'media-dots-container';
-                            mediaItems.forEach((item, index) => {
-                                const dot = document.createElement('div');
-                                dot.className = 'media-dot';
-                                if (item.type === 'video') {
-                                    const videoId = getYoutubeId(item.url);
-                                    if (videoId) {
-                                        dot.classList.add('video');
-                                    } else {
-                                        return; // Don't create a dot for an invalid video URL
-                                    }
-                                }
-                                dot.addEventListener('click', (e) => { e.stopPropagation(); showMedia(index); });
-                                dotsContainer.appendChild(dot);
-                            });
-                            imageContainer.appendChild(dotsContainer);
-                        }
-
-                        // Set initial media item
-                        showMedia(0);
-
-                        // Update modal click listener to open any media type
-                        document.getElementById('polaroid-card').addEventListener('click', (e) => {
-                            // Prevent modal from opening if a nav arrow/dot was clicked
-                            if (e.target.classList.contains('media-nav-arrow') || e.target.classList.contains('media-dot')) {
-                                return;
-                            }
-                            currentMediaSetInModal = mediaItems;
-                            updateModalMedia(currentMediaIndex);
-                            modal.classList.add('visible');
-                        });
-                        // Hovering the card signals intent: start the full-size photo
-                        // now, so opening the modal usually lands straight on it.
-                        document.getElementById('polaroid-card').addEventListener('pointerenter', () => {
-                            const item = mediaItems[currentMediaIndex];
-                            if (item && item.type === 'photo') blurUpPreload(cloudinaryUrl(item.id, 'w_1200,h_1200,c_limit,q_auto,f_auto'));
-                        });
-                    } else {
-                        // If there's no media, hide the gallery, make the map full-width,
-                        // and display the expedition details as a subtitle under the main hike title.
-                        const topVisualsGrid = galleryContainer.parentElement;
-                        galleryContainer.style.display = 'none';
-                        topVisualsGrid.style.gridTemplateColumns = '1fr';
-
-                        // Tell Leaflet to re-check its container size after a brief delay.
-                        setTimeout(() => detailMap.invalidateSize(true), 10);
-
-                        // Generate the subtitle content
-                        const expeditionTitle = getExpeditionTitle(hike);
-                        let crewDetailsText = '';
-                        if (hike.hike_size === 'Solo' && (!hike.hiked_with || hike.hiked_with.length === 0)) {
-                            crewDetailsText = 'A Solo Journey';
-                        } else if (hike.hiked_with && hike.hiked_with.length > 0) {
-                            crewDetailsText = `With ${linkifyCrewNames(hike.hiked_with, allHikes)}`;
-                        }
-
-                        // Combine title and details, using a separator if both exist.
-                        const subtitleText = [expeditionTitle, crewDetailsText].filter(Boolean).join(' &bull; ');
-
-                        // Populate the subtitle container
-                        document.getElementById('expedition-subtitle-container').innerHTML = subtitleText;
-                    }
-
-                    // Add journal entry if it exists
-                    const existingJournal = document.querySelector('.journal-entry');
-                    if (existingJournal) existingJournal.remove();
-                    if (hike.notes) {
-                        descriptionContainer.innerHTML += `
-                            <div class="journal-entry">
-                                <p>${formatHikeText(hike.notes)}</p>
-                            </div>
-                        `;
-                    }
-
-                    // 5. Populate "Logbook" Section if hiked more than once
-                    const logbookSection = document.getElementById('hike-log');
-                    logbookSection.style.display = 'none'; // Hide by default
-                    if (hikeGroup.length > 1) {
-                        logbookSection.style.display = 'block'; // Show the section
-                        const logbookContainer = logbookSection.querySelector('#logbook-container');
-                        
-                        // Sort hikes by date, most recent first
-                        hikeGroup.sort(compareHikesChronoDesc);
-
-                        logbookContainer.innerHTML = hikeGroup.map(log => {
-                            const isCurrent = log.trail_id === hike.trail_id;
-                            const dateStr = formatHikeDate(log.date_completed);
-
-                            let metaHtml = `<p class="meta">Hiked as a ${log.hike_size}`;
-                            if (log.hiked_with && log.hiked_with.length > 0) {
-                                metaHtml += ` with ${log.hiked_with.join(', ')}`;
-                            }
-                            metaHtml += `</p>`;
- 
-                            let notesHtml = '';
-                            if (log.notes) {
-                                notesHtml = `<div class="notes">${formatHikeText(log.notes)}</div>`;
-                            }
-
-                            const innerContent = `
-                                <div class="date">${dateStr}</div>
-                                ${metaHtml}
-                                ${notesHtml}
-                            `;
-
-                            if (isCurrent) {
-                                return `<div class="log-entry current-hike">${innerContent}</div>`;
-                            } else {
-                                return `<a href="hike.html?id=${log.trail_id}" class="log-entry">${innerContent}</a>`;
-                            }
-                        }).join('');
-                    }
-                })();
-
-                // --- NEW: Fetch and display the "Trail in Time" data ---
-                fetchAndDisplayTimeSnapshot(hike, trackPromise);
+    /** A viewpoint, or a hike whose track we never had: just the stamp on the spot. */
+    function markTrailhead(hike, ink) {
+        if (!hike.latitude || !hike.longitude) return;
+        const at = [hike.latitude, hike.longitude];
+        // a lone point has no extent to fit, so the fixed zoom stands
+        routeBounds = null;
+        [mapTopo, mapSat].forEach(m => {
+            L.circleMarker(at, {
+                radius: 5, color: '#fffdf6', weight: 1.5, fillColor: ink, fillOpacity: 1, interactive: false
+            }).addTo(m);
+            L.marker(at, {
+                interactive: false,
+                icon: L.divIcon({
+                    className: '', iconSize: [26, 26], iconAnchor: [-9, 32],
+                    html: `<span style="color:${ink};display:block;width:26px;height:26px">${atlasStampSvg(hike.hike_type)}</span>`
+                })
+            }).addTo(m);
+            m.setView(at, 15, { animate: false });
+        });
+        paintCorners();
+        paintScaleBar();
     }
 
-    // Listen for the browser's back/forward buttons
+    /* ----- the slides + their lightbox ----- */
+    function buildSlides(hike) {
+        const strip = $('slide-strip');
+        strip.innerHTML = '';
+        filmStrip.innerHTML = '';
+        mediaItems = [];
+
+        (hike.images || []).forEach(id => mediaItems.push({ type: 'photo', id }));
+        (hike.videos || []).forEach(url => {
+            if (getYoutubeId(url)) mediaItems.push({ type: 'video', url });
+        });
+
+        $('slides-count').textContent = mediaItems.length
+            ? `${mediaItems.length} ${mediaItems.length === 1 ? 'FRAME' : 'FRAMES'}`
+            : '';
+        // A hidden column would leave the grid's other two tracks in the wrong
+        // slots (the sheet crushed into the 196px slide column), so the desk
+        // switches template rather than the column switching visibility.
+        $('slides-col').style.display = mediaItems.length ? '' : 'none';
+        document.querySelector('.desk').classList.toggle('no-slides', !mediaItems.length);
+        if (!mediaItems.length) return;
+
+        lbTitle.textContent = hike.trail_name.toUpperCase();
+
+        mediaItems.forEach((item, i) => {
+            const label = String(i + 1).padStart(2, '0');
+            if (item.type === 'photo') {
+                strip.insertAdjacentHTML('beforeend',
+                    `<div class="slide" data-i="${i}" tabindex="0" role="button" aria-label="Open frame ${label}">
+                        <img src="${cloudinaryUrl(item.id, 'w_420,h_280,c_fill,q_auto,f_auto')}" alt="Hike photo ${label}" loading="lazy">
+                        <div class="glass"></div>
+                        <div class="no">${label}</div>
+                     </div>`);
+                filmStrip.insertAdjacentHTML('beforeend',
+                    `<div class="media-dot" data-i="${i}" style="background-image:url('${cloudinaryUrl(item.id, 'w_120,h_84,c_fill,q_auto,f_auto')}')"></div>`);
+            } else {
+                const thumb = `https://img.youtube.com/vi/${getYoutubeId(item.url)}/mqdefault.jpg`;
+                strip.insertAdjacentHTML('beforeend',
+                    `<div class="slide is-video" data-i="${i}" tabindex="0" role="button" aria-label="Play video ${label}">
+                        <img src="${thumb}" alt="Hike video ${label}" loading="lazy">
+                        <div class="glass"></div>
+                        <div class="no">${label}</div>
+                     </div>`);
+                filmStrip.insertAdjacentHTML('beforeend',
+                    `<div class="media-dot video" data-i="${i}"></div>`);
+            }
+        });
+
+        // Each mount stays "undeveloped" until its own frame arrives, so a
+        // cold cache reads as a slide waiting on the light box rather than a
+        // blank hole. Cached images are already complete by this point.
+        strip.querySelectorAll('.slide img').forEach(img => {
+            const mount = img.closest('.slide');
+            const develop = () => mount.classList.add('loaded');
+            if (img.complete && img.naturalWidth) develop();
+            else {
+                img.addEventListener('load', develop, { once: true });
+                img.addEventListener('error', develop, { once: true });  // never strand a frame mid-develop
+            }
+        });
+
+        // hovering a slide signals intent: warm the full-size photo now, so
+        // opening the lightbox usually lands straight on it
+        strip.querySelectorAll('.slide').forEach(el => {
+            el.addEventListener('pointerenter', () => {
+                const item = mediaItems[Number(el.dataset.i)];
+                if (item && item.type === 'photo') blurUpPreload(cloudinaryUrl(item.id, PHOTO_FULL));
+            });
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openLightbox(Number(el.dataset.i)); }
+            });
+        });
+        strip.addEventListener('click', (e) => {
+            const slide = e.target.closest('.slide');
+            if (slide) openLightbox(Number(slide.dataset.i));
+        });
+        filmStrip.addEventListener('click', (e) => {
+            const dot = e.target.closest('.media-dot');
+            if (dot) showMedia(Number(dot.dataset.i));
+        });
+    }
+
+    /** Every time this trail was walked — the repeat-visit ledger. */
+    function renderLogbook(hike, hikes) {
+        const section = $('hike-log');
+        const group = hikes.filter(h => h.trail_name === hike.trail_name);
+        if (group.length < 2) { section.style.display = 'none'; return; }
+
+        group.sort(compareHikesChronoDesc);
+        $('logbook-container').innerHTML = group.map(log => {
+            const inner =
+                `<div class="date">${formatHikeDate(log.date_completed)}</div>` +
+                `<p class="meta">${isViewpoint(log) ? 'Visited' : 'Hiked'} as a ${log.hike_size}` +
+                    `${log.hiked_with && log.hiked_with.length ? ` with ${log.hiked_with.join(', ')}` : ''}</p>` +
+                (log.notes ? `<div class="notes">${formatHikeText(log.notes)}</div>` : '');
+            return log.trail_id === hike.trail_id
+                ? `<div class="log-entry current-hike">${inner}</div>`
+                : `<a href="hike.html?id=${log.trail_id}" class="log-entry">${inner}</a>`;
+        }).join('');
+        section.style.display = 'block';
+    }
+
+    /** The sheet a bad ?id lands on. */
+    function showEmptySheet(title, message) {
+        $('sheet').innerHTML = `<div class="sheet-empty"><h1>${title}</h1><p>${message}</p></div>`;
+        $('slides-col').style.display = 'none';
+        $('side-col').style.display = 'none';
+    }
+
+    /* ===================== boot ===================== */
     window.addEventListener('popstate', (event) => {
-        // Reuse the hikes we already loaded on page init — no need to fetch again.
         if (event.state && event.state.hikeId && allHikes) {
-            const hikeToDisplay = allHikes.find(h => h.trail_id === event.state.hikeId);
-            if (hikeToDisplay) {
-                // Update the main page content
-                displayHike(hikeToDisplay, allHikes);
-                // Update the active dot + trip capsule glow on the timeline
-                AtlasTimeline.setActiveHike(event.state.hikeId);
-                AtlasTimeline.centerOnHike(event.state.hikeId);
+            const hike = allHikes.find(h => h.trail_id === event.state.hikeId);
+            if (hike) {
+                displayHike(hike, allHikes);
+                AtlasTimeline.setActiveHike(hike.trail_id);
+                AtlasTimeline.centerOnHike(hike.trail_id);
             }
         }
     });
 
-    /**
-     * The main execution block that runs on page load.
-     */
     try {
-        // 1. Fetch all hike data (cached by the shared data layer), then keep
-        //    it in closure scope so timeline nav and back/forward can reuse it.
         allHikes = await fetchHikes();
 
-        // 2. Get the hike ID from the URL to display the initial hike
-        const urlParams = new URLSearchParams(window.location.search);
-        const hikeId = urlParams.get('id');
-
-        // Set the initial state for the history API, now that we have the hikeId
-        history.replaceState({ hikeId: hikeId }, '');
+        const hikeId = new URLSearchParams(window.location.search).get('id');
+        history.replaceState({ hikeId }, '');
 
         if (!hikeId) {
-            document.getElementById('hike-title').innerText = 'Hike Not Found';
-            document.getElementById('hike-location').innerText = 'Please select a hike from the map or timeline.';
+            showEmptySheet('No sheet selected', 'Choose a hike from the map or the timeline above.');
             return;
         }
 
-        // 3. Find the specific hike to display
-        const hikeToDisplay = allHikes.find(h => h.trail_id === hikeId);
-
-        if (hikeToDisplay) {
-            // 4. Boot the shared timeline: selecting a hike on this page
-            // swaps the content in place (no full navigation).
-            AtlasTimeline.init({
-                allHikes,
-                activeHikeId: hikeId,
-                onHikeSelect: (hike) => {
-                    displayHike(hike, allHikes);
-                    history.pushState({ hikeId: hike.trail_id }, '', `hike.html?id=${hike.trail_id}`);
-                    AtlasTimeline.setActiveHike(hike.trail_id);
-                    AtlasTimeline.centerOnHike(hike.trail_id);
-                }
-            });
-            displayHike(hikeToDisplay, allHikes);
-        } else {
-            document.getElementById('hike-title').innerText = 'Hike Not Found';
-            document.getElementById('hike-location').innerText = `No hike data found for ID: ${hikeId}`;
+        const hike = allHikes.find(h => h.trail_id === hikeId);
+        if (!hike) {
+            showEmptySheet('Sheet not found', `No hike in the Atlas carries the id “${hikeId}”.`);
+            return;
         }
+
+        // The timeline swaps content in place rather than reloading the page.
+        AtlasTimeline.init({
+            allHikes,
+            activeHikeId: hikeId,
+            onHikeSelect: (selected) => {
+                displayHike(selected, allHikes);
+                history.pushState({ hikeId: selected.trail_id }, '', `hike.html?id=${selected.trail_id}`);
+                AtlasTimeline.setActiveHike(selected.trail_id);
+                AtlasTimeline.centerOnHike(selected.trail_id);
+            }
+        });
+
+        displayHike(hike, allHikes);
     } catch (error) {
-        console.error('Error initializing hike detail page:', error);
-        document.getElementById('hike-title').innerText = 'Error Loading Data';
-        document.getElementById('hike-location').innerText = 'Could not load hike details. Please check the console.';
+        console.error('Error initializing the hike page:', error);
+        showEmptySheet('Error loading data', 'Could not load the hike details. Please check the console.');
     }
 });

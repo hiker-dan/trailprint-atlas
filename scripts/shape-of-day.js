@@ -115,24 +115,61 @@ const AtlasShape = (() => {
      * hover scrubbing. onScrub(sample) fires as the mouse moves along the
      * terrain; onLeave() when it steps off.
      */
-    function render(el, track, { onScrub = null, onLeave = null } = {}) {
+    /**
+     * Picks the gridline interval. The chart's height is fixed on the hike
+     * page, so the step has to do the adapting: a steep climb steps in 500s,
+     * a flat stroll in 20s, and either way the labels land ~35px apart
+     * instead of smushing together on the steep days.
+     */
+    function niceStep(range, plotH) {
+        const LADDER = [5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
+        const targetLines = Math.max(3, Math.min(6, Math.round(plotH / 34)));
+        const raw = Math.max(range, 1) / targetLines;
+        return LADDER.find(s => s >= raw) || LADDER[LADDER.length - 1];
+    }
+
+    /**
+     * Draws the profile into `el` (replacing any previous chart) and wires the
+     * hover scrubbing. onScrub(sample) fires as the mouse moves along the
+     * terrain; onLeave() when it steps off.
+     *
+     * `plotHeight` fixes the plot's height in pixels instead of scaling it to
+     * the climb — the hike page wants every chart the same size so the map
+     * above it never gets squeezed. Omit it for the honest, comparable scale.
+     */
+    function render(el, track, { onScrub = null, onLeave = null, palette = {}, plotHeight = null } = {}) {
         const { samples, totalMiles } = track;
 
-        // Palette straight from base.css so the chart never drifts off-brand
+        // Palette straight from base.css so the chart never drifts off-brand.
+        // Callers may override any of it — the hike page draws the profile in
+        // that year's ink on its acetate, where the default greens would clash.
         const css = getComputedStyle(document.documentElement);
-        const evergreen = css.getPropertyValue('--evergreen').trim() || '#2c3e50';
-        const trailGreen = css.getPropertyValue('--trail-green').trim() || '#4a7c59';
-        const gravel = css.getPropertyValue('--gravel').trim() || '#777';
+        const evergreen = palette.line || css.getPropertyValue('--evergreen').trim() || '#2c3e50';
+        const trailGreen = palette.fill || css.getPropertyValue('--trail-green').trim() || '#4a7c59';
+        const gravel = palette.label || css.getPropertyValue('--gravel').trim() || '#777';
+        const gridColor = palette.grid || '#e8e5dc';
+        const tickColor = palette.tick || '#cfcabd';
+
+        // Either the caller's fixed height, or the honest scale where the plot
+        // height comes from the elevation window itself
+        const range = track.maxEle - track.minEle;
+        const provisional = plotHeight !== null
+            ? plotHeight
+            : Math.max(MIN_PLOT_PX, Math.min(MAX_PLOT_PX, range * PX_PER_FT));
 
         // Round the elevation window outward to friendly gridline steps
-        const range = track.maxEle - track.minEle;
-        const step = range > 1500 ? 500 : range > 600 ? 250 : 100;
+        const step = niceStep(range, provisional);
         const yMin = Math.floor(track.minEle / step) * step;
         const yMax = Math.ceil(track.maxEle / step) * step;
+        const plotH = plotHeight !== null
+            ? plotHeight
+            : Math.max(MIN_PLOT_PX, Math.min(MAX_PLOT_PX, (yMax - yMin) * PX_PER_FT));
 
-        // The honest scale: plot height comes from the elevation window itself
-        const plotH = Math.max(MIN_PLOT_PX, Math.min(MAX_PLOT_PX, (yMax - yMin) * PX_PER_FT));
-        const W = 1000, padL = 52, padR = 14, padT = 26, padB = 30;
+        // One viewBox unit = one on-screen pixel, so the chart's height is the
+        // same whatever the container's width (a plain 1000-unit viewBox would
+        // grow the chart by 75% in full-sheet, stealing the map's room).
+        const W = Math.max(320, Math.round(el.clientWidth || 1000));
+        const padL = 52, padR = 14, padT = 26, padB = 30;
         const H = padT + plotH + padB;
 
         const x = mi => padL + (mi / totalMiles) * (W - padL - padR);
@@ -141,7 +178,7 @@ const AtlasShape = (() => {
         // Gridlines + axis labels
         let grid = '', labels = '';
         for (let e = yMin; e <= yMax; e += step) {
-            grid += `<line x1="${padL}" y1="${y(e)}" x2="${W - padR}" y2="${y(e)}" stroke="#e8e5dc" stroke-width="1"/>`;
+            grid += `<line x1="${padL}" y1="${y(e)}" x2="${W - padR}" y2="${y(e)}" stroke="${gridColor}" stroke-width="1"/>`;
             labels += `<text x="${padL - 8}" y="${y(e) + 4}" text-anchor="end" font-size="12" fill="${gravel}">${e.toLocaleString()}</text>`;
         }
         // Tick spacing adapts to the trail: short strolls get fractional miles
@@ -150,7 +187,7 @@ const AtlasShape = (() => {
             const m = i * mileStep;
             const label = m === 0 ? '0 mi' : parseFloat(m.toFixed(2));
             labels += `<text x="${x(m)}" y="${H - 8}" text-anchor="middle" font-size="12" fill="${gravel}">${label}</text>`;
-            grid += `<line x1="${x(m)}" y1="${H - padB}" x2="${x(m)}" y2="${H - padB + 5}" stroke="#cfcabd" stroke-width="1"/>`;
+            grid += `<line x1="${x(m)}" y1="${H - padB}" x2="${x(m)}" y2="${H - padB + 5}" stroke="${tickColor}" stroke-width="1"/>`;
         }
 
         // The terrain: a filled area under an evergreen line
@@ -173,7 +210,7 @@ const AtlasShape = (() => {
         }
 
         el.innerHTML = `
-          <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Elevation profile: ${Math.round(range).toLocaleString()} feet from lowest to highest point over ${totalMiles.toFixed(1)} miles">
+          <svg viewBox="0 0 ${W} ${H}" style="height:${H}px" role="img" aria-label="Elevation profile: ${Math.round(range).toLocaleString()} feet from lowest to highest point over ${totalMiles.toFixed(1)} miles">
             <defs>
               <linearGradient id="shape-terrain-fill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stop-color="${trailGreen}" stop-opacity="0.45"/>
@@ -212,11 +249,18 @@ const AtlasShape = (() => {
             readout.style.left = `${(x(s.mi) / W) * rect.width}px`;
             if (onScrub) onScrub(s);
         });
-        svg.addEventListener('mouseleave', () => {
+        // Clearing the readout is part of leaving, not decoration: it is
+        // absolutely positioned from a pixel offset, so a stale one strands
+        // itself mid-page the moment the chart changes width.
+        const clear = () => {
             crosshair.setAttribute('opacity', 0);
             hoverDot.setAttribute('opacity', 0);
+            readout.innerHTML = '';
             if (onLeave) onLeave();
-        });
+        };
+        svg.addEventListener('mouseleave', clear);
+        el.addEventListener('pointerleave', clear);
+        el.__atlasShapeClear = clear;   // so the page can force it on layout changes
     }
 
     return { parseGpx, render };

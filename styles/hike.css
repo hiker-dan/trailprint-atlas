@@ -1,753 +1,817 @@
-/* =====================================================================
-   The Trailprint Atlas — Hike Detail page styles
-   Moved out of hike.html in Phase 1.5. Shared nav/footer live in base.css.
-   ===================================================================== */
+/* ============================================================
+   hike.css — The Cartographer's Light Table
+   ------------------------------------------------------------
+   The hike page is one desk seen from above: a lit table holding
+   the day's slides (left), the map sheet with the elevation
+   acetate bolted beneath it (centre), and the paperwork (right).
 
-body { 
-    margin: 0; 
-    font-family: var(--font-body);
-    /* NEW: Subtle textured background for the entire page */
-    background-color: #fdfdfd;
-    background-image: url('data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%23f0f0f0" fill-opacity="0.4"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E');
-    color: #333;
-}
-/* Navigation bar styles live in styles/base.css */
+   Two rules that are load-bearing, not decoration:
+   1. The map NEVER pans or zooms. It is a display of the GPX
+      framed as large as the sheet allows, deliberately not a
+      second copy of map.html's interactivity.
+   2. The acetate lives inside the sheet, directly under the map,
+      so scrubbing the day's shape can never happen off-screen
+      from the trail it describes.
 
-/* Timeline navigation styles (sticky header, track, dots, trip capsules,
-   journal card, tooltip) moved to styles/timeline-nav.css — shared with
-   trip.html since trip pages arrived, July 2026. */
+   Mockup / spec: mockups/hike-light-table-v2.html
+   The timeline strip at the top is untouched (timeline-nav.css);
+   its future is its own conversation.
+   ============================================================ */
 
-/* Style for our custom hike icons (to match the main map) */
-.hike-icon {
-    /* This creates a circular, semi-transparent white "puck" behind the icon to make it pop. */
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 50%; /* This makes the background circular */
-    /* This adds a subtle dark outline to the white circle, helping it stand out on light backgrounds. */
-    box-shadow: 0 0 3px rgba(0, 0, 0, 0.7);
-}
-
-/* "Part of" chip in the hero: the door up to a hike's trip chapter */
-.hike-trip-link {
-    margin: 12px 0 0;
-    display: none; /* shown by JS only when the hike belongs to a trip */
-}
-.hike-trip-link a {
-    display: inline-block;
-    background-color: rgba(255, 255, 255, 0.16);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    color: #fff;
-    padding: 5px 16px;
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-decoration: none;
-    transition: background-color 0.2s ease;
-}
-.hike-trip-link a:hover {
-    background-color: rgba(255, 255, 255, 0.32);
+:root {
+    /* the table's own inks — parchment and brass, over the base palette */
+    --lt-ink: #2f5c40;
+    --lt-ink-deep: #24401f;
+    --lt-stone: #6f6a58;
+    --lt-gravel: #9a927c;
+    --lt-paper: #fffdf6;
+    --lt-paper-edge: #d8ccae;
+    --lt-charcoal: #3d3a30;
+    --brass-hi: #cfae6e;
+    --brass: #a5854a;
+    --brass-lo: #7a5f36;
 }
 
-/* Style for the waypoint markers on the trail */
-.waypoint-marker {
-    background-color: rgba(243, 156, 18, 0.9); /* A pale, but visible orange */
-    border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.9);
-    box-shadow: 0 0 4px rgba(0,0,0,0.6);
-    cursor: pointer;
+/* ===== the room: dark walnut around the glowing table ===== */
+body {
+    background: #3b2d1d linear-gradient(15deg, rgba(0,0,0,0.35), rgba(255,220,160,0.06) 55%, rgba(0,0,0,0.3));
+    background-attachment: fixed;
 }
 
-/* --- Main Page Layout --- */
-.hike-detail-container {
-    max-width: 1200px;
-    margin: 30px auto;
-    padding: 0 20px; /* Side padding for spacing */
-    background-color: transparent; /* Let the body texture show through */
-    box-shadow: none;
-}
-
-/* --- NEW: Immersive Hero Header --- */
-#hike-hero {
+.light-table {
     position: relative;
-    height: 40vh; /* Reduced height for a more balanced look */
-    background-size: cover;
-    background-position: center;
-    background-color: var(--evergreen); /* Default dark base color */
-    transition: background-color 0.8s ease-in-out; /* Smooth transition for color changes */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    color: white;
-    padding: 20px;
-    box-sizing: border-box;
+    margin: 12px;
+    padding-bottom: 26px;
+    border: 1px solid #c9b98f;
+    border-radius: 8px;
+    background: radial-gradient(ellipse at 50% 36%, #faf4e3 0%, #f2e8ce 52%, #e2d3ac 100%);
+    box-shadow: inset 0 0 90px rgba(120,95,50,0.28), 0 10px 40px rgba(0,0,0,0.5);
+    color: var(--lt-charcoal);
 }
-#hike-hero::before {
+
+/* The side columns give ground before the sheet does: on a window that isn't
+   maximised, fixed 196/306 tracks starve the middle, which shrinks the map and
+   wraps the title block. They flex down instead, and the sheet keeps the room. */
+.desk {
+    display: grid;
+    grid-template-columns: clamp(150px, 13.5vw, 196px) minmax(0, 1fr) clamp(240px, 21vw, 306px);
+    gap: clamp(14px, 1.5vw, 22px);
+    padding: 22px clamp(16px, 1.8vw, 26px) 0;
+    align-items: start;
+}
+/* a hike with no photos drops the slide column from the template entirely —
+   merely hiding it would slide the sheet into the narrow slide track */
+.desk.no-slides { grid-template-columns: minmax(0, 1fr) clamp(240px, 21vw, 306px); }
+
+/* ============================================================
+   THE SLIDES — photos, rethought for a light table
+   35mm mounts that sit dim until you bring one onto the light.
+   ============================================================ */
+.slides { position: sticky; top: 14px; }
+
+.slides-k {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: var(--font-display);
+    font-size: 9.5px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--lt-gravel);
+    margin-bottom: 9px;
+}
+.slides-k .n { color: var(--lt-stone); letter-spacing: 0.1em; }
+
+/* the strip fades at its ends, so a clipped slide reads as "more below"
+   rather than as a broken box */
+.slide-strip {
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
+    padding: 3px 10px 20px 3px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--lt-paper-edge) transparent;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+}
+
+.slide {
+    position: relative;
+    margin-bottom: 13px;
+    padding: 8px 8px 20px;
+    border: 1px solid #cdbf9c;
+    border-radius: 2px;
+    background: linear-gradient(#fbf6e6, #f0e7cf);
+    box-shadow: 0 2px 6px rgba(60,45,20,0.28);
+    cursor: pointer;
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+.slide img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    background: #e6dcc0;
+    opacity: 0;
+    filter: grayscale(1) brightness(0.86) contrast(1.05);
+    transition: opacity 0.55s ease, filter 0.65s ease;
+}
+.slide.loaded img { opacity: 1; }
+
+/* An unexposed slide. Cloudinary can take a beat on a cold cache, and a raw
+   <img> shows a blank rectangle while it travels — so the mount holds a slow
+   sheen, as if the frame were still developing on the light box, and the photo
+   fades in over it. (This is the slide strip only. The lightbox keeps its
+   no-placeholder rule from config.js: there the current frame simply holds.) */
+.slide::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 50%, rgba(0,0,0,0.7) 100%);
-    z-index: 1;
+    inset: 8px 8px 20px;
+    pointer-events: none;
+    background: linear-gradient(100deg, #e5dbbe 30%, #f5eeda 50%, #e5dbbe 70%);
+    background-size: 280% 100%;
+    animation: slide-develop 1.6s ease-in-out infinite;
+    transition: opacity 0.55s ease;
 }
-#hike-hero > * {
+.slide.loaded::after { opacity: 0; animation: none; }
+@keyframes slide-develop {
+    from { background-position: 180% 0; }
+    to   { background-position: -80% 0; }
+}
+.slide .no {
+    position: absolute;
+    bottom: 5px;
+    left: 9px;
+    font-family: var(--font-display);
+    font-size: 8px;
+    letter-spacing: 0.2em;
+    color: var(--lt-gravel);
+}
+.slide .glass {
+    position: absolute;
+    inset: 8px 8px 20px;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(112deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 42%);
+    transition: opacity 0.5s ease;
+}
+/* lit: the slide comes onto the light box, and the colour floods in */
+.slide:hover, .slide:focus-visible {
+    transform: translateX(-4px) scale(1.05);
+    z-index: 6;
+    box-shadow: 0 0 0 1px var(--brass), 0 6px 20px rgba(60,45,20,0.4), 0 0 34px rgba(255,236,180,0.85);
+    outline: none;
+}
+.slide:hover img, .slide:focus-visible img { filter: none; }
+.slide:hover .glass, .slide:focus-visible .glass { opacity: 1; }
+
+/* a video frame wears a play mark instead of a frame number */
+.slide.is-video .no::before { content: '▶ '; color: var(--lt-ink); }
+
+/* ============================================================
+   THE SHEET — the map, its collar, and the acetate
+   ============================================================ */
+.sheet-col { min-width: 0; }
+
+.sheet {
     position: relative;
-    z-index: 2;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+    margin-top: 16px;
+    padding: 0 20px 12px;
+    background: var(--lt-paper);
+    border: 1px solid var(--lt-paper-edge);
+    box-shadow: 0 6px 26px rgba(60,45,20,0.35);
 }
-#hike-hero #hike-title {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 3.5em;
-    margin: 0 0 10px 0;
-    line-height: 1.1;
+/* the sheets beneath, peeking out of the stack */
+.sheet::before, .sheet::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: #f6efd9;
+    border: 1px solid var(--lt-paper-edge);
 }
-/* NEW: Unified, readable style for location and date */
-#hike-hero #hike-location,
-#hike-hero #hike-date {
-    font-size: 1.2em;
-    font-weight: 300;
-    font-style: normal;
-    background-color: rgba(0,0,0,0.25); /* Subtle dark background for contrast */
-    padding: 8px 20px;
-    border-radius: 30px; /* Pill shape */
-    margin-top: 15px;
-    display: inline-block; /* Ensures padding and background apply correctly */
-}
+.sheet::before { transform: rotate(0.6deg) translate(5px, 4px); }
+.sheet::after  { transform: rotate(-0.45deg) translate(-4px, 6px); background: #efe6c9; }
 
-/* --- Header --- */
-#hike-header #hike-title {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 2.5em;
-    margin: 0 0 10px 0;
-    color: var(--evergreen);
-    line-height: 1.2;
-}
-
-#hike-location {
-    font-size: 1.2em;
-    color: #777;
-    margin: 5px 0 0 0;
-}
-#hike-date {
-    font-size: 1em;
-    color: #888;
-    font-style: italic;
-    margin-top: 10px;
-}
-/* NEW: Subtitle for expedition details when no media is present */
-#expedition-subtitle-container {
-    font-size: 1.2em;
-    color: #555;
-    margin: -5px 0 15px 0; /* Pulls it closer to the title */
-    font-style: italic;
-    font-family: 'Georgia', serif; /* Match polaroid font */
-}
-
-/* --- NEW: Redesigned Trail Vitals Section --- */
-.vitals-grid { /* Renamed from .trail-vitals */
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
-}
-.vital-card {
-    background-color: #fdfdfd;
-    border: 1px solid #e9e9e9;
-    border-radius: 8px;
-    padding: 20px;
+/* the tab-pulls: they also drive the brass rail */
+.tabs {
+    position: absolute;
+    top: 0;
+    right: 30px;
+    transform: translateY(-100%);
     display: flex;
-    align-items: center;
-    gap: 20px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    gap: 6px;
+    z-index: 3;
 }
-.vital-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 15px rgba(0,0,0,0.07);
-}
-.vital-icon-wrapper {
-    flex-shrink: 0;
-    width: 48px;
-    height: 48px;
-    background-color: #eef3ed; /* A very light, natural green */
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.vital-icon-wrapper img {
-    width: 28px;
-    height: 28px;
-}
-.vital-text .value {
+.tab {
     font-family: var(--font-display);
-    font-size: 2em;
-    font-weight: 600;
-    color: var(--evergreen);
-    display: block;
-    line-height: 1;
+    font-size: 10.5px;
+    letter-spacing: 0.24em;
+    padding: 7px 17px 5px;
+    border: 1px solid var(--lt-paper-edge);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    background: #e3d7b4;
+    color: var(--lt-stone);
+    cursor: pointer;
+    transform: translateY(6px);
+    transition: all 0.3s ease;
 }
-.vital-text .label {
-    font-family: 'Georgia', serif;
-    font-size: 1em;
-    color: #777;
+.tab.on {
+    background: var(--lt-paper);
+    color: var(--lt-ink);
+    font-weight: 700;
+    transform: translateY(0);
+    box-shadow: 0 -3px 8px rgba(60,45,20,0.12);
 }
+.tab:hover:not(.on) { transform: translateY(3px); }
 
-/* --- Section Headers --- */
-.info-section h3 {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 1.6em;
-    color: var(--trail-green); /* Match homepage green */
-    border-bottom: 3px solid #e0e8e2; /* A softer green underline */
-    padding-bottom: 8px;
-    margin-bottom: 25px; /* More space after the header */
-    display: inline-block; /* Makes the border only as wide as the text */
-}
-.info-section {
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-}
-
-/* --- NEW: Time Snapshot Section --- */
-.snapshot-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); /* Widen cards */
-    gap: 15px;
-    margin-bottom: 20px;
-}
-.snapshot-card {
-    background-color: #f9f9f9;
-    padding: 15px 20px;
-    border-radius: 8px;
-    border: 1px solid #eee;
-    text-align: center; /* Center all content within the card */
-}
-.snapshot-header {
+.collar-top {
     display: flex;
-    align-items: center;
-    justify-content: center; /* Center the header content */
-    gap: 10px;
-    padding-bottom: 10px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 10px 0 7px;
     margin-bottom: 10px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1.5px solid var(--lt-ink);
 }
-.snapshot-header .snapshot-icon {
-    font-size: 1.8em;
-}
-.snapshot-header h4 {
-    margin: 0;
-    font-size: 1.2em;
-    color: var(--evergreen);
-}
-.snapshot-main-value {
+.ct-left { min-width: 0; }
+.c-kicker {
     font-family: var(--font-display);
-    font-size: 2em;
-    font-weight: 600;
-    color: var(--evergreen);
+    font-size: 9.5px;
+    letter-spacing: 0.3em;
+    color: var(--lt-gravel);
+    margin-bottom: 5px;
 }
-/* "On the Trail" card: two times don't fit at the single-value size */
-.snapshot-main-value.ontrail-times {
-    font-size: 1.45em;
-    line-height: 1.9;
+.c-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(18px, 2.1vw, 26px);
+    letter-spacing: 0.08em;
+    line-height: 1.12;
+    text-transform: uppercase;
+    color: var(--lt-ink-deep);
+    margin: 0;
 }
-.ontrail-arrow {
-    color: var(--trail-green);
+.c-sub {
+    font-size: 13px;
+    font-style: italic;
+    color: var(--lt-stone);
+    margin-top: 4px;
+}
+.c-trip { font-size: 12.5px; margin-top: 3px; }
+.c-trip a { color: var(--lt-ink); font-weight: 700; text-decoration: none; }
+.c-trip a:hover { text-decoration: underline; }
+
+/* the collar's right wing: the sheet's controls live here, not floating
+   on the map, where they collided with the corner coordinates */
+.ct-right { flex: 0 0 auto; display: flex; align-items: center; gap: 13px; }
+.full-btn {
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--brass);
+    border-radius: 5px;
+    background: #fbf6e6;
+    color: var(--lt-ink-deep);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 4px rgba(60,45,20,0.22);
+    transition: background 0.25s, color 0.25s;
+}
+.full-btn:hover { background: var(--lt-ink); color: var(--lt-paper); }
+.full-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+
+.seal {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: 1.5px solid var(--lt-ink);
+    box-shadow: inset 0 0 0 3px var(--lt-paper), inset 0 0 0 4px var(--lt-ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lt-ink);
+}
+.seal .stamp-glyph { width: 26px; height: 26px; }
+
+/* the stamp glyph recipe, shared with the map page */
+.stamp-glyph { display: block; }
+.stamp-glyph g { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.stamp-halo { stroke: #fffdf6; }
+.stamp-halo path, .stamp-halo rect, .stamp-halo circle { stroke-width: 4.4px; }
+.stamp-ink { stroke: currentColor; }
+.stamp-ink path, .stamp-ink rect, .stamp-ink circle { stroke-width: 1.7px; }
+.stamp-ink .d { stroke-width: 1.25px; }
+.stamp-halo .d { stroke-width: 3.9px; }
+
+/* ----- the vitals band -----
+   The sheet's headline measurements, engraved into the title block where a
+   real survey sheet carries them: under the name, above the map, ruled off
+   in cells. They were a footnote in the lower margin before, which buried
+   the three things you actually want to know about a day. */
+.vitals {
+    display: flex;
+    align-items: stretch;
+    margin: -2px 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--lt-paper-edge);
+}
+.vital {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    padding: 0 10px;
+    border-left: 1px solid var(--lt-paper-edge);
+}
+.vital:first-child { border-left: none; }
+.vital .v {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(20px, 2.4vw, 31px);
+    line-height: 1.04;
+    letter-spacing: 0.01em;
+    color: var(--lt-ink-deep);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vital .l {
+    margin-top: 5px;
+    font-family: var(--font-display);
+    font-size: 8.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--lt-gravel);
+}
+
+/* ----- the stage: two glasses, one land ----- */
+.stage {
+    position: relative;
+    /* Sized so the acetate below it still lands above the fold: the profile
+       and the trail it describes have to be readable together, which is the
+       whole reason the chart is bolted to the sheet. Full-sheet is where the
+       map gets the screen to itself. */
+    height: clamp(340px, calc(100vh - 548px), 720px);
+    border: 1px solid var(--lt-paper-edge);
+    overflow: hidden;
+}
+/* each wrap gets its own stacking context, or Leaflet's inner panes
+   leak across the divide */
+.glass-pane { position: absolute; inset: 0; }
+#sat-wrap { z-index: 1; }
+#topo-wrap { z-index: 2; }
+#map-topo, #map-sat { position: absolute; inset: 0; background: #ece3ce; }
+.leaflet-container { font-family: var(--font-body); background: #ece3ce; }
+
+.split {
+    position: absolute;
+    z-index: 700;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    margin-left: -2px;
+    cursor: ew-resize;
+    background: linear-gradient(90deg, var(--brass-lo), var(--brass-hi), var(--brass-lo));
+    box-shadow: 0 0 9px rgba(0,0,0,0.45);
+    touch-action: none;
+}
+/* a fat invisible grab zone, so the rail is easy to catch */
+.split::before { content: ''; position: absolute; top: 0; bottom: 0; left: -10px; right: -10px; }
+.split.snap, .glass-pane.snap {
+    transition: left 0.7s cubic-bezier(.4, 0, .2, 1), clip-path 0.7s cubic-bezier(.4, 0, .2, 1);
+}
+.knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, var(--brass-lo));
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,240,200,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.knob::after {
+    content: '';
+    width: 2px;
+    height: 15px;
+    background: rgba(60,40,10,0.55);
+    box-shadow: -5px 0 0 rgba(60,40,10,0.55), 5px 0 0 rgba(60,40,10,0.55);
+}
+
+/* each side label rides the centre of its own half, so it can never
+   collide with the corner coordinates however far the rail is swept */
+.side-label {
+    position: absolute;
+    z-index: 690;
+    bottom: 7px;
+    transform: translateX(-50%);
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    white-space: nowrap;
+    color: var(--lt-charcoal);
+    background: rgba(255,253,246,0.82);
+    padding: 2px 8px;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+}
+.corner {
+    position: absolute;
+    z-index: 690;
+    font-size: 8.5px;
+    letter-spacing: 0.04em;
+    color: var(--lt-charcoal);
+    background: rgba(255,253,246,0.8);
+    padding: 1px 5px;
+    pointer-events: none;
+}
+.corner.nw { top: 0; left: 0; }
+.corner.ne { top: 0; right: 0; }
+.corner.sw { bottom: 0; left: 0; }
+.corner.se { bottom: 0; right: 0; }
+
+/* the walking marker the acetate drives along the trail */
+.trail-walker { pointer-events: none; }
+
+/* ----- the acetate: the elevation profile, on film ----- */
+.acetate {
+    position: relative;
+    z-index: 4;
+    padding: 7px 14px 4px;
+    border: 1px solid rgba(90,110,140,0.42);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    background: linear-gradient(160deg, rgba(252,254,255,0.66), rgba(228,239,252,0.55));
+    box-shadow: 0 4px 14px rgba(60,45,20,0.2), inset 0 0 20px rgba(255,255,255,0.5);
+}
+.a-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-display);
+    font-size: 9.5px;
+    letter-spacing: 0.24em;
+    color: #43597a;
+    margin-bottom: 2px;
+}
+.shape-chart { position: relative; cursor: crosshair; }
+.shape-chart svg { display: block; width: 100%; height: auto; }
+.shape-readout {
+    position: absolute;
+    top: -2px;
+    transform: translateX(-50%);
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    color: #b03a2e;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.shape-readout .ro-mile { color: #43597a; font-weight: 400; letter-spacing: 0.02em; }
+
+.collar-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-top: 9px;
+    padding-top: 8px;
+    border-top: 1.5px solid var(--lt-ink);
+}
+.legend .l1 { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.2em; color: var(--lt-stone); }
+.legend .l1 b { color: var(--lt-ink); }
+.legend .l2 { font-size: 11.5px; font-style: italic; color: var(--lt-gravel); margin-top: 3px; }
+.legend .l2 a { color: var(--lt-ink); }
+.scale-bar { flex: 0 0 auto; text-align: right; }
+.scale-bar .bar { display: flex; height: 7px; width: 112px; margin-left: auto; border: 1px solid var(--lt-charcoal); }
+.scale-bar .bar i { flex: 1; }
+.scale-bar .bar i:nth-child(odd) { background: var(--lt-charcoal); }
+.scale-bar .t { font-size: 9px; letter-spacing: 0.16em; color: var(--lt-stone); margin-top: 3px; }
+
+/* ===== full-sheet: the map gets the whole table ===== */
+body.sheet-full { overflow: hidden; }
+body.sheet-full .sheet {
+    position: fixed;
+    inset: 14px;
+    z-index: 3000;
+    margin: 0;
+    overflow: hidden;
+    /* a flex column, not fixed heights: the acetate's height is honest (it
+       grows with the day's elevation range), so the map takes whatever is
+       left rather than the collar falling off the bottom of the screen */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 0 100vmax rgba(30,22,12,0.86), 0 20px 60px rgba(0,0,0,0.6);
+}
+body.sheet-full .sheet::before, body.sheet-full .sheet::after { display: none; }
+body.sheet-full .collar-top,
+body.sheet-full .vitals,
+body.sheet-full .acetate,
+body.sheet-full .collar-bottom { flex: 0 0 auto; }
+body.sheet-full .stage { flex: 1 1 auto; height: auto; min-height: 180px; }
+/* the sheet's top edge is off-screen in full mode, so the pulls tuck into
+   the collar's empty middle instead of hanging off an edge that isn't there */
+body.sheet-full .tabs { top: 26px; right: 172px; transform: none; }
+body.sheet-full .tab { border-bottom: 1px solid var(--lt-paper-edge); border-radius: 6px; transform: none; }
+
+/* ============================================================
+   THE PAPERWORK — the day's cards on the desk
+   ============================================================ */
+.side { display: flex; flex-direction: column; gap: 18px; }
+
+.card {
+    position: relative;
+    padding: 13px 15px;
+    background: var(--lt-paper);
+    border: 1px solid var(--lt-paper-edge);
+    box-shadow: 0 3px 12px rgba(60,45,20,0.25);
+}
+.card .k {
+    font-family: var(--font-display);
+    font-size: 9.5px;
     font-weight: 400;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--lt-gravel);
+    margin: 0 0 8px;
 }
-/* The daylight ribbon: the day as a bar (midnight to midnight), night in
-   slate and daylight in pale gold; the green band is the walk itself. A band
-   reaching into the dark tells the alpine-start story without a word. */
+
+/* --- the almanac ledger, clipped to the desk --- */
+.ledger { transform: rotate(0.7deg); }
+.ledger::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42px;
+    height: 15px;
+    border: 3px solid #8a6d3f;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+}
+.alm-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 5px 0 2px;
+    border-bottom: 1px dashed #ddd1b2;
+    font-size: 12.5px;
+}
+.alm-row .lbl { color: var(--lt-stone); font-style: italic; }
+.alm-row .val { font-weight: 700; color: var(--lt-charcoal); white-space: nowrap; }
+.alm-note { font-size: 11px; color: var(--lt-gravel); margin: 3px 0 7px; }
+.ontrail { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--lt-paper-edge); }
+.ontrail-times .ontrail-arrow { color: var(--lt-gravel); margin: 0 3px; }
 .ontrail-ribbon {
     position: relative;
-    height: 8px;
-    border-radius: 4px;
-    margin: 8px 6px 10px;
+    height: 9px;
+    margin: 7px 0 5px;
+    border-radius: 2px;
+    overflow: hidden;
+    border: 1px solid rgba(60,45,20,0.25);
 }
 .ontrail-band {
     position: absolute;
-    top: -2px;
-    height: 12px;
-    background-color: var(--trail-green);
-    border: 1.5px solid #fff;
-    border-radius: 6px;
-    box-sizing: border-box;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    top: 0;
+    bottom: 0;
+    background: var(--trail-green);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.5) inset;
 }
-.snapshot-description {
-    font-size: 1em;
-    color: #777;
-    margin-top: 5px;
+
+/* --- the notes pad --- */
+.pad {
+    padding-bottom: 18px;
+    transform: rotate(-0.5deg);
+    background: var(--lt-paper) repeating-linear-gradient(transparent 0 24px, rgba(120,100,55,0.12) 24px 25px);
+    background-position-y: 11px;
 }
-/* --- New Expedition Section Styles --- */
-.expedition-meta {
-    background-color: #fdfdfd;
-    border: 1px solid #f0f0f0;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 1em;
-    color: #555;
-}
+.pad p { margin: 0 0 12px; font-size: 14px; line-height: 25px; }
+.pad p:last-child { margin-bottom: 0; }
+/* Danny's own words, when they arrive: a hand at the desk, set apart
+   from the AI-drafted field-guide text above it */
 .journal-entry {
-    background-color: #fefcf5; /* A warm, parchment-like color */
-    border-left: 4px solid #e67e22; /* A warm accent color */
-    padding: 20px;
-    margin-top: 20px;
-    border-radius: 0 8px 8px 0;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--lt-paper-edge);
 }
-.journal-entry p {
-    margin: 0;
-    font-family: 'Georgia', serif; /* A classic, readable serif font */
-    font-size: 1.1em;
-    line-height: 1.7;
-    color: #444;
-}
-
-/* --- NEW: BOLD Redesigned Trail Notes Section --- */
-.notes-layout-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr; /* 2/3 for notes, 1/3 for annotations */
-    gap: 40px;
-    align-items: start; /* Align items to the top */
-}
-.main-notes-column {
-    background-color: #fdfaf2; /* A warm, parchment paper color */
-    border: 1px solid #f0e9d6;
-    padding: 30px;
-    border-radius: 4px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-    height: 100%; /* Key fix: makes it stretch to match the annotation column height */
-    box-sizing: border-box;
-}
-.main-notes-column p {
-    font-size: 1.1em;
-    line-height: 1.7;
-    color: #444;
-    margin: 0;
-}
-
-.field-annotation {
-    display: none; /* Hidden by default */
-    margin-bottom: 30px;
-    background-color: #fdfdfd;
-    padding: 15px;
-    border-radius: 4px;
-    border: 1px solid #e9e9e9;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.07);
-    transition: transform 0.2s ease;
-}
-/* Add a playful, "pinned" look */
-#flora-annotation {
-    transform: rotate(-2deg);
-}
-#fauna-annotation {
-    transform: rotate(1.5deg);
-}
-.field-annotation:hover {
-    transform: rotate(0) scale(1.03);
-}
-.field-annotation .annotation-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #f0f0f0;
-}
-.field-annotation .annotation-icon {
-    width: 24px;
-    height: 24px;
-}
-.field-annotation .annotation-title {
-    font-family: 'Georgia', serif;
-    color: var(--trail-green);
-    font-size: 1.1em;
-}
-.field-annotation .annotation-body {
-    font-family: "cursive", "Apple Chancery", "URW Chancery L", fantasy;
-    font-size: 1.2em;
-    color: #555;
-    line-height: 1.5;
-}
-
-/* --- External Links --- */
-.external-links {
-    display: flex;
-    gap: 15px;
-    margin-top: 20px;
-}
-.link-btn {
-    flex-grow: 1;
-    text-align: center;
-    padding: 12px;
-    border-radius: 8px;
-    text-decoration: none;
-    font-weight: bold;
-    color: #fff;
-    background-color: var(--trail-green);
-    transition: background-color 0.2s ease, transform 0.2s ease;
-}
-.link-btn:hover {
-    background-color: #3b6347;
-    transform: translateY(-2px);
-}
-
-/* --- Logbook Section --- */
-.log-entry {
-    background-color: #fff;
-    border: 1px solid #eee;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-.log-entry.current-hike { border-left: 4px solid #f1c40f; }
-.log-entry .date { font-weight: bold; color: var(--evergreen); }
-.log-entry .meta { font-size: 0.9em; color: #777; margin: 5px 0; }
-.log-entry .notes { margin-top: 10px; line-height: 1.5; font-style: italic; }
-
-/* --- Clickable Logbook Entries --- */
-a.log-entry {
+.journal-entry::before {
+    content: 'From the journal';
     display: block;
-    text-decoration: none;
-    color: inherit; /* Inherit text color from body */
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-left-color 0.2s ease;
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--lt-gravel);
+    margin-bottom: 7px;
 }
-a.log-entry:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    border-left: 4px solid var(--trail-green); /* Add a hover accent color */
-}
+.journal-entry p { font-style: italic; color: var(--lt-ink-deep); }
 
-/* Companion names link into the Trail Crew — quiet inline links that keep
-   the surrounding text's color until hovered */
-.crew-name-link {
+.links { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12px; }
+.links a { color: var(--lt-ink); }
+
+/* --- the specimen slips, taped down --- */
+.slip { font-size: 12.5px; line-height: 1.5; }
+.slip:nth-of-type(odd) { transform: rotate(0.8deg); }
+.slip:nth-of-type(even) { transform: rotate(-0.7deg); }
+.slip::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    width: 60px;
+    height: 16px;
+    transform: translateX(-50%) rotate(2deg);
+    background: rgba(228,214,176,0.85);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+.slip b { color: var(--lt-ink-deep); }
+.slip .latin { font-style: italic; color: var(--lt-stone); }
+
+/* --- the expedition card --- */
+.trip-card { border-left: 4px solid var(--lt-ink); transform: rotate(0.4deg); }
+.trip-card a {
+    font-family: var(--font-display);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--lt-ink);
+    text-decoration: none;
+}
+.trip-card a:hover { text-decoration: underline; }
+
+/* --- the logbook: every time this trail was walked --- */
+.logbook .log-entry {
+    display: block;
+    padding: 9px 0;
+    border-bottom: 1px dashed #ddd1b2;
+    text-decoration: none;
     color: inherit;
-    text-decoration: none;
-    border-bottom: 1px dotted currentColor;
 }
-.crew-name-link:hover {
-    color: var(--trail-green);
-}
+.logbook .log-entry:last-child { border-bottom: none; }
+a.log-entry:hover { background: #f7f0dc; }
+.logbook .log-entry.current-hike { background: #f3ecd6; padding-left: 8px; border-left: 3px solid var(--lt-ink); }
+.logbook .date { font-family: var(--font-display); font-size: 12.5px; font-weight: 700; color: var(--lt-ink-deep); }
+.logbook .meta { margin: 2px 0 0; font-size: 11.5px; color: var(--lt-stone); font-style: italic; }
+.logbook .notes { margin-top: 5px; font-size: 12px; color: var(--lt-charcoal); }
 
-/* --- Fire memorial: an archival plate for trails that burned after the hike.
-   No card — hairline rules top and bottom, centered, a hand-drawn ember and a
-   display small-caps eyebrow. Deliberately stands apart from the white cards
-   around it, like a specimen label pressed onto the record. JS unhides it
-   (display:block) only when a hike carries a memorial. --- */
+.crew-name-link { color: var(--lt-ink); }
+
+/* --- fire memorial: an archival plate for trails that burned after the
+   hike. A pinned notice on the desk, deliberately quieter than the cards
+   around it. JS unhides it only when a hike carries a memorial. --- */
 .fire-memorial {
+    padding: 16px 15px;
     text-align: center;
-    max-width: 620px;
-    margin: 4px auto 30px;
-    padding: 30px 20px;
-    border-top: 1px solid #c9beb0;
-    border-bottom: 1px solid #c9beb0;
+    background: #f6efdd;
+    border: 1px solid #d3bfa0;
+    border-top: 3px solid #a8552e;
+    box-shadow: 0 3px 12px rgba(60,45,20,0.22);
 }
-.fire-memorial-mark {
-    display: block;
-    margin: 0 auto 14px;
-}
+.fire-memorial-mark { display: block; margin: 0 auto 8px; }
 .fire-memorial-eyebrow {
     font-family: var(--font-display);
-    font-size: 15px;
-    letter-spacing: 0.22em;
+    font-size: 10px;
+    letter-spacing: 0.24em;
     text-transform: uppercase;
     color: #8c4a2b;
-    margin: 0 0 10px;
+    margin: 0 0 7px;
 }
-.fire-memorial-line {
-    font-size: 16px;
-    line-height: 1.65;
-    color: var(--stone);
-    margin: 0 auto;
-    max-width: 470px;
-}
-.fire-memorial-line strong {
-    color: var(--charcoal);
-    font-weight: 700;
-}
+.fire-memorial-line { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--lt-stone); }
+.fire-memorial-line strong { color: var(--lt-charcoal); font-weight: 700; }
 
-/* --- The field desk: map + photos + elevation profile, one card --- */
-.top-visuals-card {
-    background-color: #fff;
-    padding: 24px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+/* ============================================================
+   THE LIGHTBOX — photos as gloriously as they deserve
+   ============================================================ */
+.lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 4000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 50% 45%, #2a2115 0%, #100c07 100%);
 }
-.top-visuals-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 30px;
+.lightbox.visible { display: flex; }
+.lb-frame {
+    position: relative;
+    max-width: 88vw;
+    max-height: 84vh;
+    padding: 12px 12px 0;
+    background: linear-gradient(#fbf6e6, #efe5cc);
+    border: 1px solid var(--brass);
+    box-shadow: 0 0 60px rgba(255,225,160,0.16), 0 24px 60px rgba(0,0,0,0.7);
 }
-#hike-map {
-    height: 500px;
-    width: 100%;
-    border-radius: 8px;
-}
-#photo-gallery {
-    height: 500px; /* Match map height */
-    display: flex;
-    flex-direction: column;
-}
-
-/* --- Polaroid Gallery Styles --- */
-.polaroid-card {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    padding: 15px;
-    border-radius: 4px;
-    transform: rotate(2deg);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-}
-.polaroid-card:hover {
-    transform: rotate(0deg) scale(1.03);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-}
-.polaroid-image-container {
-    background-color: #333;
-    overflow: hidden;
-    cursor: pointer;
-    flex-grow: 1; /* Allow image to take up space */
-    position: relative; /* Crucial for positioning the thumbnail strip inside */
-}
-#youtube-player-container {
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0;
-    left: 0;
-    /* transition: height 0.3s ease-in-out; */ /* No longer needed for this interaction model */
-}
-#youtube-player-container iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
-}
-.polaroid-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; /* Cover the container */
+.lb-frame img {
     display: block;
-    filter: grayscale(1) sepia(0.25); /* Vintage filter */
-    transition: filter 0.4s ease, transform 0.4s ease;
+    max-width: calc(88vw - 24px);
+    max-height: calc(84vh - 58px);
+    opacity: 0;
+    transition: opacity 0.45s ease;
 }
-.polaroid-card:hover .polaroid-image {
-    filter: none; /* Remove filter on hover */
-    transform: scale(1.05);
+.lb-frame img.loaded { opacity: 1; }
+#modal-video-container {
+    width: min(78vw, 1100px);
+    aspect-ratio: 16 / 9;
 }
-.polaroid-text {
-    font-family: 'Georgia', serif; /* A more classic, poetic font */
-    text-align: left;
-    flex-shrink: 0; /* Prevent text from shrinking */
-    padding-top: 15px;
+#modal-video-container iframe { width: 100%; height: 100%; border: 0; display: block; }
+.lb-plate {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 20px;
+    padding: 9px 2px 10px;
+    font-family: var(--font-display);
+    font-size: 9.5px;
+    letter-spacing: 0.22em;
+    color: var(--lt-stone);
 }
-.polaroid-text .media-context-title {
-    font-size: 1.2em;
-    font-weight: bold;
-    color: #333;
-    margin: 0 0 5px 0;
-}
-.polaroid-text .media-context-details {
-    font-size: 1em;
-    color: #555;
-    line-height: 1.4;
-    font-style: italic; /* Make all crew details italic for a consistent feel */
-}
-.polaroid-text .solo-journey {
-    color: #666;
-}
-
-/* --- NEW: Immersive Media Viewer Navigation --- */
-.media-nav-arrow {
-    position: absolute;
+.lb-plate .t { color: var(--lt-ink-deep); }
+.lb-btn {
+    position: fixed;
+    z-index: 4010;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 40px;
-    font-weight: 100;
-    color: white;
-    background: rgba(0,0,0,0.2);
-    padding: 0px 12px 5px 12px;
-    border-radius: 8px;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid rgba(207,174,110,0.5);
+    background: rgba(20,16,10,0.5);
+    color: #e8dcbe;
+    font-size: 24px;
     cursor: pointer;
-    user-select: none;
-    opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.25s, color 0.25s;
 }
-.polaroid-image-container:hover .media-nav-arrow {
-    opacity: 1;
+.lb-btn:hover { background: var(--brass); color: #241a0c; }
+.lb-prev { left: 26px; }
+.lb-next { right: 26px; }
+.lb-close {
+    position: fixed;
+    z-index: 4010;
+    top: 22px;
+    right: 26px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid rgba(207,174,110,0.5);
+    background: rgba(20,16,10,0.5);
+    color: #e8dcbe;
+    font-size: 20px;
+    cursor: pointer;
 }
-.media-nav-arrow:hover {
-    background: rgba(0,0,0,0.5);
-}
-.media-nav-arrow.prev { left: 15px; }
-.media-nav-arrow.next { right: 15px; }
-
-.media-dots-container {
-    position: absolute;
-    bottom: 15px;
+.lb-close:hover { background: var(--brass); color: #241a0c; }
+.lb-film {
+    position: fixed;
+    z-index: 4010;
+    bottom: 22px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 12px;
-    z-index: 10; /* Ensure it's above the video iframe */
+    gap: 7px;
+    max-width: 80vw;
+    overflow-x: auto;
+    padding: 7px 11px;
+    border-radius: 8px;
+    background: rgba(20,16,10,0.55);
+    scrollbar-width: none;
 }
+.lb-film::-webkit-scrollbar { display: none; }
 .media-dot {
-    width: 10px;
-    height: 10px;
-    background-color: rgba(255, 255, 255, 0.4);
+    flex: 0 0 auto;
+    width: 34px;
+    height: 24px;
+    border-radius: 2px;
+    background-color: #3a2f1e;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.4;
     cursor: pointer;
-    transition: background-color 0.2s ease, transform 0.2s ease;
-    border-radius: 50%; /* Default to circle for photos */
+    transition: opacity 0.3s, box-shadow 0.3s;
 }
-.media-dot.video { border-radius: 3px; } /* Square for videos */
-.media-dot:hover { transform: scale(1.2); }
-.media-dot.active {
-    background-color: #fff;
-    transform: scale(1.3);
-}
+.media-dot.active { opacity: 1; box-shadow: 0 0 0 1.5px var(--brass-hi); }
+.media-dot.video { display: flex; align-items: center; justify-content: center; }
+.media-dot.video::after { content: '▶'; font-size: 10px; color: #e8dcbe; }
 
-/* Ensure dots in the modal are visible */
-.photo-modal .media-dots-container {
-    z-index: 2001; /* Match the nav buttons to appear on top */
-}
-
-/* --- Modal Navigation Arrows --- */
-.modal-nav-btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 50px;
-    font-weight: 100;
-    color: white;
-    background-color: rgba(0, 0, 0, 0.3);
-    padding: 0px 15px 5px 15px; /* Fine-tune padding for vertical centering */
-    border-radius: 8px;
-    cursor: pointer;
-    user-select: none; /* Prevent text selection on double-click */
-    transition: background-color 0.2s ease;
-    z-index: 2001; /* Ensure they are above the image */
-}
-.modal-nav-btn:hover {
-    background-color: rgba(0, 0, 0, 0.6);
-}
-.modal-nav-btn.prev { left: 20px; }
-.modal-nav-btn.next { right: 20px; }
-
-
-/* --- Photo Modal/Lightbox --- */
-.photo-modal {
-    display: none; /* Hidden by default */
-    position: fixed;
-    z-index: 2000;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.85);
-    justify-content: center;
-    align-items: center;
-}
-.photo-modal.visible { display: flex; }
-.photo-modal img {
-    max-width: 90%;
-    max-height: 80%;
-    border-radius: 8px;
-}
-/* NEW: Video container for the modal */
-#modal-video-container {
-    width: 90%;
-    height: 80%;
-    max-width: 1200px; /* Limit max width for very wide screens */
-    aspect-ratio: 16 / 9; /* Maintain video aspect ratio */
-}
-#modal-video-container iframe {
-    width: 100%;
-    height: 100%;
-}
-.photo-modal .close-btn {
-    position: absolute;
-    top: 20px; right: 35px;
-    color: #fff;
-    font-size: 40px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-/* CSS for smooth tile layer transitions */
-.fadeable-tile-layer {
-    transition: opacity 1.5s ease-in-out !important;
-}
-
-/* Alegreya Sans runs small at the browser default, so the reading text
-   gets an explicit, comfortable size. */
-#hike-description p {
-    font-size: 17.5px;
-    line-height: 1.65;
-}
-
-/* --- The Shape of the Day (elevation profile) --- */
-/* Lives inside the field desk card, tucked under the map: no section header,
-   just a quiet letterpress label. */
-#shape-section {
-    margin-top: 18px;
-}
-.shape-eyebrow {
-    margin: 0 0 4px;
-    font-size: 11px;
-    font-weight: 700;
+/* ===== the empty state: a hike id that doesn't exist ===== */
+.sheet-empty { padding: 60px 20px; text-align: center; }
+.sheet-empty h1 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--gravel);
+    color: var(--lt-ink-deep);
 }
-/* The SVG's viewBox height varies with the hike's real elevation range, so a
-   big climb towers and a flat stroll stays a low ribbon; width:100% +
-   height:auto lets each chart keep its own honest proportions. */
-.shape-chart {
-    position: relative;
-}
-.shape-chart svg {
-    display: block;
-    width: 100%;
-    height: auto;
-}
-/* Floating readout that rides the crosshair while scrubbing */
-.shape-readout {
-    position: absolute;
-    top: 0;
-    transform: translateX(-50%);
-    pointer-events: none;
-    background-color: var(--evergreen);
-    color: #fff;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 5px 10px;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.15s ease;
-}
-.shape-chart:hover .shape-readout {
-    opacity: 1;
-}
-.shape-readout .ro-mile {
-    font-weight: 400;
-    opacity: 0.8;
-}
+.sheet-empty p { color: var(--lt-stone); font-style: italic; }
 
-/* Responsive adjustments */
-@media (max-width: 900px) {
-    .hike-layout {
-        grid-template-columns: 1fr; /* Stack columns on smaller screens */
-    }
+@media (prefers-reduced-motion: reduce) {
+    .slide, .slide img, .split, .glass-pane, .lb-frame img, .tab { transition: none !important; }
+    .slide::after { animation: none; }
 }
-

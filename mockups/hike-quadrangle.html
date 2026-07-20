@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Living Quadrangle</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    @font-face { font-family:'National Park'; src:url('../assets/fonts/national-park-variable.woff2') format('woff2'); font-weight:200 800; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-400.woff2') format('woff2'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-italic-400.woff2') format('woff2'); font-weight:400; font-style:italic; font-display:swap; }
+
+    :root {
+        --ink:#2f5c40; --ink-deep:#24401f; --stone:#6f6a58; --gravel:#9a927c;
+        --paper:#fffdf6; --paper-edge:#d8ccae; --charcoal:#3d3a30; --blaze:#c0392b;
+        --font-display:'National Park','Trebuchet MS',sans-serif;
+        --font-body:'Alegreya Sans',Georgia,serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; height:100%; overflow:hidden; font-family:var(--font-body); color:var(--charcoal); }
+
+    /* ===== the land IS the page ===== */
+    #map { position:fixed; inset:0; background:#ece3ce; }
+    /* the Atlas dressing (parchment wash multiplies over the whole world) */
+    .parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+        opacity:0.42; z-index:300; pointer-events:none; transition:opacity 0.9s ease; }
+
+    .cheap { position:fixed; z-index:5000; left:50%; transform:translateX(-50%); bottom:10px; max-width:700px;
+        background:rgba(47,60,40,0.92); color:#f2ead8; font-size:11.5px; font-style:italic;
+        padding:7px 16px; border-radius:9px; line-height:1.45; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+
+    /* ===== the expedition line: the timeline, evolved ===== */
+    .exline { position:fixed; z-index:1200; top:0; left:0; right:0; height:86px; pointer-events:none;
+        background:linear-gradient(to bottom, rgba(244,236,216,0.96) 0%, rgba(244,236,216,0.85) 55%, rgba(244,236,216,0) 100%);
+        transition:transform 0.5s ease, opacity 0.5s ease; }
+    .exline .rail { position:absolute; top:34px; left:3%; right:3%; height:1.5px; background:rgba(80,70,40,0.5); }
+    .ex-dot { position:absolute; top:34px; width:7px; height:7px; border-radius:50%; transform:translate(-50%,-50%);
+        opacity:0.85; pointer-events:auto; transition:width 0.2s, height 0.2s; }
+    .ex-dot:hover { width:12px; height:12px; opacity:1; z-index:5; }
+    .ex-year { position:absolute; top:44px; transform:translateX(-50%); font-family:var(--font-display);
+        font-size:10px; letter-spacing:0.18em; color:var(--stone); }
+    .ex-now { position:absolute; top:34px; transform:translate(-50%,-50%); width:15px; height:15px; border-radius:50%;
+        border:2px solid var(--paper); box-shadow:0 0 0 1.5px var(--charcoal), 0 1px 6px rgba(0,0,0,0.3); pointer-events:auto; }
+    .ex-now-label { position:absolute; top:50px; transform:translateX(-50%); text-align:center; white-space:nowrap; }
+    .ex-now-label .n { font-family:var(--font-display); font-weight:700; font-size:12px; letter-spacing:0.1em;
+        color:var(--ink-deep); text-transform:uppercase; }
+    .ex-now-label .d { font-size:10.5px; font-style:italic; color:var(--stone); }
+
+    /* ===== the field plaque ===== */
+    .plaque { position:fixed; z-index:1100; left:26px; top:104px; width:302px;
+        background:rgba(255,253,246,0.96); border:1px solid var(--paper-edge); border-radius:10px;
+        box-shadow:0 4px 18px rgba(60,50,30,0.28); padding:18px 20px 16px;
+        transition:transform 0.55s ease, opacity 0.55s ease; }
+    .p-kicker { display:flex; align-items:center; gap:8px; font-family:var(--font-display);
+        font-size:9.5px; letter-spacing:0.26em; color:var(--gravel); margin-bottom:7px; }
+    .p-kicker .stamp-glyph { width:20px; height:20px; flex:0 0 auto; }
+    .p-title { font-family:var(--font-display); font-weight:700; font-size:21px; line-height:1.15;
+        letter-spacing:0.04em; color:var(--ink-deep); text-transform:uppercase; }
+    .p-loc { font-size:13px; font-style:italic; color:var(--stone); margin:5px 0 3px; }
+    .p-date { font-size:12.5px; color:var(--charcoal); }
+    .p-rule { height:1.5px; background:var(--ink); opacity:0.75; margin:12px 0; }
+    .p-vitals { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+    .p-v .v { font-family:var(--font-display); font-weight:700; font-size:17px; color:var(--charcoal); }
+    .p-v .l { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gravel); margin-top:1px; }
+    .p-trip { margin-top:12px; padding-top:10px; border-top:1px dashed var(--paper-edge); font-size:12px; }
+    .p-trip a { color:var(--ink); font-weight:700; text-decoration:none; }
+    .p-trip a:hover { text-decoration:underline; }
+
+    /* ===== the photo rail ===== */
+    .rail-photos { position:fixed; z-index:1100; right:24px; top:104px; bottom:200px; width:236px;
+        overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--paper-edge) transparent;
+        padding:8px 10px 8px 14px; transition:transform 0.55s ease, opacity 0.55s ease; }
+    .print { position:relative; background:#fff; padding:6px 6px 18px; margin:0 0 18px;
+        box-shadow:0 3px 10px rgba(30,25,10,0.4); transform:rotate(var(--r,0deg));
+        transition:transform 0.45s ease, box-shadow 0.45s ease; cursor:pointer; }
+    .print::before { content:''; position:absolute; top:-8px; left:50%; width:64px; height:17px;
+        transform:translateX(-50%) rotate(var(--tr,-2deg)); background:rgba(228,214,176,0.85); }
+    .print img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover;
+        filter:grayscale(1) sepia(0.14) contrast(1.04); transition:filter 0.6s ease; }
+    .print:hover { transform:rotate(0deg) scale(1.05); z-index:5; }
+    .print:hover img { filter:none; }
+    .print .cap { position:absolute; bottom:2px; left:0; right:0; text-align:center;
+        font-size:8.5px; letter-spacing:0.22em; color:var(--gravel); }
+
+    /* ===== the dock ===== */
+    .dock { position:fixed; z-index:1100; left:50%; transform:translateX(-50%); bottom:16px;
+        width:min(820px, calc(100vw - 640px)); min-width:440px;
+        background:rgba(255,253,246,0.96); border:1px solid var(--paper-edge); border-radius:12px;
+        box-shadow:0 4px 18px rgba(60,50,30,0.28); padding:0 22px 14px;
+        transition:transform 0.55s ease, opacity 0.55s ease; }
+    .dock-tabs { display:flex; gap:2px; }
+    .d-tab { font-family:var(--font-display); font-size:10.5px; letter-spacing:0.2em; padding:10px 16px 8px;
+        color:var(--gravel); cursor:pointer; border-bottom:2px solid transparent; }
+    .d-tab.on { color:var(--ink-deep); font-weight:700; border-bottom-color:var(--ink); }
+    .d-tab:hover:not(.on) { color:var(--stone); }
+    .dock-body { max-height:150px; overflow-y:auto; scrollbar-width:thin; padding-top:10px;
+        font-size:14px; line-height:1.55; }
+    .dock-body .latin { font-style:italic; color:var(--stone); }
+    .dock-body b { color:var(--ink-deep); }
+    .alm { display:flex; gap:34px; padding:6px 2px; }
+    .alm .a { text-align:center; }
+    .alm .v { font-family:var(--font-display); font-weight:700; font-size:19px; color:var(--charcoal); }
+    .alm .l { font-size:9px; letter-spacing:0.22em; text-transform:uppercase; color:var(--gravel); margin-top:2px; }
+    .alm-note { font-size:10.5px; font-style:italic; color:var(--gravel); align-self:center; }
+    .dock-links { margin-top:8px; font-size:12px; }
+    .dock-links a { color:var(--ink); margin-right:16px; }
+
+    /* ===== the wardrobe + the land button ===== */
+    .wardrobe { position:fixed; z-index:1150; right:24px; bottom:110px; width:150px;
+        background:rgba(255,253,246,0.96); border:1px solid var(--paper-edge); border-radius:10px;
+        box-shadow:0 4px 14px rgba(60,50,30,0.25); padding:10px 12px;
+        transition:transform 0.55s ease, opacity 0.55s ease; }
+    .w-k { font-family:var(--font-display); font-size:8.5px; letter-spacing:0.26em; color:var(--gravel); margin-bottom:6px; }
+    .w-opt { font-size:13px; padding:5px 8px; border-radius:6px; cursor:pointer; color:var(--stone); }
+    .w-opt.on { background:var(--ink); color:var(--paper); font-weight:700; }
+    .w-opt:hover:not(.on) { background:#efe6cd; }
+
+    .land-btn { position:fixed; z-index:1300; right:24px; bottom:58px; width:40px; height:40px; border-radius:50%;
+        border:1.5px solid var(--ink); background:rgba(255,253,246,0.95); color:var(--ink); cursor:pointer;
+        box-shadow:0 3px 10px rgba(60,50,30,0.3); display:flex; align-items:center; justify-content:center;
+        transition:background 0.3s, color 0.3s; }
+    .land-btn:hover { background:var(--ink); color:var(--paper); }
+    .land-btn svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+
+    /* bare mode: the chrome steps off the land */
+    body.bare .plaque { transform:translateX(-130%); opacity:0; }
+    body.bare .rail-photos { transform:translateX(130%); opacity:0; }
+    body.bare .dock { transform:translate(-50%, 160%); opacity:0; }
+    body.bare .exline { transform:translateY(-105%); opacity:0; }
+    body.bare .wardrobe { transform:translateX(130%); opacity:0; }
+
+    /* stamp glyph recipe (same as map.css) */
+    .stamp-glyph { display:block; }
+    .stamp-glyph g { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .stamp-halo { stroke:#fffdf6; } .stamp-halo path,.stamp-halo rect,.stamp-halo circle { stroke-width:4.4px; }
+    .stamp-ink { stroke:currentColor; } .stamp-ink path,.stamp-ink rect,.stamp-ink circle { stroke-width:1.7px; }
+    .stamp-ink .d { stroke-width:1.25px; } .stamp-halo .d { stroke-width:3.9px; }
+
+    .leaflet-container { font-family:var(--font-body); }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="cheap"><b>Mockup — The Living Quadrangle.</b> The map is the page: everything floats on the land, framed on
+the route. Switch the <b>basemap wardrobe</b> (lower right) and the whole world crossfades under everything you're reading.
+The <b>expedition line</b> along the top is the timeline evolved — every hike a dot at its true place in time, gaps honest,
+dots clickable. The mountain button tucks all chrome away to leave <b>just the land</b>. Weather canned; <b>?id=tta_NN</b> re-frames any hike.</div>
+
+<div class="exline" id="exline"><div class="rail"></div></div>
+
+<div class="plaque" id="plaque">
+    <div class="p-kicker" id="p-kicker"></div>
+    <div class="p-title" id="p-title"></div>
+    <div class="p-loc" id="p-loc"></div>
+    <div class="p-date" id="p-date"></div>
+    <div class="p-rule"></div>
+    <div class="p-vitals" id="p-vitals"></div>
+    <div class="p-trip" id="p-trip" style="display:none"></div>
+</div>
+
+<div class="rail-photos" id="rail-photos"></div>
+
+<div class="dock" id="dock">
+    <div class="dock-tabs" id="dock-tabs">
+        <div class="d-tab on" data-t="notes">TRAIL NOTES</div>
+        <div class="d-tab" data-t="alm">ALMANAC</div>
+        <div class="d-tab" data-t="ff">FLORA &amp; FAUNA</div>
+    </div>
+    <div class="dock-body" id="dock-body"></div>
+</div>
+
+<div class="wardrobe" id="wardrobe">
+    <div class="w-k">THE BASEMAP WARDROBE</div>
+    <div class="w-opt on" data-b="atlas">Atlas</div>
+    <div class="w-opt" data-b="topo">Topo</div>
+    <div class="w-opt" data-b="sat">Satellite</div>
+</div>
+
+<button class="land-btn" id="land-btn" title="Just the land">
+    <svg viewBox="0 0 24 24"><path d="M3 18 L9 8 L13 14 L16 10 L21 18 Z"/><circle cx="17.5" cy="6" r="1.6"/></svg>
+</button>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const Q = new URLSearchParams(location.search);
+    const ID = Q.get('id') || 'tta_88';
+
+    const [hikes, gj] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json()),
+    ]);
+    const hike = hikes.find(h => h.trail_id === ID) || hikes.find(h => h.trail_id === 'tta_88') || hikes[0];
+    const feat = gj.features.find(f => f.properties.trail_id === hike.trail_id);
+    const year = hike.date_completed.slice(0, 4);
+    const INK = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const num = hike.trail_id.replace('tta_', '');
+
+    const latlngs = [];
+    if (feat) {
+        const g = feat.geometry;
+        (g.type === 'MultiLineString' ? g.coordinates : [g.coordinates])
+            .forEach(part => part.forEach(([lng, lat]) => latlngs.push([lat, lng])));
+    }
+    const fmtDate = d => new Date(d + 'T00:00:00Z')
+        .toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+    const fmtN = n => n.toLocaleString('en-US');
+
+    /* ============ the map + the wardrobe ============ */
+    const map = L.map('map', { attributionControl: false, zoomControl: false, zoomSnap: 0.25 });
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // three outfits in their own panes; switching = crossfading the world
+    const mk = (name, z) => { map.createPane(name); const p = map.getPane(name);
+        p.style.zIndex = z; p.style.transition = 'opacity 0.9s ease'; return p; };
+    const pSat = mk('satPane', 195), pTopo = mk('topoPane', 200),
+          pAtlas = mk('atlasPane', 205), pShade = mk('shadePane', 210), pLabels = mk('labelsPane', 240);
+    pShade.style.mixBlendMode = 'multiply';
+    pLabels.style.filter = 'sepia(0.45) saturate(0.6) contrast(0.92)';
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { pane: 'satPane', maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { pane: 'topoPane', maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { pane: 'atlasPane', maxZoom: 19 }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', { pane: 'shadePane', maxZoom: 19, opacity: 0.65 }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', { pane: 'labelsPane', maxZoom: 19 }).addTo(map);
+    const parchment = document.createElement('div');
+    parchment.className = 'parchment';
+    map.getContainer().appendChild(parchment);
+
+    function wear(outfit) {
+        const atlasOn = outfit === 'atlas';
+        pAtlas.style.opacity = atlasOn ? 1 : 0;
+        pShade.style.opacity = atlasOn ? 1 : 0;
+        pLabels.style.opacity = atlasOn ? 1 : 0;
+        parchment.style.opacity = atlasOn ? 0.42 : 0;
+        pTopo.style.opacity = outfit === 'topo' ? 1 : 0;
+        // satellite pane sits at the bottom, always loaded; it shows when the others clear
+        document.querySelectorAll('.w-opt').forEach(o => o.classList.toggle('on', o.dataset.b === outfit));
+    }
+    document.querySelectorAll('.w-opt').forEach(o => o.addEventListener('click', () => wear(o.dataset.b)));
+    wear('atlas');
+
+    // frame the route leaving room for the furniture: plaque left, rail right, line top, dock bottom
+    if (latlngs.length) map.fitBounds(L.latLngBounds(latlngs),
+        { paddingTopLeft: [360, 120], paddingBottomRight: [300, 210] });
+    else map.setView([hike.latitude, hike.longitude], 14);
+
+    // the route ink draws itself; trailhead wears its stamp
+    if (latlngs.length) {
+        const poly = L.polyline(latlngs, { color: INK, weight: 4, opacity: 0.95 }).addTo(map);
+        const path = poly.getElement();
+        if (path && path.getTotalLength) {
+            const len = path.getTotalLength();
+            path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+            path.getBoundingClientRect();
+            path.style.transition = 'stroke-dashoffset 2.6s ease';
+            path.style.strokeDashoffset = 0;
+            setTimeout(() => { path.style.transition = 'none'; path.style.strokeDasharray = 'none'; }, 2900);
+        }
+        L.circleMarker(latlngs[0], { radius: 5, color: '#fffdf6', weight: 1.5, fillColor: INK, fillOpacity: 1 }).addTo(map);
+        L.marker(latlngs[0], { icon: L.divIcon({ className: '', iconSize: [26, 26], iconAnchor: [-9, 32],
+            html: `<span style="color:${INK};display:block;width:26px;height:26px">${atlasStampSvg(hike.hike_type)}</span>` }),
+            interactive: false }).addTo(map);
+    }
+
+    /* ============ the field plaque ============ */
+    document.getElementById('p-kicker').innerHTML =
+        `<span style="color:${INK}">${atlasStampSvg(hike.hike_type)}</span>
+         SHEET NO. ${num} · ${hike.hike_type.toUpperCase()}`;
+    document.getElementById('p-title').textContent = hike.trail_name;
+    document.getElementById('p-loc').textContent = `${hike.location} — ${hike.region}`;
+    document.getElementById('p-date').textContent = fmtDate(hike.date_completed);
+    const crew = hike.hiked_with && hike.hiked_with.length ? hike.hiked_with.join(', ') : 'Solo';
+    const vit = [
+        [hike.miles, 'Miles'], [fmtN(hike.elevation_gain) + ' ft', 'Gain'],
+        ...(hike.summit_trail && hike.summit_elevation ? [[fmtN(hike.summit_elevation) + ' ft', 'Summit']] : []),
+        [hike.difficulty, 'Grade'], [hike.primary_geography, 'Country'], [crew, 'Party'],
+    ];
+    document.getElementById('p-vitals').innerHTML =
+        vit.map(([v, l]) => `<div class="p-v"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+    if (hike.trip_tag) {
+        const t = document.getElementById('p-trip'); t.style.display = '';
+        t.innerHTML = `From the expedition: <a href="../trip.html?tag=${encodeURIComponent(hike.trip_tag)}">${hike.trip_tag} →</a>`;
+    }
+
+    /* ============ the photo rail ============ */
+    const railEl = document.getElementById('rail-photos');
+    (hike.images || []).forEach((id, i) => {
+        const rot = [-2.2, 1.8, -1.4, 2.4, -1.8, 1.2, -2.6][i % 7];
+        railEl.insertAdjacentHTML('beforeend',
+            `<div class="print" style="--r:${rot}deg;--tr:${(i % 2 ? 2 : -2)}deg">
+                <img src="${cloudinaryUrl(id, 'w_460,h_345,c_fill,q_auto,f_auto')}" alt="Hike photo ${i + 1}">
+                <div class="cap">PRINT ${String(i + 1).padStart(2, '0')}</div></div>`);
+    });
+
+    /* ============ the dock ============ */
+    const latinize = text => {
+        if (!text) return '';
+        const cut = text.indexOf(' — ');
+        const head = cut > 0 ? text.slice(0, cut) : '', body = cut > 0 ? text.slice(cut + 3) : text;
+        const m = head.match(/^(.*?)\s*\((.*)\)\s*$/);
+        return m ? `<b>${m[1]}</b> <span class="latin">(${m[2]})</span> — ${body}`
+                 : (head ? `<b>${head}</b> — ${body}` : body);
+    };
+    const linkBits = [
+        hike.all_trails_url ? `<a href="${hike.all_trails_url}" target="_blank" rel="noopener">AllTrails ↗</a>` : '',
+        hike.official_trail_url ? `<a href="${hike.official_trail_url}" target="_blank" rel="noopener">Official trail page ↗</a>` : '',
+    ].join('');
+    const tabsContent = {
+        notes: `<div>${hike.description || 'The field notes for this sheet are still being written.'}</div>
+                ${linkBits ? `<div class="dock-links">${linkBits}</div>` : ''}`,
+        alm: `<div class="alm">
+                <div class="a"><div class="v">6:12 AM</div><div class="l">Sunrise</div></div>
+                <div class="a"><div class="v">100° Clear</div><div class="l">Day's apex</div></div>
+                <div class="a"><div class="v">8:55 PM</div><div class="l">Sunset</div></div>
+                <div class="alm-note">canned for the mockup — the live page pulls the real day from Open-Meteo</div>
+              </div>`,
+        ff: `<div style="margin-bottom:9px">${latinize(hike.flora)}</div><div>${latinize(hike.fauna)}</div>`,
+    };
+    const body = document.getElementById('dock-body');
+    body.innerHTML = tabsContent.notes;
+    document.querySelectorAll('.d-tab').forEach(t => t.addEventListener('click', () => {
+        document.querySelectorAll('.d-tab').forEach(x => x.classList.toggle('on', x === t));
+        body.innerHTML = tabsContent[t.dataset.t];
+    }));
+
+    /* ============ the expedition line ============ */
+    const ex = document.getElementById('exline');
+    const times = hikes.map(h => Date.parse(h.date_completed));
+    const tMin = Math.min(...times), tMax = Math.max(...times);
+    const fr = t => 3 + 94 * (t - tMin) / ((tMax - tMin) || 1);
+    const y0 = new Date(tMin).getUTCFullYear(), y1 = new Date(tMax).getUTCFullYear();
+    for (let y = y0; y <= y1; y++) {
+        const t = Date.UTC(y, 0, 1); if (t < tMin || t > tMax) continue;
+        ex.insertAdjacentHTML('beforeend', `<div class="ex-year" style="left:${fr(t)}%">${y}</div>`);
+    }
+    hikes.forEach(h => {
+        if (h.trail_id === hike.trail_id) return;
+        const yc = ATLAS_CONFIG.COLOR_MAP[h.date_completed.slice(0, 4)] || ATLAS_CONFIG.DEFAULT_COLOR;
+        ex.insertAdjacentHTML('beforeend',
+            `<a class="ex-dot" href="?id=${h.trail_id}" style="left:${fr(Date.parse(h.date_completed))}%;background:${yc}"
+                title="${h.trail_name.replace(/"/g, '&quot;')} · ${fmtDate(h.date_completed)}"></a>`);
+    });
+    const nowX = fr(Date.parse(hike.date_completed));
+    ex.insertAdjacentHTML('beforeend',
+        `<div class="ex-now" style="left:${nowX}%;background:${INK}"></div>
+         <div class="ex-now-label" style="left:${Math.min(88, Math.max(12, nowX))}%">
+            <div class="n">${hike.trail_name}</div>
+            <div class="d">${fmtDate(hike.date_completed)}</div></div>`);
+
+    /* ============ just the land ============ */
+    document.getElementById('land-btn').addEventListener('click', () => document.body.classList.toggle('bare'));
+})();
+</script>
+</body>
+</html>

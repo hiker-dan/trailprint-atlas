@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Stereoscope</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    @font-face { font-family:'National Park'; src:url('../assets/fonts/national-park-variable.woff2') format('woff2'); font-weight:200 800; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-400.woff2') format('woff2'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-italic-400.woff2') format('woff2'); font-weight:400; font-style:italic; font-display:swap; }
+
+    :root {
+        --ink:#2f5c40; --ink-deep:#24401f; --stone:#6f6a58; --gravel:#9a927c;
+        --paper:#fffdf6; --paper-edge:#d8ccae; --charcoal:#3d3a30; --blaze:#c0392b;
+        --brass-hi:#cfae6e; --brass:#a5854a; --brass-lo:#7a5f36;
+        --font-display:'National Park','Trebuchet MS',sans-serif;
+        --font-body:'Alegreya Sans',Georgia,serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; }
+    body { font-family:var(--font-body); color:var(--charcoal); background:#f4ecd8; }
+
+    .cheap { position:fixed; z-index:5000; left:50%; transform:translateX(-50%); bottom:10px; max-width:700px;
+        background:rgba(47,60,40,0.92); color:#f2ead8; font-size:11.5px; font-style:italic;
+        padding:7px 16px; border-radius:9px; line-height:1.45; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+
+    /* ===== the timeline: KEPT, re-inked ===== */
+    .era { position:relative; height:88px; background:#23301f; overflow-x:auto; overflow-y:hidden;
+        scrollbar-width:thin; scrollbar-color:#4a5c40 transparent; }
+    .era-track { position:relative; height:100%; }
+    .era-mtns { position:absolute; inset:0;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='88' viewBox='0 0 320 88'%3E%3Cpath d='M0 88 L38 40 L66 62 L104 22 L142 60 L176 34 L214 66 L252 28 L290 56 L320 42 L320 88 Z' fill='rgba(244,236,216,0.07)'/%3E%3Cpath d='M0 88 L52 58 L96 74 L150 48 L204 76 L258 52 L320 70 L320 88 Z' fill='rgba(244,236,216,0.09)'/%3E%3C/svg%3E");
+        background-repeat:repeat-x; }
+    .era-dot { position:absolute; top:44px; width:8px; height:8px; border-radius:50%;
+        transform:translate(-50%,-50%); opacity:0.9; }
+    .era-dot:hover { width:13px; height:13px; opacity:1; }
+    .era-year { position:absolute; bottom:8px; transform:translateX(-50%); font-family:var(--font-display);
+        font-size:10px; letter-spacing:0.22em; color:rgba(244,236,216,0.55); }
+    .era-now { position:absolute; top:44px; transform:translate(-50%,-50%); width:16px; height:16px;
+        border-radius:50%; border:2.5px solid #f4ecd8; box-shadow:0 0 10px rgba(244,236,216,0.5); }
+    .era-now-label { position:absolute; top:12px; transform:translateX(-50%); white-space:nowrap;
+        font-family:var(--font-display); font-size:10px; letter-spacing:0.16em; color:#f4ecd8; }
+    .era-note { position:sticky; left:14px; top:64px; display:inline-block; font-size:10px; font-style:italic;
+        color:rgba(244,236,216,0.5); }
+
+    /* ===== header ===== */
+    .head { text-align:center; padding:38px 20px 6px; }
+    .h-kicker { display:flex; align-items:center; justify-content:center; gap:10px;
+        font-family:var(--font-display); font-size:11px; letter-spacing:0.32em; color:var(--gravel); }
+    .h-kicker .stamp-glyph { width:22px; height:22px; }
+    h1 { font-family:var(--font-display); font-weight:700; font-size:clamp(26px,3.4vw,40px); margin:10px 0 6px;
+        letter-spacing:0.08em; color:var(--ink-deep); text-transform:uppercase; }
+    .h-sub { font-size:15px; font-style:italic; color:var(--stone); }
+    .h-sub a { color:var(--ink); }
+
+    /* ===== the instrument ===== */
+    .scope-zone { max-width:1160px; margin:26px auto 8px; padding:0 22px; }
+    .scope { position:relative; height:60vh; min-height:440px; border-radius:4px; overflow:hidden;
+        border:11px solid transparent;
+        border-image:linear-gradient(160deg, var(--brass-hi) 0%, var(--brass) 34%, var(--brass-lo) 60%, var(--brass-hi) 100%) 1;
+        box-shadow:0 8px 30px rgba(60,45,20,0.35), inset 0 0 0 1px rgba(60,40,10,0.55); }
+    .rivet { position:absolute; z-index:900; width:11px; height:11px; border-radius:50%;
+        background:radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass-lo) 75%);
+        box-shadow:0 1px 2px rgba(0,0,0,0.5); }
+    .rivet.tl { top:6px; left:6px; } .rivet.tr { top:6px; right:6px; }
+    .rivet.bl { bottom:6px; left:6px; } .rivet.br { bottom:6px; right:6px; }
+    .pane-abs { position:absolute; inset:0; }
+    #sat-wrap { z-index:1; }   /* each wrap gets its own stacking context, */
+    #topo-wrap { z-index:2; }  /* or Leaflet's inner panes leak across the divide */
+    #map-topo, #map-sat { position:absolute; inset:0; background:#ece3ce; }
+    .split { position:absolute; z-index:800; top:0; bottom:0; width:4px; margin-left:-2px; cursor:ew-resize;
+        background:linear-gradient(90deg, var(--brass-lo), var(--brass-hi), var(--brass-lo));
+        box-shadow:0 0 8px rgba(0,0,0,0.45); }
+    .split::before { content:''; position:absolute; top:0; bottom:0; left:-8px; right:-8px; }
+    .knob { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:34px; height:34px;
+        border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, var(--brass-lo));
+        box-shadow:0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,240,200,0.6);
+        display:flex; align-items:center; justify-content:center; }
+    .knob::after { content:''; width:2px; height:16px; background:rgba(60,40,10,0.55);
+        box-shadow:-5px 0 0 rgba(60,40,10,0.55), 5px 0 0 rgba(60,40,10,0.55); }
+    .scope-caption { display:flex; justify-content:space-between; align-items:baseline; margin-top:9px;
+        font-family:var(--font-display); font-size:10.5px; letter-spacing:0.24em; color:var(--stone); }
+    .scope-caption .mid { font-family:var(--font-body); font-style:italic; font-size:12px;
+        letter-spacing:0.02em; color:var(--gravel); text-transform:none; }
+
+    /* ===== the calm page below ===== */
+    .page { max-width:980px; margin:0 auto; padding:26px 22px 90px; }
+    .sect { margin-top:44px; }
+    .s-k { font-family:var(--font-display); font-size:11px; letter-spacing:0.3em; color:var(--gravel);
+        text-transform:uppercase; border-bottom:1.5px solid var(--ink); padding-bottom:7px; margin-bottom:18px;
+        display:flex; justify-content:space-between; align-items:baseline; }
+    .s-k .aside { font-family:var(--font-body); font-style:italic; letter-spacing:0.02em; font-size:11.5px; text-transform:none; }
+
+    .numbers { display:grid; grid-template-columns:repeat(6, 1fr); }
+    .num { text-align:center; padding:6px 8px; border-left:1px solid var(--paper-edge); }
+    .num:first-child { border-left:none; }
+    .num .v { font-family:var(--font-display); font-weight:700; font-size:clamp(17px,2vw,24px); color:var(--ink-deep); }
+    .num .l { font-size:9px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gravel); margin-top:3px; }
+
+    .shape-wrap { position:relative; cursor:crosshair; }
+    .shape-wrap svg { display:block; width:100%; height:150px; }
+    .sh-hair { position:absolute; top:0; bottom:18px; width:1px; background:var(--blaze); visibility:hidden; }
+    .sh-read { position:absolute; top:-2px; right:0; font-family:var(--font-display); font-size:11px;
+        letter-spacing:0.12em; color:var(--blaze); font-weight:700; visibility:hidden; }
+    .sh-miles { display:flex; justify-content:space-between; font-size:9.5px; color:var(--gravel);
+        letter-spacing:0.12em; margin-top:3px; }
+
+    .prints-row { display:flex; gap:20px; overflow-x:auto; padding:14px 4px 18px; scrollbar-width:thin; }
+    .print { position:relative; flex:0 0 205px; background:#fff; padding:7px 7px 20px;
+        box-shadow:0 3px 10px rgba(60,45,20,0.3); transform:rotate(var(--r,0deg));
+        transition:transform 0.45s ease; cursor:pointer; }
+    .print::before { content:''; position:absolute; top:-8px; left:50%; width:64px; height:16px;
+        transform:translateX(-50%) rotate(var(--tr,-2deg)); background:rgba(216,204,174,0.8); }
+    .print img { display:block; width:100%; aspect-ratio:4/3; object-fit:cover;
+        filter:grayscale(1) sepia(0.14) contrast(1.04); transition:filter 0.6s ease; }
+    .print:hover { transform:rotate(0deg) scale(1.06); z-index:5; }
+    .print:hover img { filter:none; }
+    .print .cap { position:absolute; bottom:3px; left:0; right:0; text-align:center;
+        font-size:8.5px; letter-spacing:0.22em; color:var(--gravel); }
+
+    .notes-grid { display:grid; grid-template-columns:minmax(0,1fr) 268px; gap:30px; }
+    .notes-main { font-size:15.5px; line-height:1.65; }
+    .ext-links { margin-top:14px; font-size:12.5px; }
+    .ext-links a { color:var(--ink); margin-right:18px; }
+    .annot { background:var(--paper); border:1px solid var(--paper-edge); padding:13px 15px; margin-bottom:16px;
+        box-shadow:0 2px 8px rgba(60,45,20,0.15); transform:rotate(var(--r,0.6deg)); font-size:12.5px; line-height:1.5; }
+    .annot .k { font-family:var(--font-display); font-size:9px; letter-spacing:0.26em; color:var(--gravel);
+        text-transform:uppercase; margin-bottom:6px; }
+    .annot b { color:var(--ink-deep); } .annot .latin { font-style:italic; color:var(--stone); }
+
+    .alm-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:20px; }
+    .alm-card { background:var(--paper); border:1px solid var(--paper-edge); padding:16px;
+        box-shadow:0 2px 8px rgba(60,45,20,0.15); display:flex; gap:14px; align-items:center; }
+    .alm-card svg { width:34px; height:34px; flex:0 0 auto; fill:none; stroke:var(--ink);
+        stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+    .alm-card .v { font-family:var(--font-display); font-weight:700; font-size:19px; color:var(--charcoal); }
+    .alm-card .l { font-size:9.5px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gravel); margin-top:2px; }
+    .alm-foot { font-size:11px; font-style:italic; color:var(--gravel); margin-top:10px; }
+
+    /* stamp glyph recipe (same as map.css) */
+    .stamp-glyph { display:block; }
+    .stamp-glyph g { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .stamp-halo { stroke:#fffdf6; } .stamp-halo path,.stamp-halo rect,.stamp-halo circle { stroke-width:4.4px; }
+    .stamp-ink { stroke:currentColor; } .stamp-ink path,.stamp-ink rect,.stamp-ink circle { stroke-width:1.7px; }
+    .stamp-ink .d { stroke-width:1.25px; } .stamp-halo .d { stroke-width:3.9px; }
+
+    .leaflet-container { font-family:var(--font-body); }
+</style>
+</head>
+<body>
+
+<div class="cheap"><b>Mockup — The Stereoscope.</b> The thing you love — flipping between topo and the real land — becomes
+the hero instrument: <b>drag the brass rail</b> to sweep between the survey and the satellite; both sides are live maps,
+moving as one, the route ink unbroken across the divide. Below it the page stays calm and engraved. The dark band up top
+is the beloved timeline <b>kept</b>, just re-inked (an impression of it). Hovering the Shape of the Day walks a marker
+along both maps. Weather canned; <b>?id=tta_NN</b> loads any hike.</div>
+
+<div class="era" id="era"><div class="era-track" id="era-track"><div class="era-mtns"></div><span class="era-note">the timeline, re-inked — scroll through time</span></div></div>
+
+<div class="head">
+    <div class="h-kicker" id="h-kicker"></div>
+    <h1 id="h-title"></h1>
+    <div class="h-sub" id="h-sub"></div>
+</div>
+
+<div class="scope-zone">
+    <div class="scope" id="scope">
+        <div class="pane-abs" id="sat-wrap"><div id="map-sat"></div></div>
+        <div class="pane-abs" id="topo-wrap"><div id="map-topo"></div></div>
+        <div class="split" id="split"><div class="knob"></div></div>
+        <div class="rivet tl"></div><div class="rivet tr"></div><div class="rivet bl"></div><div class="rivet br"></div>
+    </div>
+    <div class="scope-caption">
+        <span>THE SURVEY — topographic</span>
+        <span class="mid">drag the brass rail · both glasses move as one</span>
+        <span>THE LAND — as the crow sees it</span>
+    </div>
+</div>
+
+<div class="page">
+    <div class="sect">
+        <div class="s-k"><span>By the Numbers</span></div>
+        <div class="numbers" id="numbers"></div>
+    </div>
+
+    <div class="sect">
+        <div class="s-k"><span>The Shape of the Day</span><span class="aside">run your cursor along it — the marker walks both maps above</span></div>
+        <div class="shape-wrap" id="shape-wrap">
+            <div class="sh-hair" id="sh-hair"></div><div class="sh-read" id="sh-read"></div>
+        </div>
+        <div class="sh-miles" id="sh-miles"></div>
+    </div>
+
+    <div class="sect">
+        <div class="s-k"><span>The Prints</span><span class="aside">hover to bloom — the scrapbook effect, kept</span></div>
+        <div class="prints-row" id="prints-row"></div>
+    </div>
+
+    <div class="sect">
+        <div class="s-k"><span>Trail Notes</span></div>
+        <div class="notes-grid">
+            <div class="notes-main"><span id="notes-text"></span>
+                <div class="ext-links" id="ext-links"></div>
+            </div>
+            <div>
+                <div class="annot" style="--r:0.7deg" id="annot-flora"></div>
+                <div class="annot" style="--r:-0.6deg" id="annot-fauna"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sect">
+        <div class="s-k"><span>Hike Almanac</span></div>
+        <div class="alm-row">
+            <div class="alm-card">
+                <svg viewBox="0 0 34 34"><path d="M5 24 h24 M11 24 a6 6 0 0 1 12 0 M17 8 v5 M17 4 l-3 4 M17 4 l3 4"/></svg>
+                <div><div class="v">6:12 AM</div><div class="l">Sunrise</div></div>
+            </div>
+            <div class="alm-card">
+                <svg viewBox="0 0 34 34"><circle cx="17" cy="17" r="6"/><path d="M17 4 v4 M17 26 v4 M4 17 h4 M26 17 h4 M8 8 l3 3 M23 23 l3 3 M26 8 l-3 3 M11 23 l-3 3"/></svg>
+                <div><div class="v">100° · Clear</div><div class="l">Day's Apex</div></div>
+            </div>
+            <div class="alm-card">
+                <svg viewBox="0 0 34 34"><path d="M5 24 h24 M11 24 a6 6 0 0 1 12 0 M17 13 v-5 M17 13 l-3 -4 M17 13 l3 -4"/></svg>
+                <div><div class="v">8:55 PM</div><div class="l">Sunset</div></div>
+            </div>
+        </div>
+        <div class="alm-foot">Canned for the mockup — the live page pulls the real day from Open-Meteo, plus the On-the-Trail band when the GPX carries a clock.</div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const Q = new URLSearchParams(location.search);
+    const ID = Q.get('id') || 'tta_88';
+
+    const [hikes, gj, els] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json()),
+        fetch('../data/elevations.json').then(r => r.json()),
+    ]);
+    const hike = hikes.find(h => h.trail_id === ID) || hikes.find(h => h.trail_id === 'tta_88') || hikes[0];
+    const feat = gj.features.find(f => f.properties.trail_id === hike.trail_id);
+    const profile = els[hike.trail_id] || null;
+    const year = hike.date_completed.slice(0, 4);
+    const INK = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const num = hike.trail_id.replace('tta_', '');
+
+    const latlngs = [];
+    if (feat) {
+        const g = feat.geometry;
+        (g.type === 'MultiLineString' ? g.coordinates : [g.coordinates])
+            .forEach(part => part.forEach(([lng, lat]) => latlngs.push([lat, lng])));
+    }
+    const fmtDate = d => new Date(d + 'T00:00:00Z')
+        .toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+    const fmtN = n => n.toLocaleString('en-US');
+
+    /* ============ header ============ */
+    document.getElementById('h-kicker').innerHTML =
+        `THE TRAILPRINT ATLAS · SHEET NO. ${num} ·
+         <span style="color:${INK}">${atlasStampSvg(hike.hike_type)}</span> ${hike.hike_type.toUpperCase()}`;
+    document.getElementById('h-title').textContent = hike.trail_name;
+    document.getElementById('h-sub').innerHTML =
+        `${hike.location} — ${hike.region} · ${fmtDate(hike.date_completed)}` +
+        (hike.trip_tag ? ` · <a href="../trip.html?tag=${encodeURIComponent(hike.trip_tag)}">${hike.trip_tag} →</a>` : '');
+
+    /* ============ the instrument: two glasses, one land ============ */
+    const opts = { attributionControl: false, zoomSnap: 0.25 };
+    const mapTopo = L.map('map-topo', opts);
+    const mapSat = L.map('map-sat', Object.assign({ zoomControl: false }, opts));
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapTopo);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapSat);
+
+    const bounds = latlngs.length ? L.latLngBounds(latlngs) : null;
+    if (bounds) { mapTopo.fitBounds(bounds, { padding: [40, 40] }); mapSat.fitBounds(bounds, { padding: [40, 40] }); }
+    else { mapTopo.setView([hike.latitude, hike.longitude], 14); mapSat.setView([hike.latitude, hike.longitude], 14); }
+
+    // both glasses move as one
+    let syncing = false;
+    const chain = (a, b) => a.on('move', () => {
+        if (syncing) return; syncing = true;
+        b.setView(a.getCenter(), a.getZoom(), { animate: false });
+        syncing = false;
+    });
+    chain(mapTopo, mapSat); chain(mapSat, mapTopo);
+
+    // the route ink, unbroken across the divide
+    [mapTopo, mapSat].forEach((m, mi) => {
+        if (!latlngs.length) return;
+        const poly = L.polyline(latlngs, { color: INK, weight: 4, opacity: 0.95 }).addTo(m);
+        const path = poly.getElement();
+        if (path && path.getTotalLength) {
+            const len = path.getTotalLength();
+            path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+            path.getBoundingClientRect();
+            path.style.transition = 'stroke-dashoffset 2.6s ease';
+            path.style.strokeDashoffset = 0;
+            setTimeout(() => { path.style.transition = 'none'; path.style.strokeDasharray = 'none'; }, 2900);
+        }
+        L.circleMarker(latlngs[0], { radius: 5, color: '#fffdf6', weight: 1.5, fillColor: INK, fillOpacity: 1 }).addTo(m);
+        L.marker(latlngs[0], { icon: L.divIcon({ className: '', iconSize: [24, 24], iconAnchor: [-8, 30],
+            html: `<span style="color:${INK};display:block;width:24px;height:24px">${atlasStampSvg(hike.hike_type)}</span>` }),
+            interactive: false }).addTo(m);
+    });
+
+    // the brass rail
+    const scope = document.getElementById('scope'), split = document.getElementById('split'),
+          topoWrap = document.getElementById('topo-wrap');
+    let x = 50;
+    const apply = () => { split.style.left = x + '%'; topoWrap.style.clipPath = `inset(0 ${100 - x}% 0 0)`; };
+    apply();
+    split.addEventListener('pointerdown', e => {
+        e.preventDefault(); split.setPointerCapture(e.pointerId);
+        const move = ev => {
+            const r = scope.getBoundingClientRect();
+            x = Math.min(94, Math.max(6, (ev.clientX - r.left) / r.width * 100)); apply();
+        };
+        const up = () => { split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); };
+        split.addEventListener('pointermove', move); split.addEventListener('pointerup', up);
+    });
+
+    /* ============ by the numbers ============ */
+    const crew = hike.hiked_with && hike.hiked_with.length ? hike.hiked_with.join(', ') : 'Solo';
+    const cells = [
+        [hike.miles, 'Miles'], [fmtN(hike.elevation_gain) + ' ft', 'Gain'],
+        ...(hike.summit_trail && hike.summit_elevation ? [[fmtN(hike.summit_elevation) + ' ft', 'Summit']] : []),
+        [hike.difficulty, 'Grade'], [hike.primary_geography, 'Country'], [crew, 'Party'],
+    ];
+    const numbersEl = document.getElementById('numbers');
+    numbersEl.style.gridTemplateColumns = `repeat(${cells.length}, 1fr)`;
+    numbersEl.innerHTML =
+        cells.map(([v, l]) => `<div class="num"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+
+    /* ============ the shape of the day (walks both maps) ============ */
+    const wrap = document.getElementById('shape-wrap');
+    if (profile && latlngs.length) {
+        const W = 1000, H = 150, PAD = 6, BASE = H - 18;
+        const mn = Math.min(...profile), mx = Math.max(...profile);
+        const X = i => PAD + (W - 2 * PAD) * i / (profile.length - 1);
+        const Y = v => BASE - (BASE - PAD) * (v - mn) / ((mx - mn) || 1);
+        const pts = profile.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+        wrap.insertAdjacentHTML('afterbegin',
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+                <polygon points="${PAD},${BASE} ${pts} ${W-PAD},${BASE}" fill="${INK}" opacity="0.14"/>
+                <polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
+                <line x1="${PAD}" y1="${BASE}" x2="${W-PAD}" y2="${BASE}" stroke="${INK}" stroke-width="1" opacity="0.45" vector-effect="non-scaling-stroke"/>
+            </svg>`);
+        const milesEl = document.getElementById('sh-miles');
+        for (let m = 0; m <= 4; m++) milesEl.insertAdjacentHTML('beforeend',
+            `<span>MI ${(hike.miles * m / 4).toFixed(1)}</span>`);
+
+        const cum = [0];
+        for (let i = 1; i < latlngs.length; i++) {
+            const dx = (latlngs[i][1] - latlngs[i-1][1]) * Math.cos(latlngs[i][0] * Math.PI / 180),
+                  dy = latlngs[i][0] - latlngs[i-1][0];
+            cum.push(cum[i-1] + Math.sqrt(dx*dx + dy*dy));
+        }
+        const total = cum[cum.length - 1];
+        const ptAt = frac => {
+            const t = frac * total;
+            for (let i = 1; i < cum.length; i++) if (cum[i] >= t) {
+                const f = (t - cum[i-1]) / ((cum[i] - cum[i-1]) || 1);
+                return [latlngs[i-1][0] + (latlngs[i][0]-latlngs[i-1][0]) * f,
+                        latlngs[i-1][1] + (latlngs[i][1]-latlngs[i-1][1]) * f];
+            }
+            return latlngs[latlngs.length - 1];
+        };
+        const hair = document.getElementById('sh-hair'), read = document.getElementById('sh-read');
+        const walkers = [mapTopo, mapSat].map(m =>
+            L.circleMarker(latlngs[0], { radius: 6.5, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1 }));
+        wrap.addEventListener('mousemove', e => {
+            const r = wrap.getBoundingClientRect();
+            const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+            const i = frac * (profile.length - 1), lo = Math.floor(i),
+                  elev = Math.round(profile[lo] + (profile[Math.min(lo+1, profile.length-1)] - profile[lo]) * (i - lo));
+            hair.style.visibility = read.style.visibility = 'visible';
+            hair.style.left = (frac * 100) + '%';
+            read.textContent = `MILE ${(frac * hike.miles).toFixed(1)} · ${fmtN(elev)} FT`;
+            const p = ptAt(frac);
+            walkers[0].setLatLng(p); walkers[1].setLatLng(p);
+            if (!mapTopo.hasLayer(walkers[0])) { walkers[0].addTo(mapTopo); walkers[1].addTo(mapSat); }
+        });
+        wrap.addEventListener('mouseleave', () => {
+            hair.style.visibility = read.style.visibility = 'hidden';
+            if (mapTopo.hasLayer(walkers[0])) { mapTopo.removeLayer(walkers[0]); mapSat.removeLayer(walkers[1]); }
+        });
+    } else { wrap.parentElement.style.display = 'none'; }
+
+    /* ============ the prints ============ */
+    const row = document.getElementById('prints-row');
+    (hike.images || []).forEach((id, i) => {
+        const rot = [-1.8, 1.4, -1.2, 2, -1.6, 1.2, -2.2][i % 7];
+        row.insertAdjacentHTML('beforeend',
+            `<div class="print" style="--r:${rot}deg;--tr:${(i % 2 ? 2 : -2)}deg">
+                <img src="${cloudinaryUrl(id, 'w_460,h_345,c_fill,q_auto,f_auto')}" alt="Hike photo ${i + 1}">
+                <div class="cap">PRINT ${String(i + 1).padStart(2, '0')}</div></div>`);
+    });
+
+    /* ============ notes + annotations ============ */
+    document.getElementById('notes-text').textContent = hike.description ||
+        'The field notes for this sheet are still being written.';
+    const ext = document.getElementById('ext-links');
+    if (hike.all_trails_url) ext.insertAdjacentHTML('beforeend', `<a href="${hike.all_trails_url}" target="_blank" rel="noopener">AllTrails ↗</a>`);
+    if (hike.official_trail_url) ext.insertAdjacentHTML('beforeend', `<a href="${hike.official_trail_url}" target="_blank" rel="noopener">Official trail page ↗</a>`);
+    const annot = (el, kicker, text) => {
+        if (!text) { el.style.display = 'none'; return; }
+        const cut = text.indexOf(' — ');
+        const head = cut > 0 ? text.slice(0, cut) : '', body = cut > 0 ? text.slice(cut + 3) : text;
+        const m = head.match(/^(.*?)\s*\((.*)\)\s*$/);
+        el.innerHTML = `<div class="k">${kicker}</div>` + (m
+            ? `<b>${m[1]}</b> <span class="latin">(${m[2]})</span> — ${body}`
+            : (head ? `<b>${head}</b> — ${body}` : body));
+    };
+    annot(document.getElementById('annot-flora'), 'Flora · field annotation', hike.flora);
+    annot(document.getElementById('annot-fauna'), 'Fauna · field annotation', hike.fauna);
+
+    /* ============ the timeline, kept + re-inked ============ */
+    const era = document.getElementById('era'), track = document.getElementById('era-track');
+    const times = hikes.map(h => Date.parse(h.date_completed));
+    const tMin = Math.min(...times), tMax = Math.max(...times);
+    const spanYears = (tMax - tMin) / (365.25 * 24 * 3600 * 1000);
+    const trackW = Math.max(1600, Math.round(spanYears * 640));
+    track.style.width = trackW + 'px';
+    const px = t => 40 + (trackW - 80) * (t - tMin) / ((tMax - tMin) || 1);
+    const y0 = new Date(tMin).getUTCFullYear(), y1 = new Date(tMax).getUTCFullYear();
+    for (let y = y0; y <= y1; y++) {
+        const t = Date.UTC(y, 0, 1); if (t < tMin || t > tMax) continue;
+        track.insertAdjacentHTML('beforeend', `<div class="era-year" style="left:${px(t)}px">${y}</div>`);
+    }
+    hikes.forEach(h => {
+        if (h.trail_id === hike.trail_id) return;
+        const yc = ATLAS_CONFIG.COLOR_MAP[h.date_completed.slice(0, 4)] || ATLAS_CONFIG.DEFAULT_COLOR;
+        track.insertAdjacentHTML('beforeend',
+            `<a class="era-dot" href="?id=${h.trail_id}" style="left:${px(Date.parse(h.date_completed))}px;background:${yc}"
+                title="${h.trail_name.replace(/"/g, '&quot;')} · ${fmtDate(h.date_completed)}"></a>`);
+    });
+    const nowX = px(Date.parse(hike.date_completed));
+    track.insertAdjacentHTML('beforeend',
+        `<div class="era-now" style="left:${nowX}px;background:${INK}"></div>
+         <div class="era-now-label" style="left:${nowX}px">${hike.trail_name.toUpperCase()}</div>`);
+    era.scrollLeft = Math.max(0, nowX - era.clientWidth / 2);
+})();
+</script>
+</body>
+</html>

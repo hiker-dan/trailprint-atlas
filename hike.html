@@ -34,17 +34,14 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- NEW: Sticky Header Wrapper - Now holds timeline and title -->
+    <!-- The timeline strip — the spine of the Atlas, unchanged. Its future is
+         its own conversation (navigation architecture); the light-table redesign
+         deliberately left it alone. -->
     <div id="sticky-header-wrapper">
-        <!-- Scrollable Expedition Log -->
         <div id="timeline-nav-container">
-            <div id="timeline-mountainscape">
-                <!-- This div is now the canvas for our repeating background -->
-            </div>
+            <div id="timeline-mountainscape"></div>
             <div id="timeline-viewport">
-                <div id="timeline-track">
-                    <!-- Dots will be injected here by JS -->
-                </div>
+                <div id="timeline-track"></div>
             </div>
             <div id="timeline-date-display">
                 <span id="timeline-floating-month"></span>
@@ -52,151 +49,152 @@
             </div>
         </div>
     </div>
-
-    <!-- The new global tooltip lives outside the main flow -->
     <div id="timeline-global-tooltip"></div>
-
-    <!-- The trip journal card: opens beneath a trip capsule on the timeline.
-         Fixed-position like the tooltip, so the scrolling viewport never clips it. -->
     <div id="timeline-trip-card"></div>
 
-    <!-- NEW: Immersive Hero Header -->
-    <div id="hike-hero">
-        <h1 id="hike-title">Loading...</h1>
-        <p id="hike-location"></p>
-        <p id="hike-date"></p>
-        <p id="hike-trip-link" class="hike-trip-link"></p>
-    </div>
+    <!-- ===================== THE LIGHT TABLE =====================
+         One desk seen from above: the slides at left, the map sheet at
+         centre (with the elevation acetate bolted beneath it), and the
+         day's paperwork at right. -->
+    <main class="light-table" id="light-table">
+        <div class="desk">
 
-    <div class="hike-detail-container">
-        <!-- The subtitle now lives here, to be shown when no media exists -->
-        <div id="expedition-subtitle-container"></div>
-        <!-- Main two-column layout -->
-        <div class="hike-layout">
-            <!-- The field desk: map, photos, and the elevation profile as one
-                 instrument. The profile hides when a hike has no GPX track. -->
-            <div class="top-visuals-card">
-                <div class="top-visuals-grid">
-                    <div id="hike-map"></div>
-                    <div id="photo-gallery">
-                        <!-- Photo viewer will be built here by JS -->
-                    </div>
+            <!-- The slides: this is the one place on the Atlas with true
+                 photo interaction, so they get a column and a lightbox. -->
+            <aside class="slides" id="slides-col">
+                <div class="slides-k">
+                    <span>The Slides</span><span class="n" id="slides-count"></span>
                 </div>
-                <div id="shape-section" style="display: none;">
-                    <p class="shape-eyebrow">The Shape of the Day</p>
-                    <div id="shape-chart" class="shape-chart"></div>
-                </div>
-            </div>
+                <div class="slide-strip" id="slide-strip"></div>
+            </aside>
 
-            <!-- The rest of the info flows below in a single column -->
-            <div class="info-section">
-                <h3>By the Numbers</h3>
-                <div class="vitals-grid" id="trail-vitals-container"></div>
-            </div>
+            <!-- The sheet -->
+            <div class="sheet-col">
+                <div class="sheet" id="sheet">
+                    <div class="tabs" id="tabs">
+                        <button class="tab on" id="tab-topo">TOPO</button>
+                        <button class="tab" id="tab-aerial">AERIAL</button>
+                    </div>
 
-            <!-- NEW: Trail in Time Snapshot -->
-            <div id="almanac-section" class="info-section" style="display: none;">
-                <h3>Hike Almanac</h3>
-                <div class="snapshot-grid">
-                    <div class="snapshot-card">
-                        <div class="snapshot-header">
-                            <span class="snapshot-icon">🌅</span>
-                            <h4>Sunrise</h4>
+                    <div class="collar-top">
+                        <div class="ct-left">
+                            <div class="c-kicker" id="c-kicker"></div>
+                            <h1 class="c-title" id="c-title">Loading…</h1>
+                            <div class="c-sub" id="c-sub"></div>
+                            <div class="c-trip" id="c-trip"></div>
                         </div>
-                        <div class="snapshot-body">
-                            <div class="snapshot-main-value" id="sunrise-time">--</div>
-                            <div class="snapshot-description" id="sunrise-weather-desc">Loading...</div>
-                        </div>
-                    </div>
-                    <div class="snapshot-card">
-                        <div class="snapshot-header">
-                            <span class="snapshot-icon">☀️</span>
-                            <h4>Day's Apex</h4>
-                        </div>
-                        <div class="snapshot-body">
-                            <div class="snapshot-main-value" id="peak-weather-temp">--</div>
-                            <div class="snapshot-description" id="peak-weather-desc">Loading...</div>
+                        <div class="ct-right">
+                            <button class="full-btn" id="full-btn" title="Give the map the whole table (Esc to return)" aria-label="Expand the map">
+                                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1H1v5M10 1h5v5M10 15h5v-5M6 15H1v-5"/></svg>
+                            </button>
+                            <div class="seal" id="seal"></div>
                         </div>
                     </div>
-                    <div class="snapshot-card">
-                        <div class="snapshot-header">
-                            <span class="snapshot-icon">🌌</span>
-                            <h4>Sunset</h4>
-                        </div>
-                        <div class="snapshot-body">
-                            <div class="snapshot-main-value" id="sunset-time">--</div>
-                            <div class="snapshot-description" id="sunset-weather-desc">Loading...</div>
-                        </div>
+
+                    <!-- The vitals band: on an engraved sheet the measurements
+                         belong in the title block, not the margin. -->
+                    <div class="vitals" id="vitals"></div>
+
+                    <div class="stage" id="stage">
+                        <div class="glass-pane" id="sat-wrap"><div id="map-sat"></div></div>
+                        <div class="glass-pane" id="topo-wrap"><div id="map-topo"></div></div>
+                        <div class="split" id="split" role="separator" aria-label="Drag to sweep between the survey and the land"><div class="knob"></div></div>
+                        <div class="side-label l" id="lab-l">THE SURVEY</div>
+                        <div class="side-label r" id="lab-r">THE LAND</div>
+                        <div class="corner nw" id="cnw"></div><div class="corner ne" id="cne"></div>
+                        <div class="corner sw" id="csw"></div><div class="corner se" id="cse"></div>
                     </div>
-                    <!-- Only appears when the GPX was a real recording (has a clock) -->
-                    <div class="snapshot-card" id="ontrail-card" style="display: none;">
-                        <div class="snapshot-header">
-                            <span class="snapshot-icon">🥾</span>
-                            <h4>On the Trail</h4>
+
+                    <!-- The acetate is bolted to the sheet directly beneath the
+                         map on purpose: scrubbing the day's shape must never
+                         happen off-screen from the trail it describes. -->
+                    <div class="acetate" id="acetate">
+                        <div class="a-label"><span>THE SHAPE OF THE DAY</span></div>
+                        <div id="shape-chart" class="shape-chart"></div>
+                    </div>
+
+                    <div class="collar-bottom">
+                        <div class="legend">
+                            <div class="l1" id="legend-1"></div>
+                            <div class="l2" id="legend-2"></div>
                         </div>
-                        <div class="snapshot-body">
-                            <div class="snapshot-main-value ontrail-times" id="ontrail-times">--</div>
-                            <div class="ontrail-ribbon" id="ontrail-ribbon">
-                                <div class="ontrail-band" id="ontrail-band"></div>
-                            </div>
-                            <div class="snapshot-description" id="ontrail-duration"></div>
+                        <div class="scale-bar">
+                            <div class="bar"><i></i><i></i><i></i><i></i></div>
+                            <div class="t" id="scale-t"></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Fire memorial: appears only on trails that burned after the
-                 hike. Sits at the turn from "the day" (almanac) into "the
-                 trail" (notes), and JS fills it when a hike carries one. -->
-            <div id="fire-memorial" class="fire-memorial" style="display: none;"></div>
+            <!-- The paperwork -->
+            <aside class="side" id="side-col">
+                <div id="fire-memorial" class="fire-memorial" style="display:none;"></div>
 
-            <div id="hike-description" class="info-section">
-                <h3>Trail Notes</h3>
-                <div class="notes-layout-grid">
-                    <div class="main-notes-column" id="description-content-container">
-                        <!-- Main description text will be injected here -->
+                <section class="card ledger" id="almanac-section" style="display:none;">
+                    <h2 class="k">Hike Almanac</h2>
+                    <div class="alm-rows">
+                        <div class="alm-row"><span class="lbl">Sunrise</span><span class="val" id="sunrise-time">--</span></div>
+                        <div class="alm-note" id="sunrise-weather-desc"></div>
+                        <div class="alm-row"><span class="lbl">Day's apex</span><span class="val" id="peak-weather-temp">--</span></div>
+                        <div class="alm-note" id="peak-weather-desc"></div>
+                        <div class="alm-row"><span class="lbl">Sunset</span><span class="val" id="sunset-time">--</span></div>
+                        <div class="alm-note" id="sunset-weather-desc"></div>
                     </div>
-                    <div class="annotations-column">
-                        <div id="flora-annotation" class="field-annotation"></div>
-                        <div id="fauna-annotation" class="field-annotation"></div>
+                    <!-- Only when the GPX was a real recording (has a clock) -->
+                    <div class="ontrail" id="ontrail-card" style="display:none;">
+                        <div class="alm-row"><span class="lbl">On the trail</span><span class="val ontrail-times" id="ontrail-times">--</span></div>
+                        <div class="ontrail-ribbon" id="ontrail-ribbon"><div class="ontrail-band" id="ontrail-band"></div></div>
+                        <div class="alm-note" id="ontrail-duration"></div>
                     </div>
-                </div>
-                <div id="external-links-container" class="external-links"></div>
-            </div>
-            <div id="hike-log" class="info-section" style="display: none;">
-                <h3>Logbook</h3>
-                <div id="logbook-container"></div>
+                </section>
+
+                <section class="card pad" id="hike-description">
+                    <h2 class="k">Trail Notes</h2>
+                    <div id="description-content-container"></div>
+                    <div id="external-links-container" class="links"></div>
+                </section>
+
+                <section class="card slip" id="flora-annotation" style="display:none;"></section>
+                <section class="card slip" id="fauna-annotation" style="display:none;"></section>
+
+                <section class="card logbook" id="hike-log" style="display:none;">
+                    <h2 class="k">Logbook</h2>
+                    <div id="logbook-container"></div>
+                </section>
+            </aside>
+        </div>
+    </main>
+
+    <!-- The lightbox: photos as gloriously as they deserve -->
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">
+        <button class="lb-close" id="modal-close-btn" title="Close" aria-label="Close">&times;</button>
+        <button class="lb-btn lb-prev" id="modal-prev-btn" title="Previous" aria-label="Previous">&lsaquo;</button>
+        <div class="lb-frame" id="lb-frame">
+            <img id="modal-image" src="" alt="Full-size hike photo">
+            <div id="modal-video-container" style="display:none;"></div>
+            <div class="lb-plate">
+                <span class="t" id="lb-title"></span>
+                <span id="lb-count"></span>
             </div>
         </div>
-    </div>
-
-    <!-- Photo Modal Structure -->
-    <div id="photo-modal" class="photo-modal">
-        <span class="close-btn" id="modal-close-btn" title="Close">&times;</span>
-        <span class="modal-nav-btn prev" id="modal-prev-btn" title="Previous photo">&lsaquo;</span>
-        <img id="modal-image" src="" alt="Full-size hike photo" style="display: none;">
-        <div id="modal-video-container" style="display: none;"></div>
-        <span class="modal-nav-btn next" id="modal-next-btn" title="Next photo">&rsaquo;</span>
-        <div class="media-dots-container" id="modal-dots-container"></div>
+        <button class="lb-btn lb-next" id="modal-next-btn" title="Next" aria-label="Next">&rsaquo;</button>
+        <div class="lb-film" id="modal-dots-container"></div>
     </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Leaflet-GPX Plugin -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-gpx/1.7.0/gpx.min.js"></script>
     <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
     <script src="scripts/config.js"></script>
     <script src="scripts/atlas-data.js"></script>
-    <!-- Our shared trail renderer -->
+    <!-- Shared trail renderer (formatHikeText) -->
     <script src="scripts/trail-renderer.js"></script>
     <!-- The Shape of the Day elevation profile -->
     <script src="scripts/shape-of-day.js"></script>
     <!-- The shared timeline navigation strip -->
     <script src="scripts/timeline-nav.js"></script>
-    <!-- The new script for this page -->
+    <!-- The light table -->
     <script src="scripts/hike-detail.js"></script>
-    <!-- Shared script to update the 'Latest Hike' nav link -->
+    <!-- Shared script to update the 'Logbook' nav link -->
     <script src="scripts/nav-updater.js"></script>
-
 </body>
 </html>

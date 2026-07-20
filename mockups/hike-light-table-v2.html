@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Light Table, v2</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    @font-face { font-family:'National Park'; src:url('../assets/fonts/national-park-variable.woff2') format('woff2'); font-weight:200 800; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-400.woff2') format('woff2'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('../assets/fonts/alegreya-sans-italic-400.woff2') format('woff2'); font-weight:400; font-style:italic; font-display:swap; }
+
+    :root {
+        --ink:#2f5c40; --ink-deep:#24401f; --stone:#6f6a58; --gravel:#9a927c;
+        --paper:#fffdf6; --paper-edge:#d8ccae; --charcoal:#3d3a30; --blaze:#c0392b;
+        --brass-hi:#cfae6e; --brass:#a5854a; --brass-lo:#7a5f36;
+        --font-display:'National Park','Trebuchet MS',sans-serif;
+        --font-body:'Alegreya Sans',Georgia,serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; }
+    body { font-family:var(--font-body); color:var(--charcoal);
+        background:#3b2d1d linear-gradient(15deg, rgba(0,0,0,0.35), rgba(255,220,160,0.06) 55%, rgba(0,0,0,0.3));
+        padding:14px; }
+
+    .table { position:relative; border-radius:8px; padding-bottom:40px;
+        background:radial-gradient(ellipse at 50% 36%, #faf4e3 0%, #f2e8ce 52%, #e2d3ac 100%);
+        box-shadow:inset 0 0 90px rgba(120,95,50,0.28), 0 10px 40px rgba(0,0,0,0.5);
+        border:1px solid #c9b98f; }
+
+    .cheap { position:fixed; z-index:5000; left:50%; transform:translateX(-50%); bottom:8px; max-width:760px;
+        background:rgba(47,60,40,0.93); color:#f2ead8; font-size:11.5px; font-style:italic;
+        padding:7px 16px; border-radius:9px; line-height:1.45; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+    .cheap b { font-style:normal; }
+
+    /* ===== the ruler edge (PARKED — its own session) ===== */
+    .ruler-zone { padding:16px 26px 0; opacity:0.72; }
+    .ruler { position:relative; height:38px; border:1px solid #b9a678; border-radius:3px;
+        background:#ecdfba repeating-linear-gradient(90deg, rgba(90,75,40,0.14) 0 1px, transparent 1px 9px);
+        box-shadow:inset 0 2px 5px rgba(120,95,50,0.25); }
+    .r-ytick { position:absolute; top:0; width:1px; height:100%; background:rgba(80,65,35,0.4); }
+    .r-ylabel { position:absolute; top:3px; transform:translateX(4px); font-family:var(--font-display);
+        font-size:9.5px; letter-spacing:0.14em; color:#7a6a44; }
+    .r-hike { position:absolute; bottom:0; width:2px; height:12px; opacity:0.85; display:block; }
+    .r-hike:hover { height:20px; width:3px; }
+    .r-now { position:absolute; bottom:-1px; transform:translateX(-50%); }
+    .r-now::before { content:''; position:absolute; left:-7px; bottom:0; width:14px; height:26px;
+        background:var(--blaze); clip-path:polygon(50% 0, 100% 28%, 100% 100%, 0 100%, 0 28%); opacity:0.92; }
+    .ruler-caption { display:flex; justify-content:space-between; margin:4px 2px 0;
+        font-size:10px; letter-spacing:0.1em; text-transform:uppercase; color:var(--gravel); }
+
+    /* ===== the desk ===== */
+    .desk { display:grid; grid-template-columns:190px minmax(0,1fr) 300px; gap:22px;
+        padding:18px 26px 0; align-items:start; }
+
+    /* --- the slide column: photos, rethought for a light table --- */
+    .slides { position:sticky; top:14px; }
+    .slides-k { display:flex; justify-content:space-between; align-items:baseline;
+        font-family:var(--font-display); font-size:9.5px; letter-spacing:0.24em; color:var(--gravel);
+        text-transform:uppercase; margin-bottom:9px; }
+    .slides-k .n { color:var(--stone); letter-spacing:0.1em; }
+    /* the strip fades at its ends so a clipped slide reads as "more below", not as a broken box */
+    .slide-strip { max-height:calc(100vh - 200px); overflow-y:auto; padding:3px 10px 20px 3px;
+        scrollbar-width:thin; scrollbar-color:var(--paper-edge) transparent;
+        -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%);
+        mask-image:linear-gradient(to bottom, transparent 0, #000 14px, #000 calc(100% - 30px), transparent 100%); }
+    /* a mounted 35mm slide: cardboard mount, image inset, dim until it's on the light */
+    .slide { position:relative; margin-bottom:13px; padding:8px 8px 20px; border-radius:2px; cursor:pointer;
+        background:linear-gradient(#fbf6e6, #f0e7cf); border:1px solid #cdbf9c;
+        box-shadow:0 2px 6px rgba(60,45,20,0.28);
+        transition:transform 0.4s ease, box-shadow 0.4s ease; }
+    .slide img { display:block; width:100%; aspect-ratio:3/2; object-fit:cover;
+        filter:grayscale(1) brightness(0.86) contrast(1.05); transition:filter 0.65s ease; }
+    .slide .no { position:absolute; bottom:5px; left:9px; font-family:var(--font-display);
+        font-size:8px; letter-spacing:0.2em; color:var(--gravel); }
+    .slide .glass { position:absolute; inset:8px 8px 20px; pointer-events:none; opacity:0;
+        background:linear-gradient(112deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 42%);
+        transition:opacity 0.5s ease; }
+    /* lit: the slide comes onto the light box */
+    .slide:hover { transform:translateX(-4px) scale(1.05); z-index:6;
+        box-shadow:0 0 0 1px var(--brass), 0 6px 20px rgba(60,45,20,0.4), 0 0 34px rgba(255,236,180,0.85); }
+    .slide:hover img { filter:none; }
+    .slide:hover .glass { opacity:1; }
+
+    /* --- the sheet --- */
+    .center { min-width:0; }
+    .sheet { position:relative; margin-top:24px; background:var(--paper); border:1px solid var(--paper-edge);
+        box-shadow:0 6px 26px rgba(60,45,20,0.35); padding:0 20px 14px;
+        transition:box-shadow 0.4s ease; }
+    .sheet::before, .sheet::after { content:''; position:absolute; inset:0; background:#f6efd9;
+        border:1px solid var(--paper-edge); z-index:-1; }
+    .sheet::before { transform:rotate(0.6deg) translate(5px,4px); }
+    .sheet::after  { transform:rotate(-0.45deg) translate(-4px,6px); background:#efe6c9; }
+
+    .tabs { position:absolute; top:0; right:30px; transform:translateY(-100%); display:flex; gap:6px; z-index:3; }
+    .tab { font-family:var(--font-display); font-size:10.5px; letter-spacing:0.24em; padding:7px 17px 5px;
+        border:1px solid var(--paper-edge); border-bottom:none; border-radius:6px 6px 0 0; cursor:pointer;
+        background:#e3d7b4; color:var(--stone); transform:translateY(6px); transition:all 0.3s ease; }
+    .tab.on { background:var(--paper); color:var(--ink); transform:translateY(0); font-weight:700;
+        box-shadow:0 -3px 8px rgba(60,45,20,0.12); }
+    .tab:hover:not(.on) { transform:translateY(3px); }
+
+    .collar-top { display:flex; align-items:flex-end; justify-content:space-between; gap:18px;
+        padding:13px 0 9px; border-bottom:1.5px solid var(--ink); margin-bottom:12px; }
+    .ct-left { min-width:0; }
+    .c-kicker { font-family:var(--font-display); font-size:9.5px; letter-spacing:0.3em; color:var(--gravel); margin-bottom:5px; }
+    .c-title { font-family:var(--font-display); font-weight:700; font-size:clamp(18px,2.1vw,26px);
+        letter-spacing:0.08em; color:var(--ink-deep); text-transform:uppercase; line-height:1.12; }
+    .c-sub { font-size:13px; font-style:italic; color:var(--stone); margin-top:4px; }
+    .c-sub a { color:var(--ink); }
+    /* the collar's right wing: the sheet's controls live here, not floating on the map */
+    .ct-right { flex:0 0 auto; display:flex; align-items:center; gap:13px; }
+    .seal { width:54px; height:54px; border-radius:50%; border:1.5px solid var(--ink);
+        box-shadow:inset 0 0 0 3px var(--paper), inset 0 0 0 4px var(--ink);
+        display:flex; align-items:center; justify-content:center; color:var(--ink); }
+    .seal .stamp-glyph { width:26px; height:26px; }
+
+    /* the map stage: locked, and as large as the sheet allows */
+    .stage { position:relative; border:1px solid var(--paper-edge); overflow:hidden;
+        height:clamp(400px, calc(100vh - 400px), 760px); }
+    .glass-pane { position:absolute; inset:0; }
+    #sat-wrap { z-index:1; } #topo-wrap { z-index:2; }
+    #map-topo, #map-sat { position:absolute; inset:0; background:#ece3ce; }
+    .leaflet-container { font-family:var(--font-body); }
+
+    .split { position:absolute; z-index:700; top:0; bottom:0; width:4px; margin-left:-2px; cursor:ew-resize;
+        background:linear-gradient(90deg, var(--brass-lo), var(--brass-hi), var(--brass-lo));
+        box-shadow:0 0 9px rgba(0,0,0,0.45); }
+    .split::before { content:''; position:absolute; top:0; bottom:0; left:-10px; right:-10px; }
+    .split.snap, .glass-pane.snap { transition:left 0.7s cubic-bezier(.4,0,.2,1), clip-path 0.7s cubic-bezier(.4,0,.2,1); }
+    .knob { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:32px; height:32px;
+        border-radius:50%; background:radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, var(--brass-lo));
+        box-shadow:0 2px 8px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,240,200,0.6);
+        display:flex; align-items:center; justify-content:center; }
+    .knob::after { content:''; width:2px; height:15px; background:rgba(60,40,10,0.55);
+        box-shadow:-5px 0 0 rgba(60,40,10,0.55), 5px 0 0 rgba(60,40,10,0.55); }
+    /* each side label rides the centre of its own half, so it can never collide
+       with the corner coordinates however far the rail is swept */
+    .side-label { position:absolute; z-index:690; bottom:7px; transform:translateX(-50%);
+        font-family:var(--font-display); font-size:9px; letter-spacing:0.22em; color:var(--charcoal);
+        background:rgba(255,253,246,0.82); padding:2px 8px; pointer-events:none;
+        white-space:nowrap; transition:opacity 0.4s ease; }
+    .corner { position:absolute; z-index:690; font-size:8.5px; letter-spacing:0.04em; color:var(--charcoal);
+        background:rgba(255,253,246,0.8); padding:1px 5px; pointer-events:none; }
+    .corner.nw { top:0; left:0; } .corner.ne { top:0; right:0; }
+    .corner.sw { bottom:0; left:0; } .corner.se { bottom:0; right:0; }
+    .full-btn { width:34px; height:34px; border-radius:5px;
+        border:1px solid var(--brass); background:#fbf6e6; color:var(--ink-deep); cursor:pointer;
+        display:flex; align-items:center; justify-content:center; box-shadow:0 1px 4px rgba(60,45,20,0.22);
+        transition:background 0.25s, color 0.25s; }
+    .full-btn:hover { background:var(--ink); color:var(--paper); }
+    .full-btn svg { width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.9; stroke-linecap:round; }
+
+    /* the acetate, MOUNTED to the sheet directly under the map — never scrollable away from it */
+    .acetate { position:relative; margin:0; padding:9px 14px 5px; z-index:4;
+        background:linear-gradient(160deg, rgba(252,254,255,0.66), rgba(228,239,252,0.55));
+        border:1px solid rgba(90,110,140,0.42); border-top:none; border-radius:0 0 4px 4px;
+        box-shadow:0 4px 14px rgba(60,45,20,0.2), inset 0 0 20px rgba(255,255,255,0.5); cursor:crosshair; }
+    .a-label { display:flex; justify-content:space-between; font-family:var(--font-display);
+        font-size:9.5px; letter-spacing:0.24em; color:#43597a; margin-bottom:3px; }
+    .a-label .readout { font-weight:700; color:var(--blaze); letter-spacing:0.09em; visibility:hidden; }
+    .a-chart { position:relative; }
+    .a-chart svg { display:block; width:100%; height:96px; }
+    .a-hair { position:absolute; top:0; bottom:0; width:1px; background:var(--blaze); opacity:0.85; visibility:hidden; }
+    .a-dot { position:absolute; width:9px; height:9px; border-radius:50%; background:var(--blaze);
+        border:1.5px solid #fff; transform:translate(-50%,-50%); visibility:hidden; }
+    .a-miles { display:flex; justify-content:space-between; font-size:9px; color:#43597a; letter-spacing:0.08em; margin-top:1px; }
+
+    .collar-bottom { display:flex; justify-content:space-between; align-items:center; gap:16px;
+        border-top:1.5px solid var(--ink); margin-top:12px; padding-top:9px; }
+    .legend .l1 { font-family:var(--font-display); font-size:12px; letter-spacing:0.14em; color:var(--charcoal); }
+    .legend .l1 b { color:var(--ink); }
+    .legend .l2 { font-size:11.5px; font-style:italic; color:var(--gravel); margin-top:3px; }
+    .scale-bar { flex:0 0 auto; text-align:right; }
+    .scale-bar .bar { display:flex; height:7px; width:112px; border:1px solid var(--charcoal); margin-left:auto; }
+    .scale-bar .bar i { flex:1; } .scale-bar .bar i:nth-child(odd) { background:var(--charcoal); }
+    .scale-bar .t { font-size:9px; letter-spacing:0.16em; color:var(--stone); margin-top:3px; }
+
+    /* --- the paperwork --- */
+    .side { display:flex; flex-direction:column; gap:18px; }
+    .card { position:relative; background:var(--paper); border:1px solid var(--paper-edge);
+        box-shadow:0 3px 12px rgba(60,45,20,0.25); padding:13px 15px; }
+    .card .k { font-family:var(--font-display); font-size:9.5px; letter-spacing:0.26em;
+        color:var(--gravel); text-transform:uppercase; margin-bottom:8px; }
+    .ledger { transform:rotate(0.7deg); }
+    .ledger::before { content:''; position:absolute; top:-10px; left:50%; transform:translateX(-50%);
+        width:42px; height:15px; border:3px solid #8a6d3f; border-bottom:none; border-radius:8px 8px 0 0; }
+    .ledger table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .ledger td { padding:5px 0; border-bottom:1px dashed #ddd1b2; }
+    .ledger td:first-child { color:var(--stone); font-style:italic; }
+    .ledger td:last-child { text-align:right; font-weight:700; }
+    .ledger .note { font-size:10px; font-style:italic; color:var(--gravel); margin-top:6px; }
+    .pad { transform:rotate(-0.5deg); padding-bottom:18px;
+        background:var(--paper) repeating-linear-gradient(transparent 0 24px, rgba(120,100,55,0.12) 24px 25px);
+        background-position-y:11px; }
+    .pad p { margin:0; font-size:14px; line-height:25px; }
+    .slip { transform:rotate(var(--r,0.8deg)); font-size:12.5px; line-height:1.5; }
+    .slip::before { content:''; position:absolute; top:-8px; left:50%; width:60px; height:16px;
+        transform:translateX(-50%) rotate(2deg); background:rgba(228,214,176,0.85); }
+    .slip b { color:var(--ink-deep); } .slip .latin { font-style:italic; color:var(--stone); }
+    .trip-card { border-left:4px solid var(--ink); transform:rotate(0.4deg); }
+    .trip-card a { font-family:var(--font-display); font-size:13.5px; color:var(--ink); text-decoration:none; font-weight:700; }
+    .trip-card a:hover { text-decoration:underline; }
+    .links { display:flex; gap:14px; font-size:12px; padding:0 4px; }
+    .links a { color:var(--ink); }
+
+    /* ===== full-sheet: the map in its glory ===== */
+    body.sheet-full { overflow:hidden; }
+    body.sheet-full .sheet { position:fixed; inset:14px; z-index:3000; margin:0; overflow:auto;
+        box-shadow:0 0 0 100vmax rgba(30,22,12,0.86), 0 20px 60px rgba(0,0,0,0.6); }
+    body.sheet-full .sheet::before, body.sheet-full .sheet::after { display:none; }
+    body.sheet-full .stage { height:calc(100vh - 336px); }
+    /* the sheet's top edge is off-screen in full mode, so the pulls tuck into the
+       collar's empty middle instead of hanging off an edge that isn't there */
+    body.sheet-full .tabs { top:26px; right:172px; transform:none; }
+    body.sheet-full .tab { border-bottom:1px solid var(--paper-edge); border-radius:6px; transform:none; }
+
+    /* ===== the lightbox: photos as gloriously as they deserve ===== */
+    .lightbox { position:fixed; inset:0; z-index:4000; display:none; align-items:center; justify-content:center;
+        background:radial-gradient(ellipse at 50% 45%, #2a2115 0%, #100c07 100%); }
+    .lightbox.on { display:flex; }
+    .lb-frame { position:relative; max-width:88vw; max-height:82vh; padding:12px 12px 0;
+        background:linear-gradient(#fbf6e6, #efe5cc); border:1px solid var(--brass);
+        box-shadow:0 0 60px rgba(255,225,160,0.16), 0 24px 60px rgba(0,0,0,0.7); }
+    .lb-frame img { display:block; max-width:calc(88vw - 24px); max-height:calc(82vh - 58px);
+        opacity:0; transition:opacity 0.45s ease; }
+    .lb-frame img.in { opacity:1; }
+    .lb-plate { display:flex; justify-content:space-between; align-items:baseline; gap:20px;
+        padding:9px 2px 10px; font-family:var(--font-display); font-size:9.5px; letter-spacing:0.22em; color:var(--stone); }
+    .lb-plate .t { color:var(--ink-deep); }
+    .lb-btn { position:fixed; z-index:4010; top:50%; transform:translateY(-50%); width:52px; height:52px;
+        border-radius:50%; border:1px solid rgba(207,174,110,0.5); background:rgba(20,16,10,0.5);
+        color:#e8dcbe; font-size:24px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+        transition:background 0.25s, color 0.25s; }
+    .lb-btn:hover { background:var(--brass); color:#241a0c; }
+    .lb-prev { left:26px; } .lb-next { right:26px; }
+    .lb-close { position:fixed; z-index:4010; top:22px; right:26px; width:42px; height:42px; border-radius:50%;
+        border:1px solid rgba(207,174,110,0.5); background:rgba(20,16,10,0.5); color:#e8dcbe;
+        font-size:20px; cursor:pointer; }
+    .lb-close:hover { background:var(--brass); color:#241a0c; }
+    .lb-film { position:fixed; z-index:4010; bottom:22px; left:50%; transform:translateX(-50%);
+        display:flex; gap:7px; padding:7px 11px; border-radius:8px; background:rgba(20,16,10,0.55); }
+    .lb-film i { width:34px; height:24px; border-radius:2px; background-size:cover; background-position:center;
+        opacity:0.4; cursor:pointer; transition:opacity 0.3s, box-shadow 0.3s; }
+    .lb-film i.on { opacity:1; box-shadow:0 0 0 1.5px var(--brass-hi); }
+
+    /* stamp glyph recipe (same as map.css) */
+    .stamp-glyph { display:block; }
+    .stamp-glyph g { fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .stamp-halo { stroke:#fffdf6; } .stamp-halo path,.stamp-halo rect,.stamp-halo circle { stroke-width:4.4px; }
+    .stamp-ink { stroke:currentColor; } .stamp-ink path,.stamp-ink rect,.stamp-ink circle { stroke-width:1.7px; }
+    .stamp-ink .d { stroke-width:1.25px; } .stamp-halo .d { stroke-width:3.9px; }
+</style>
+</head>
+<body>
+
+<div class="cheap"><b>Light Table v2.</b> Map is <b>locked</b> and framed as big as the sheet allows. Drag the <b>brass rail</b>
+to sweep survey↔land, or click <b>TOPO / AERIAL</b> to send it sweeping. The acetate is now <b>bolted under the map</b> — scrub it and
+the marker walks the trail you can always see. Photos are <b>35mm slides</b>: hover to bring one onto the light, click for the
+full-glory lightbox (← → and Esc work). The ⤢ button gives the map the whole screen. Ruler up top is <b>parked</b> for its own session.</div>
+
+<div class="table">
+    <div class="ruler-zone">
+        <div class="ruler" id="ruler"></div>
+        <div class="ruler-caption"><span>The timeline — parked, pending its own workshop</span><span id="ruler-now-label"></span></div>
+    </div>
+
+    <div class="desk">
+        <div class="slides">
+            <div class="slides-k"><span>The Slides</span><span class="n" id="slides-n"></span></div>
+            <div class="slide-strip" id="slide-strip"></div>
+        </div>
+
+        <div class="center">
+            <div class="sheet" id="sheet">
+                <div class="tabs">
+                    <div class="tab on" id="tab-topo">TOPO</div>
+                    <div class="tab" id="tab-aerial">AERIAL</div>
+                </div>
+                <div class="collar-top">
+                    <div class="ct-left">
+                        <div class="c-kicker" id="c-kicker"></div>
+                        <div class="c-title" id="c-title"></div>
+                        <div class="c-sub" id="c-sub"></div>
+                    </div>
+                    <div class="ct-right">
+                        <button class="full-btn" id="full-btn" title="Give the map the whole table (Esc to return)">
+                            <svg viewBox="0 0 16 16"><path d="M6 1H1v5M10 1h5v5M10 15h5v-5M6 15H1v-5"/></svg>
+                        </button>
+                        <div class="seal" id="seal"></div>
+                    </div>
+                </div>
+
+                <div class="stage" id="stage">
+                    <div class="glass-pane" id="sat-wrap"><div id="map-sat"></div></div>
+                    <div class="glass-pane" id="topo-wrap"><div id="map-topo"></div></div>
+                    <div class="split" id="split"><div class="knob"></div></div>
+                    <div class="side-label l" id="lab-l">THE SURVEY</div>
+                    <div class="side-label r" id="lab-r">THE LAND</div>
+                    <div class="corner nw" id="cnw"></div><div class="corner ne" id="cne"></div>
+                    <div class="corner sw" id="csw"></div><div class="corner se" id="cse"></div>
+                </div>
+
+                <div class="acetate" id="acetate">
+                    <div class="a-label"><span>THE SHAPE OF THE DAY</span><span class="readout" id="a-readout"></span></div>
+                    <div class="a-chart" id="a-chart"><div class="a-hair" id="a-hair"></div><div class="a-dot" id="a-dot"></div></div>
+                    <div class="a-miles" id="a-miles"></div>
+                </div>
+
+                <div class="collar-bottom">
+                    <div class="legend">
+                        <div class="l1" id="legend-1"></div>
+                        <div class="l2" id="legend-2"></div>
+                    </div>
+                    <div class="scale-bar">
+                        <div class="bar"><i></i><i></i><i></i><i></i></div>
+                        <div class="t" id="scale-t"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="side">
+            <div class="card ledger">
+                <div class="k">Hike Almanac</div>
+                <table><tbody>
+                    <tr><td>Sunrise</td><td>6:12 AM</td></tr>
+                    <tr><td>Day's apex</td><td>100° · clear</td></tr>
+                    <tr><td>Sunset</td><td>8:55 PM</td></tr>
+                </tbody></table>
+                <div class="note">Canned for the mockup — the live page pulls the real day from Open-Meteo.</div>
+            </div>
+            <div class="card pad"><div class="k">Trail Notes</div><p id="notes-text"></p></div>
+            <div class="card slip" style="--r:0.9deg" id="slip-flora"></div>
+            <div class="card slip" style="--r:-0.8deg" id="slip-fauna"></div>
+            <div class="card trip-card" id="trip-card" style="display:none">
+                <div class="k">From the Expedition</div><a id="trip-link" href="#"></a>
+            </div>
+            <div class="links" id="links"></div>
+        </div>
+    </div>
+</div>
+
+<div class="lightbox" id="lightbox">
+    <button class="lb-close" id="lb-close" title="Close">&times;</button>
+    <button class="lb-btn lb-prev" id="lb-prev" title="Previous">&lsaquo;</button>
+    <div class="lb-frame">
+        <img id="lb-img" alt="Hike photo">
+        <div class="lb-plate"><span class="t" id="lb-title"></span><span id="lb-count"></span></div>
+    </div>
+    <button class="lb-btn lb-next" id="lb-next" title="Next">&rsaquo;</button>
+    <div class="lb-film" id="lb-film"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+(async function () {
+    const Q = new URLSearchParams(location.search);
+    const ID = Q.get('id') || 'tta_88';
+
+    const [hikes, gj, els] = await Promise.all([
+        fetch('../data/hikes.json').then(r => r.json()),
+        fetch('../data/trails.geojson').then(r => r.json()),
+        fetch('../data/elevations.json').then(r => r.json()),
+    ]);
+    const hike = hikes.find(h => h.trail_id === ID) || hikes.find(h => h.trail_id === 'tta_88') || hikes[0];
+    const feat = gj.features.find(f => f.properties.trail_id === hike.trail_id);
+    const profile = els[hike.trail_id] || null;
+    const year = hike.date_completed.slice(0, 4);
+    const INK = ATLAS_CONFIG.COLOR_MAP[year] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const num = hike.trail_id.replace('tta_', '');
+
+    const latlngs = [];
+    if (feat) {
+        const g = feat.geometry;
+        (g.type === 'MultiLineString' ? g.coordinates : [g.coordinates])
+            .forEach(part => part.forEach(([lng, lat]) => latlngs.push([lat, lng])));
+    }
+    const fmtDate = d => new Date(d + 'T00:00:00Z')
+        .toLocaleDateString('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+    const fmtN = n => n.toLocaleString('en-US');
+
+    /* ============ the collar ============ */
+    document.getElementById('c-kicker').textContent =
+        `THE TRAILPRINT ATLAS · SHEET NO. ${num} · ${hike.hike_type.toUpperCase()}`;
+    document.getElementById('c-title').textContent = hike.trail_name;
+    document.getElementById('c-sub').innerHTML =
+        `${hike.location} — ${hike.region} · ${fmtDate(hike.date_completed)}`;
+    const seal = document.getElementById('seal');
+    seal.innerHTML = atlasStampSvg(hike.hike_type);
+    seal.title = hike.hike_type;
+    seal.style.color = INK;
+
+    const crew = hike.hiked_with && hike.hiked_with.length ? hike.hiked_with.join(', ') : 'Solo';
+    const l1 = [`<b>${hike.miles} MILES</b>`, `<b>${fmtN(hike.elevation_gain)} FT</b> GAIN`];
+    if (hike.summit_trail && hike.summit_elevation) l1.push(`SUMMIT <b>${fmtN(hike.summit_elevation)} FT</b>`);
+    l1.push(`GRADE: ${hike.difficulty.toUpperCase()}`);
+    document.getElementById('legend-1').innerHTML = l1.join(' · ');
+    document.getElementById('legend-2').textContent =
+        `${hike.primary_geography} · Party: ${crew} · surveyed in the ${year} ink`;
+
+    /* ============ the two glasses: LOCKED ============ */
+    const LOCK = { attributionControl: false, zoomControl: false, dragging: false, touchZoom: false,
+        doubleClickZoom: false, scrollWheelZoom: false, boxZoom: false, keyboard: false,
+        tap: false, zoomSnap: 0, inertia: false };
+    const mapTopo = L.map('map-topo', LOCK);
+    const mapSat = L.map('map-sat', LOCK);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapTopo);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 }).addTo(mapSat);
+
+    const bounds = latlngs.length ? L.latLngBounds(latlngs) : null;
+    // frame as large as conceivable: tight padding, refit whenever the stage resizes
+    function frame() {
+        [mapTopo, mapSat].forEach(m => {
+            m.invalidateSize({ animate: false });
+            if (bounds) m.fitBounds(bounds, { padding: [26, 26], animate: false });
+            else m.setView([hike.latitude, hike.longitude], 15, { animate: false });
+        });
+        corners(); scaleBar();
+    }
+    window.addEventListener('resize', frame);
+
+    // the route ink, unbroken across the rail
+    if (latlngs.length) [mapTopo, mapSat].forEach(m => {
+        const poly = L.polyline(latlngs, { color: INK, weight: 4, opacity: 0.96 }).addTo(m);
+        const path = poly.getElement();
+        if (path && path.getTotalLength) {
+            const len = path.getTotalLength();
+            path.style.strokeDasharray = len; path.style.strokeDashoffset = len;
+            path.getBoundingClientRect();
+            path.style.transition = 'stroke-dashoffset 2.6s ease';
+            path.style.strokeDashoffset = 0;
+            setTimeout(() => { path.style.transition = 'none'; path.style.strokeDasharray = 'none'; }, 2900);
+        }
+        L.circleMarker(latlngs[0], { radius: 5, color: '#fffdf6', weight: 1.5, fillColor: INK, fillOpacity: 1 }).addTo(m);
+        L.marker(latlngs[0], { interactive: false, icon: L.divIcon({ className: '', iconSize: [24, 24], iconAnchor: [-8, 30],
+            html: `<span style="color:${INK};display:block;width:24px;height:24px">${atlasStampSvg(hike.hike_type)}</span>` }) }).addTo(m);
+    });
+
+    /* ---- corners + scale bar, honest to the frame ---- */
+    const dms = (v, isLat) => {
+        const h = isLat ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W');
+        const a = Math.abs(v), d = Math.floor(a), m = Math.floor((a - d) * 60), s = Math.round(((a - d) * 60 - m) * 60);
+        return `${d}°${String(m).padStart(2, '0')}′${String(s).padStart(2, '0')}″ ${h}`;
+    };
+    function corners() {
+        const b = mapTopo.getBounds();
+        document.getElementById('cnw').textContent = `${dms(b.getNorth(),1)} ${dms(b.getWest(),0)}`;
+        document.getElementById('cne').textContent = `${dms(b.getNorth(),1)} ${dms(b.getEast(),0)}`;
+        document.getElementById('csw').textContent = `${dms(b.getSouth(),1)} ${dms(b.getWest(),0)}`;
+        document.getElementById('cse').textContent = `${dms(b.getSouth(),1)} ${dms(b.getEast(),0)}`;
+    }
+    function scaleBar() {
+        const c = mapTopo.getCenter(), y = mapTopo.getSize().y / 2;
+        const west = mapTopo.containerPointToLatLng([0, y]), east = mapTopo.containerPointToLatLng([mapTopo.getSize().x, y]);
+        const miles = west.distanceTo(east) / 1609.34 * (112 / mapTopo.getSize().x);
+        const round = miles >= 1 ? Math.round(miles * 10) / 10 : Math.round(miles * 100) / 100;
+        document.getElementById('scale-t').textContent = `0 ————— ${round} MI`;
+    }
+
+    /* ============ the brass rail (drag) + tab-pulls (sweep) ============ */
+    const stage = document.getElementById('stage'), split = document.getElementById('split'),
+          topoWrap = document.getElementById('topo-wrap'),
+          tabT = document.getElementById('tab-topo'), tabA = document.getElementById('tab-aerial'),
+          labL = document.getElementById('lab-l'), labR = document.getElementById('lab-r');
+    let x = 58;
+    const apply = () => {
+        split.style.left = x + '%';
+        topoWrap.style.clipPath = `inset(0 ${100 - x}% 0 0)`;
+        labL.style.left = (x / 2) + '%';
+        labR.style.left = ((100 + x) / 2) + '%';
+        labL.style.opacity = x > 20 ? 1 : 0;
+        labR.style.opacity = x < 80 ? 1 : 0;
+        tabT.classList.toggle('on', x >= 50);
+        tabA.classList.toggle('on', x < 50);
+    };
+    const snap = to => {
+        split.classList.add('snap'); topoWrap.classList.add('snap');
+        x = to; apply();
+        setTimeout(() => { split.classList.remove('snap'); topoWrap.classList.remove('snap'); }, 760);
+    };
+    apply();
+    tabT.addEventListener('click', () => snap(96));
+    tabA.addEventListener('click', () => snap(4));
+    split.addEventListener('pointerdown', e => {
+        e.preventDefault(); split.setPointerCapture(e.pointerId);
+        split.classList.remove('snap'); topoWrap.classList.remove('snap');
+        const move = ev => {
+            const r = stage.getBoundingClientRect();
+            x = Math.min(98, Math.max(2, (ev.clientX - r.left) / r.width * 100)); apply();
+        };
+        const up = () => { split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); };
+        split.addEventListener('pointermove', move); split.addEventListener('pointerup', up);
+    });
+
+    /* ============ full-sheet ============ */
+    document.getElementById('full-btn').addEventListener('click', () => {
+        document.body.classList.toggle('sheet-full');
+        setTimeout(frame, 60);
+    });
+
+    /* ============ the acetate — bolted under the map ============ */
+    const acetate = document.getElementById('acetate'), chart = document.getElementById('a-chart');
+    if (profile && latlngs.length) {
+        const W = 1000, H = 96, PAD = 5, BASE = H - 4;
+        const mn = Math.min(...profile), mx = Math.max(...profile);
+        const X = i => PAD + (W - 2 * PAD) * i / (profile.length - 1);
+        const Y = v => BASE - (BASE - PAD) * (v - mn) / ((mx - mn) || 1);
+        const pts = profile.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ');
+        chart.insertAdjacentHTML('afterbegin',
+            `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+                <polygon points="${PAD},${BASE} ${pts} ${W - PAD},${BASE}" fill="${INK}" opacity="0.14"/>
+                <polyline points="${pts}" fill="none" stroke="${INK}" stroke-width="2" vector-effect="non-scaling-stroke"/>
+            </svg>`);
+        const milesEl = document.getElementById('a-miles');
+        for (let m = 0; m <= 4; m++) milesEl.insertAdjacentHTML('beforeend', `<span>MI ${(hike.miles * m / 4).toFixed(1)}</span>`);
+
+        const cum = [0];
+        for (let i = 1; i < latlngs.length; i++) {
+            const dx = (latlngs[i][1] - latlngs[i-1][1]) * Math.cos(latlngs[i][0] * Math.PI / 180),
+                  dy = latlngs[i][0] - latlngs[i-1][0];
+            cum.push(cum[i-1] + Math.sqrt(dx*dx + dy*dy));
+        }
+        const total = cum[cum.length - 1];
+        const ptAt = frac => {
+            const t = frac * total;
+            for (let i = 1; i < cum.length; i++) if (cum[i] >= t) {
+                const f = (t - cum[i-1]) / ((cum[i] - cum[i-1]) || 1);
+                return [latlngs[i-1][0] + (latlngs[i][0]-latlngs[i-1][0]) * f,
+                        latlngs[i-1][1] + (latlngs[i][1]-latlngs[i-1][1]) * f];
+            }
+            return latlngs[latlngs.length - 1];
+        };
+        const hair = document.getElementById('a-hair'), dot = document.getElementById('a-dot'),
+              readout = document.getElementById('a-readout');
+        // a walker on BOTH glasses, so it's visible whichever side of the rail you're on
+        const wT = L.circleMarker(latlngs[0], { radius: 6.5, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1 }),
+              wS = L.circleMarker(latlngs[0], { radius: 6.5, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1 });
+        acetate.addEventListener('mousemove', e => {
+            const r = chart.getBoundingClientRect();
+            const frac = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+            const i = frac * (profile.length - 1), lo = Math.floor(i),
+                  elev = Math.round(profile[lo] + (profile[Math.min(lo + 1, profile.length - 1)] - profile[lo]) * (i - lo));
+            hair.style.visibility = dot.style.visibility = readout.style.visibility = 'visible';
+            hair.style.left = dot.style.left = (frac * 100) + '%';
+            dot.style.top = ((BASE - (BASE - PAD) * (elev - mn) / ((mx - mn) || 1)) / H * r.height) + 'px';
+            readout.textContent = `MILE ${(frac * hike.miles).toFixed(1)} · ${fmtN(elev)} FT`;
+            const p = ptAt(frac); wT.setLatLng(p); wS.setLatLng(p);
+            if (!mapTopo.hasLayer(wT)) { wT.addTo(mapTopo); wS.addTo(mapSat); }
+        });
+        acetate.addEventListener('mouseleave', () => {
+            hair.style.visibility = dot.style.visibility = readout.style.visibility = 'hidden';
+            if (mapTopo.hasLayer(wT)) { mapTopo.removeLayer(wT); mapSat.removeLayer(wS); }
+        });
+    } else { acetate.style.display = 'none'; }
+
+    frame();
+
+    /* ============ the slides + the lightbox ============ */
+    const imgs = hike.images || [];
+    const strip = document.getElementById('slide-strip');
+    document.getElementById('slides-n').textContent = `${imgs.length} FRAMES`;
+    imgs.forEach((id, i) => {
+        strip.insertAdjacentHTML('beforeend',
+            `<div class="slide" data-i="${i}">
+                <img src="${cloudinaryUrl(id, 'w_420,h_280,c_fill,q_auto,f_auto')}" alt="Frame ${i + 1}">
+                <div class="glass"></div>
+                <div class="no">${String(i + 1).padStart(2, '0')}</div>
+             </div>`);
+    });
+
+    const lb = document.getElementById('lightbox'), lbImg = document.getElementById('lb-img'),
+          lbCount = document.getElementById('lb-count'), lbTitle = document.getElementById('lb-title'),
+          lbFilm = document.getElementById('lb-film');
+    imgs.forEach((id, i) => lbFilm.insertAdjacentHTML('beforeend',
+        `<i data-i="${i}" style="background-image:url('${cloudinaryUrl(id, 'w_120,h_84,c_fill,q_auto,f_auto')}')"></i>`));
+    let cur = 0;
+    const preload = i => { if (imgs[i]) new Image().src = cloudinaryUrl(imgs[i], 'w_1800,q_auto,f_auto'); };
+    function show(i) {
+        cur = (i + imgs.length) % imgs.length;
+        lbImg.classList.remove('in');
+        const next = new Image();
+        next.onload = () => { lbImg.src = next.src; lbImg.classList.add('in'); };
+        next.src = cloudinaryUrl(imgs[cur], 'w_1800,q_auto,f_auto');
+        if (next.complete) next.onload();
+        lbTitle.textContent = hike.trail_name.toUpperCase();
+        lbCount.textContent = `FRAME ${String(cur + 1).padStart(2, '0')} OF ${String(imgs.length).padStart(2, '0')}`;
+        lbFilm.querySelectorAll('i').forEach(el => el.classList.toggle('on', +el.dataset.i === cur));
+        preload(cur + 1); preload(cur - 1);
+    }
+    const open = i => { lb.classList.add('on'); show(i); };
+    const close = () => lb.classList.remove('on');
+    strip.addEventListener('click', e => { const s = e.target.closest('.slide'); if (s) open(+s.dataset.i); });
+    lbFilm.addEventListener('click', e => { if (e.target.dataset.i) show(+e.target.dataset.i); });
+    document.getElementById('lb-next').addEventListener('click', () => show(cur + 1));
+    document.getElementById('lb-prev').addEventListener('click', () => show(cur - 1));
+    document.getElementById('lb-close').addEventListener('click', close);
+    lb.addEventListener('click', e => { if (e.target === lb) close(); });
+    document.addEventListener('keydown', e => {
+        if (!lb.classList.contains('on')) {
+            if (e.key === 'Escape' && document.body.classList.contains('sheet-full')) {
+                document.body.classList.remove('sheet-full'); setTimeout(frame, 60);
+            }
+            return;
+        }
+        if (e.key === 'Escape') close();
+        if (e.key === 'ArrowRight') show(cur + 1);
+        if (e.key === 'ArrowLeft') show(cur - 1);
+    });
+
+    /* ============ the paperwork ============ */
+    document.getElementById('notes-text').textContent = hike.description ||
+        'The field notes for this sheet are still being written.';
+    const slipify = (el, kicker, text) => {
+        if (!text) { el.style.display = 'none'; return; }
+        const cut = text.indexOf(' — ');
+        const head = cut > 0 ? text.slice(0, cut) : '', body = cut > 0 ? text.slice(cut + 3) : text;
+        const m = head.match(/^(.*?)\s*\((.*)\)\s*$/);
+        el.innerHTML = `<div class="k">${kicker}</div>` + (m
+            ? `<b>${m[1]}</b> <span class="latin">(${m[2]})</span> — ${body}`
+            : (head ? `<b>${head}</b> — ${body}` : body));
+    };
+    slipify(document.getElementById('slip-flora'), 'Flora · pressed specimen', hike.flora);
+    slipify(document.getElementById('slip-fauna'), 'Fauna · field sighting', hike.fauna);
+    if (hike.trip_tag) {
+        document.getElementById('trip-card').style.display = '';
+        const a = document.getElementById('trip-link');
+        a.textContent = hike.trip_tag + ' →';
+        a.href = '../trip.html?tag=' + encodeURIComponent(hike.trip_tag);
+    }
+    const links = document.getElementById('links');
+    if (hike.all_trails_url) links.insertAdjacentHTML('beforeend', `<a href="${hike.all_trails_url}" target="_blank" rel="noopener">AllTrails ↗</a>`);
+    if (hike.official_trail_url) links.insertAdjacentHTML('beforeend', `<a href="${hike.official_trail_url}" target="_blank" rel="noopener">Official trail page ↗</a>`);
+
+    /* ============ the ruler (parked) ============ */
+    const ruler = document.getElementById('ruler');
+    const times = hikes.map(h => Date.parse(h.date_completed));
+    const tMin = Math.min(...times), tMax = Math.max(...times);
+    const fr = t => 1 + 98 * (t - tMin) / ((tMax - tMin) || 1);
+    const y0 = new Date(tMin).getUTCFullYear(), y1 = new Date(tMax).getUTCFullYear();
+    for (let y = y0; y <= y1; y++) {
+        const t = Date.UTC(y, 0, 1); if (t < tMin || t > tMax) continue;
+        ruler.insertAdjacentHTML('beforeend',
+            `<div class="r-ytick" style="left:${fr(t)}%"></div><div class="r-ylabel" style="left:${fr(t)}%">${y}</div>`);
+    }
+    hikes.forEach(h => {
+        const yc = ATLAS_CONFIG.COLOR_MAP[h.date_completed.slice(0, 4)] || ATLAS_CONFIG.DEFAULT_COLOR;
+        ruler.insertAdjacentHTML('beforeend',
+            `<a class="r-hike" href="?id=${h.trail_id}" style="left:${fr(Date.parse(h.date_completed))}%;background:${yc}"
+                title="${h.trail_name.replace(/"/g, '&quot;')} · ${fmtDate(h.date_completed)}"></a>`);
+    });
+    ruler.insertAdjacentHTML('beforeend', `<div class="r-now" style="left:${fr(Date.parse(hike.date_completed))}%"></div>`);
+    document.getElementById('ruler-now-label').textContent = `▼ this sheet · ${fmtDate(hike.date_completed)}`;
+})();
+</script>
+</body>
+</html>

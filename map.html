@@ -132,6 +132,15 @@
         <!-- the veil: every expedition cut happens behind it, and it lifts
              only when the tile sheets report themselves loaded -->
         <div class="veil" id="veil"><div class="veil-text" id="veil-text"></div></div>
+
+        <!-- THE SURVEYOR'S CHAIN: the map's scrolling, time-proportional
+             timeline (July 2026). scripts/atlas-chain.js builds the whole
+             instrument inside this one element — the mountainscape, the
+             marks, the trip brackets, the centre playhead. It is the Atlas's
+             one clock: scroll it to scrub time and un-ink the land, click a
+             mark to raise its sheet. A thin year-ink ribbon at rest; hover to
+             rise. Spec + engine proven in mockups/spine-chain.html. -->
+        <div class="atlas-chain" id="atlas-chain"></div>
     </div>
 
     <!-- Leaflet JS -->
@@ -145,6 +154,9 @@
 
    <!-- Our new shared trail renderer -->
    <script src="scripts/trail-renderer.js"></script>
+
+   <!-- The Surveyor's Chain — the map's scrolling timeline engine -->
+   <script src="scripts/atlas-chain.js"></script>
 
    <!-- Our custom map script -->
    <script src="scripts/map.js"></script>

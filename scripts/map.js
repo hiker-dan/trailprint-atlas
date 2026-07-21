@@ -45,6 +45,18 @@ const updateIconVisibility = () => {
 map.on('zoomend', updateIconVisibility);
 updateIconVisibility();
 
+// --- Zoom performance: shed the compositing stack while the camera scales ---
+// The Atlas outfit stacks two mix-blend-mode:multiply layers (the parchment
+// wash + the hillshade) and two CSS-filtered sheets over the whole viewport.
+// At rest that stack is the whole look; but a blend forces the browser to
+// re-rasterize the entire blended region on every animation frame, so during
+// a zoom — when the tiles are already scaling and blurred — it drops frames.
+// We hide the blended/filtered layers only while zooming (a class the CSS
+// keys off) and restore them the instant it settles. Instant both ways
+// (visibility/display, not opacity) so there is no warm-up fade afterward.
+map.on('zoomstart', () => map.getContainer().classList.add('map-zooming'));
+map.on('zoomend', () => map.getContainer().classList.remove('map-zooming'));
+
 // ===========================================================================
 // The basemap wardrobe. Three outfits, all pre-added at opacity 0 and
 // crossfaded (the .fadeable-tile-layer transition), never swapped:
@@ -220,6 +232,7 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
             const trailCount = allHikesData.filter(g => !isViewpoint(g[0])).length;
             sub.textContent = `${data.length - vps} hikes · ${vps} viewpoints · ${trailCount} trails`;
         }
+        bootSpine(data);
         if (FOCUS_STATE) zoomToState(FOCUS_STATE);
         pendingFocusState = '';
         // ?leg=N lands instantly on an expedition leg, world rendered to that
@@ -609,6 +622,12 @@ function applyReveal() {
         // holdLegId keeps the leg being drawn off the land until it lands
         applyTrailInk(ref);
         if (ref.row) ref.row.classList.toggle('future', ref.firstLegIx > inkIx);
+    }
+    // the chain dims every mark ahead of the moment, in lockstep with the ink.
+    // Naming the newest inked hike lets it reveal same-day trip siblings one at
+    // a time (by leg order), instead of a whole day lighting on its shared date.
+    if (typeof AtlasChain !== 'undefined') {
+        AtlasChain.setReveal(nowT, inkIx >= 0 && legs[inkIx] ? legs[inkIx].h.trail_id : null);
     }
     const d = new Date(Math.min(nowT, t1));
     const readout = document.getElementById('deck-readout');
@@ -1066,8 +1085,11 @@ function restoreLandState() {
         inkIx = Math.max(0, Math.min(legs.length - 1, s.inkIx));
         legIx = inkIx;
         nowT = legs[inkIx].t;
-        syncScrub();
         applyReveal();
+        // the chain is the clock: park it on the restored moment so returning
+        // from a hike page resumes exactly where the animation stood, not the
+        // whole-Atlas end. ('auto' scroll suppresses its own onScrub feedback.)
+        if (typeof AtlasChain !== 'undefined') AtlasChain.scrollToHike(legs[inkIx].h.trail_id, 'auto');
     }
     if (s.sheet && hikesById[s.sheet] && layerReferences[hikesById[s.sheet].trail_name]) {
         const h = hikesById[s.sheet];
@@ -1099,6 +1121,47 @@ function restoreLandState() {
         map.setView([s.lat, s.lng], s.zoom, { animate: false });
     }
     return true;
+}
+
+// ===========================================================================
+// THE SURVEYOR'S CHAIN — the map's one clock (scripts/atlas-chain.js). Scrolling
+// it scrubs nowT and un-inks the land; clicking a mark raises that sheet. The
+// deck's year-banded scrub retires; its plaque + transport stay as the console.
+// The chain is self-contained: map.js only plugs into it at these seams —
+// bootSpine (init), syncScrub (scrollToTime), applyReveal (setReveal),
+// restoreLandState (scrollToTime), start/endExpedition (forceOpen).
+// ===========================================================================
+function bootSpine(hikes) {
+    if (typeof AtlasChain === 'undefined' || !document.getElementById('atlas-chain')) return;
+    AtlasChain.init({
+        container: 'atlas-chain',
+        hikes,
+        onSelect: (h) => {
+            const ref = layerReferences[h.trail_name];
+            if (ref) raiseSheet(ref, h);
+        },
+        onScrub: (t) => {
+            // the engine owns the clock during cinema; a raised sheet has
+            // pinned its own moment — otherwise the centre of the chain IS nowT
+            if (mode !== 'free' || playing || sheetHikeId) return;
+            scrubRevealToTime(t);
+        }
+    });
+    // sync the initial reveal (opens on the present, everything inked)
+    AtlasChain.setReveal(nowT, legs.length ? legs[legs.length - 1].h.trail_id : null);
+}
+
+/** Scrub the reveal to a moment: ink every leg walked at or before it. Legs
+    are time-sorted, so the last one at or before `t` is the newest visible. */
+function scrubRevealToTime(t) {
+    const tt = Math.max(t0, Math.min(t1, t));
+    let ix = -1;
+    for (let i = 0; i < legs.length; i++) { if (legs[i].t <= tt) ix = i; else break; }
+    inkIx = Math.max(0, ix);
+    legIx = inkIx;
+    nowT = tt;
+    holdLegId = null;
+    applyReveal();
 }
 
 // --- Framing: fit a trail into the open space beside the card + deck.
@@ -1262,6 +1325,9 @@ const yearColorOf = h => ATLAS_CONFIG.COLOR_MAP[String(hikeYear(h))] || ATLAS_CO
 
 function setCinema(on) {
     document.querySelector('.map-shell').classList.toggle('cinema', on);
+    // the chain holds open as the playhead through cinema, and releases to its
+    // idle collapse when the film ends or the visitor takes the wheel
+    if (typeof AtlasChain !== 'undefined') AtlasChain.forceOpen(on);
 }
 
 // --- the veil: every cut happens behind it, and it lifts only when the
@@ -1271,10 +1337,21 @@ function waitTiles(timeout = 2600) {
         requestAnimationFrame(() => {
             const pending = ALL_TILE_LAYERS.filter(l => (l.options.opacity || 0) > 0 && l.isLoading());
             if (!pending.length) return res();
-            let n = pending.length;
-            const done = () => { if (--n === 0) res(); };
-            pending.forEach(l => l.once('load', done));
-            setTimeout(res, timeout);
+            // Clean up on BOTH paths: a `once('load')` that never fires (the
+            // common case when the timeout wins) stays wired to the tile layer
+            // forever, and across an expedition's ~100 veil cuts those dangling
+            // listeners pile up. Register with on/off and always detach.
+            let n = pending.length, settled = false;
+            const finish = () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                pending.forEach(l => l.off('load', done));
+                res();
+            };
+            const done = () => { if (--n === 0) finish(); };
+            pending.forEach(l => l.on('load', done));
+            const timer = setTimeout(finish, timeout);
         });
     });
 }
@@ -1432,8 +1509,10 @@ function syncThreads(ix) {
         }
     }
 }
-/** The Expedition Line: trailhead to trailhead, exactly where you went. */
-async function drawJourneyLine(a, b, tk) {
+/** The Expedition Line: trailhead to trailhead, exactly where you went. The
+    chain's playhead rides the SAME eased progress (fromId → toId), so the
+    dashed line and the timeline cross the gap between chapters in lockstep. */
+async function drawJourneyLine(a, b, tk, fromId = null, toId = null) {
     const pts = threadPts(a, b);
     const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false, pane: 'threadPane' }).addTo(threadGroup);
     const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1, pane: 'threadPane' }).addTo(map);
@@ -1445,6 +1524,9 @@ async function drawJourneyLine(a, b, tk) {
         const upto = Math.max(1, Math.round(e * pts.length));
         line.setLatLngs(pts.slice(0, upto));
         pen.setLatLng(pts[Math.min(upto, pts.length - 1)]);
+        // only while the film is rolling: a manual step already parked the chain
+        // on the target, so re-animating it would snap the playhead backward
+        if (fromId && toId && playing && typeof AtlasChain !== 'undefined') AtlasChain.scrollBetween(fromId, toId, e);
         t >= 1 ? res() : requestAnimationFrame(f);
     })(t0ms));
     map.removeLayer(pen);
@@ -1557,7 +1639,7 @@ async function ceremony(prevIx, ix, tk) {
     await waitTiles(); if (tk !== expToken) return;
     await veilOut(); if (tk !== expToken) return;
     if (threadAt.has(ix)) { threadGroup.removeLayer(threadAt.get(ix)); threadAt.delete(ix); }
-    const line = await drawJourneyLine(a, b, tk);
+    const line = await drawJourneyLine(a, b, tk, legs[prevIx].h.trail_id, legs[ix].h.trail_id);
     threadAt.set(ix, line);
     if (tk !== expToken) return;
     await sleep(420); if (tk !== expToken) return;
@@ -1804,6 +1886,12 @@ function updateDeck() {
 function syncScrub() {
     const scrub = document.getElementById('timeline-scrub');
     if (scrub) scrub.value = Math.max(0, legIx);
+    // During the expedition the chain IS the playhead: scroll it to follow the
+    // leg being drawn, so the now-line and the date plate travel as the ink is
+    // laid. onScrub is gated off during cinema, so this can't feed back.
+    if (mode === 'expedition' && legIx >= 0 && legs[legIx] && typeof AtlasChain !== 'undefined') {
+        AtlasChain.scrollToHike(legs[legIx].h.trail_id, 'smooth');   // by identity: lands on THIS mark
+    }
 }
 
 function buildTimelineChrome() {

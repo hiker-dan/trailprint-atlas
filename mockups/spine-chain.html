@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Surveyor's Chain</title>
+<!-- Root-relative paths: borrows the real config + data. -->
+<base href="../">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+    @font-face { font-family:'National Park'; src:url('assets/fonts/national-park-variable.woff2') format('woff2'); font-weight:200 800; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('assets/fonts/alegreya-sans-400.woff2') format('woff2'); font-weight:400; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('assets/fonts/alegreya-sans-700.woff2') format('woff2'); font-weight:700; font-display:swap; }
+    @font-face { font-family:'Alegreya Sans'; src:url('assets/fonts/alegreya-sans-italic-400.woff2') format('woff2'); font-weight:400; font-style:italic; font-display:swap; }
+
+    :root {
+        --ink:#2f5c40; --stone:#6f6a58; --paper:#fffdf6; --paper-edge:#d8ccae;
+        --charcoal:#3d3a30; --brass-hi:#cfae6e; --brass:#a5854a; --brass-lo:#7a5f36;
+        --spine-bg:#1f2b1d; --bone:#e8dcbe;
+        --font-display:'National Park','Trebuchet MS',sans-serif;
+        --font-body:'Alegreya Sans',Georgia,serif;
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; height:100%; overflow:hidden; font-family:var(--font-body); color:var(--charcoal); }
+
+    #map { position:fixed; inset:0; background:#ece3ce; }
+    .parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+        opacity:0.40; z-index:300; pointer-events:none; }
+
+    .cheap { position:fixed; z-index:6000; left:50%; transform:translateX(-50%); top:10px; max-width:880px;
+        background:rgba(47,60,40,0.93); color:#f2ead8; font-size:11.5px; font-style:italic;
+        padding:7px 16px; border-radius:9px; line-height:1.5; text-align:center; box-shadow:0 4px 14px rgba(0,0,0,0.4); }
+    .cheap b { font-style:normal; color:var(--brass-hi); }
+
+    .wordmark { position:fixed; top:60px; left:26px; z-index:400; pointer-events:none; color:#4a4436; opacity:0.85; }
+    .wordmark-title { font-family:var(--font-display); font-weight:700; font-size:19px; letter-spacing:3px; text-transform:uppercase; }
+    .wordmark-sub { font-size:11px; font-style:italic; letter-spacing:1px; margin-top:2px; }
+
+    /* ============================================================
+       Two separate instruments (per Danny, July 2026):
+       1. THE CONSOLE — readout + transport. Always available;
+          dims like the rest of the map chrome when idle.
+       2. THE TIMELINE — the scrolling, time-proportional chain.
+          Collapses to a thin ribbon when idle (no dimming);
+          expands only while in use, giving the map its air back.
+       Both read one clock, derived from the chain's scroll.
+       ============================================================ */
+
+    /* --- the console (floating, dims when idle) --- */
+    .console { position:fixed; left:14px; bottom:84px; z-index:5001; width:252px; display:flex;
+        border-radius:10px; overflow:hidden; opacity:0.6; transition:opacity 0.3s ease;
+        background:linear-gradient(168deg, #26331f, var(--spine-bg) 60%, #182219);
+        border:1px solid var(--brass-lo); box-shadow:0 6px 22px rgba(15,22,12,0.5), inset 0 1px 0 rgba(232,220,190,0.09); }
+    .console:hover, .console.lit { opacity:1; }
+    .readout { flex:1; padding:10px 12px 9px; position:relative; overflow:hidden; min-width:0;
+        background:linear-gradient(160deg, rgba(207,174,110,0.06), transparent); }
+    .ro-kicker { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+    .ro-date { font-family:var(--font-display); font-weight:700; font-size:9px; letter-spacing:2px;
+        color:var(--brass-hi); flex-shrink:0; }
+    .ro-trip { font-family:var(--font-display); font-weight:700; font-size:7.5px; letter-spacing:1px;
+        text-transform:uppercase; color:var(--brass); min-width:0; white-space:nowrap; overflow:hidden;
+        text-overflow:ellipsis; text-align:right; }
+    .ro-title { font-family:var(--font-display); font-weight:700; font-size:14px; line-height:1.14;
+        color:var(--bone); margin-top:4px; min-height:32px; display:-webkit-box; -webkit-line-clamp:2;
+        -webkit-box-orient:vertical; overflow:hidden; }
+    .ro-loc { font-size:10.5px; color:rgba(232,220,190,0.6); font-style:italic; margin-top:2px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ro-foot { margin-top:7px; display:flex; gap:13px; align-items:baseline; }
+    .ro-foot .v { font-family:var(--font-display); font-weight:700; font-size:12.5px; color:var(--bone); white-space:nowrap; }
+    .ro-foot .v small { display:block; font-family:var(--font-body); font-weight:400; font-size:7.5px;
+        letter-spacing:1.3px; text-transform:uppercase; color:rgba(232,220,190,0.5); }
+    .transport { flex:0 0 46px; display:flex; align-items:center; justify-content:center;
+        border-left:1px solid rgba(207,174,110,0.22); }
+    .play-btn { width:32px; height:32px; border-radius:50%; border:1px solid var(--brass-lo); cursor:pointer;
+        background:radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, var(--brass-lo));
+        box-shadow:0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,240,200,0.5);
+        color:#2a2313; font-size:12px; line-height:30px; text-align:center; padding:0; }
+    .play-btn:hover { filter:brightness(1.1); }
+
+    /* --- the timeline (collapses when idle, never dims) --- */
+    .timeline { position:fixed; left:14px; right:14px; bottom:0; z-index:5000; height:13px;
+        border-radius:9px 9px 0 0; overflow:hidden;
+        background:linear-gradient(178deg, #26331f, var(--spine-bg) 60%, #17211a);
+        border:1px solid var(--brass-lo); border-bottom:none;
+        box-shadow:0 -3px 18px rgba(15,22,12,0.42), inset 0 1px 0 rgba(232,220,190,0.08);
+        transition:height 0.4s cubic-bezier(.33,0,.15,1); }
+    .timeline.open { height:74px; }
+
+    /* the collapsed teaser: the year-ink strata ribbon (always full opacity) */
+    .strata { position:absolute; left:12px; right:12px; top:4px; height:5px; border-radius:3px;
+        overflow:hidden; display:flex; transition:opacity 0.22s ease 0.06s; }
+    .strata div { height:100%; }
+    .timeline.open .strata { opacity:0; transition-delay:0s; }
+    .strata-notch { position:absolute; top:3px; width:2px; height:7px; background:var(--brass-hi);
+        border-radius:1px; box-shadow:0 0 4px rgba(207,174,110,0.85); transition:opacity 0.2s; }
+    .timeline.open .strata-notch { opacity:0; }
+
+    .timeline-wrap { position:absolute; inset:0; opacity:0; transition:opacity 0.24s ease; pointer-events:none; }
+    .timeline.open .timeline-wrap { opacity:1; transition-delay:0.08s; pointer-events:auto; }
+    /* the old atlas mountainscape behind the chain — two ranges at different
+       parallax speeds for depth, seamless repeat-x, kept faint over the green */
+    .tl-scape { position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden; }
+    .tl-scape .range { position:absolute; inset:0; background-repeat:repeat-x; background-position:left bottom;
+        background-image:url("assets/landscapes/timeline-landscape-fall.svg"); will-change:background-position; }
+    .tl-scape .far  { background-size:auto 210%; filter:grayscale(1) brightness(2.1); opacity:0.07; }
+    .tl-scape .near { background-size:auto 150%; filter:grayscale(1) brightness(1.85); opacity:0.13; }
+    .tl-viewport { position:absolute; inset:0; overflow-x:auto; overflow-y:hidden; cursor:grab; scrollbar-width:none; z-index:1; }
+    .tl-viewport::-webkit-scrollbar { display:none; }
+    .tl-viewport.grabbing { cursor:grabbing; }
+    .tl-track { position:relative; height:100%; }
+
+    /* lanes: pill (top) · dots+bracket (middle) · axis (bottom) */
+    .tl-dot { position:absolute; top:32px; width:9px; height:9px; margin:-4.5px; border-radius:50%;
+        border:1.4px solid #f2ead8; cursor:pointer; transition:transform 0.12s ease, box-shadow 0.12s ease; }
+    .tl-dot::after { content:''; position:absolute; inset:-7px; border-radius:50%; }
+    .tl-dot:hover { transform:scale(1.4); box-shadow:0 0 9px rgba(242,234,216,0.5); z-index:3; }
+    .tl-dot.viewpoint { background:var(--spine-bg) !important; }
+    .tl-dot.future { opacity:0.3; }
+
+    .tl-bracket { position:absolute; top:38px; height:12px; border:1.6px solid; border-top:none;
+        border-radius:0 0 7px 7px; pointer-events:none; opacity:0.85; }
+    .tl-bracket.future { opacity:0.28; }
+    .tl-fill { position:absolute; top:27px; height:16px; border-radius:8px; opacity:0.10; pointer-events:none; }
+
+    .tl-year { position:absolute; bottom:5px; transform:translateX(-50%); font-family:var(--font-display);
+        font-weight:700; font-size:12px; letter-spacing:2px; filter:brightness(1.7); }
+    .tl-yline { position:absolute; top:24px; bottom:18px; width:1px; background:rgba(232,220,190,0.26); }
+    .tl-mo { position:absolute; bottom:6px; transform:translateX(-50%); font-family:var(--font-display);
+        font-size:7px; letter-spacing:1px; color:rgba(232,220,190,0.4); }
+    .tl-mtick { position:absolute; top:44px; height:4px; width:1px; background:rgba(232,220,190,0.14); }
+
+    /* fixed centre playhead + date pill (own top lane — no overlap) */
+    .playhead { position:absolute; left:50%; top:0; bottom:0; width:0; z-index:6; pointer-events:none; }
+    .ph-line { position:absolute; left:-0.8px; top:20px; bottom:16px; width:1.6px; background:var(--brass-hi);
+        box-shadow:0 0 6px rgba(207,174,110,0.5); }
+    .ph-head { position:absolute; left:-4px; top:14px; width:0; height:0;
+        border-left:4px solid transparent; border-right:4px solid transparent; border-top:7px solid var(--brass-hi); }
+    .ph-pill { position:absolute; top:2px; left:50%; transform:translateX(-50%); white-space:nowrap;
+        background:#141d12; border:1px solid var(--brass-lo); border-radius:3px; padding:0 8px;
+        font-family:var(--font-display); font-weight:700; font-size:9px; letter-spacing:1px; color:var(--bone); }
+    .tl-fade { position:absolute; top:0; bottom:0; width:30px; z-index:5; pointer-events:none; }
+    .tl-fade.l { left:0; background:linear-gradient(90deg, #1d281b, transparent); }
+    .tl-fade.r { right:0; background:linear-gradient(-90deg, #1d281b, transparent); }
+
+    /* the sheet stub — proves the click-through only */
+    .stub { position:fixed; top:74px; right:16px; width:250px; z-index:5500; background:var(--paper);
+        border:1px solid var(--paper-edge); border-radius:8px; box-shadow:0 10px 32px rgba(30,25,10,0.4);
+        padding:12px 14px; transform:translateX(290px); transition:transform 0.4s cubic-bezier(.3,0,.2,1); }
+    .stub.on { transform:none; }
+    .stub-kicker { font-family:var(--font-display); font-size:8.5px; letter-spacing:3px; color:var(--brass-lo); text-transform:uppercase; }
+    .stub-photo { width:100%; height:118px; object-fit:cover; border-radius:4px; margin:8px 0; background:#e5ddc8; }
+    .stub-title { font-family:var(--font-display); font-weight:700; font-size:15px; line-height:1.25; }
+    .stub-note { font-size:10.5px; font-style:italic; color:var(--stone); margin-top:7px; line-height:1.45; }
+    .stub-close { position:absolute; top:6px; right:9px; border:none; background:none; cursor:pointer; color:var(--stone); font-size:13px; }
+</style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="parchment"></div>
+
+    <div class="wordmark">
+        <div class="wordmark-title">The Trailprint Atlas</div>
+        <div class="wordmark-sub">mockup · the Surveyor's Chain</div>
+    </div>
+
+    <div class="cheap"><b>THE CONSOLE + THE CHAIN.</b> The console (lower-left) is always there and dims when idle;
+        it names the hike under the line and holds ▸. The chain sleeps as a thin ribbon and <b>rises only when you
+        reach for it</b> — hover it, then swipe/drag to scrub. Same-day hikes always stand apart; trips wear a brass
+        bracket; everything ahead of the line stays dimmed. Click a mark for its Field Log.</div>
+
+    <div class="console" id="console">
+        <div class="readout">
+            <div class="ro-kicker"><div class="ro-date" id="ro-date">—</div><div class="ro-trip" id="ro-trip"></div></div>
+            <div class="ro-title" id="ro-title">—</div>
+            <div class="ro-loc" id="ro-loc"></div>
+            <div class="ro-foot" id="ro-foot"></div>
+        </div>
+        <div class="transport"><button class="play-btn" id="play-btn" title="Ride the expedition">▶</button></div>
+    </div>
+
+    <div class="timeline" id="timeline">
+        <div class="strata" id="strata"></div>
+        <div class="strata-notch" id="strata-notch"></div>
+        <div class="timeline-wrap">
+            <div class="tl-scape" id="tl-scape">
+                <div class="range far" id="scape-far"></div>
+                <div class="range near" id="scape-near"></div>
+            </div>
+            <div class="tl-viewport" id="tl-viewport"><div class="tl-track" id="tl-track"></div></div>
+            <div class="tl-fade l"></div><div class="tl-fade r"></div>
+            <div class="playhead">
+                <div class="ph-pill" id="ph-pill">—</div>
+                <div class="ph-head"></div><div class="ph-line"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="stub" id="stub"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="scripts/config.js"></script>
+<script>
+(async function () {
+    'use strict';
+    const DAY = 86400000;
+    const [hikesRaw, geo] = await Promise.all([
+        fetch('data/hikes.json').then(r => r.json()),
+        fetch('data/trails.geojson').then(r => r.json())
+    ]);
+
+    // ---- data prep --------------------------------------------------------
+    const num = id => parseInt(id.split('_')[1], 10);
+    const hikes = hikesRaw.slice().sort((a, b) =>
+        (Date.parse(a.date_completed) - Date.parse(b.date_completed)) || (num(a.trail_id) - num(b.trail_id)));
+    hikes.forEach((h, i) => {
+        h.t = Date.parse(h.date_completed + 'T00:00:00Z');
+        h.year = new Date(h.t).getUTCFullYear();
+        h.inkColor = ATLAS_CONFIG.COLOR_MAP[h.year] || ATLAS_CONFIG.DEFAULT_COLOR;
+        h.ix = i;
+    });
+    const H = hikes.length;
+    const geomById = {};
+    geo.features.forEach(f => { geomById[f.properties.trail_id] = f.geometry.coordinates; });
+
+    const trips = [];
+    for (let i = 0; i < H; ) {
+        const tag = hikes[i].trip_tag;
+        if (!tag) { i++; continue; }
+        let j = i; while (j < H && hikes[j].trip_tag === tag) j++;
+        trips.push({ tag, name: tag.replace(/\s*-\s*\w+ \d{4}$/, ''), hikes: hikes.slice(i, j) });
+        i = j;
+    }
+    const tripOfHike = {};
+    trips.forEach(tr => tr.hikes.forEach(h => { tripOfHike[h.trail_id] = tr; }));
+
+    const t0 = hikes[0].t, tLast = hikes[H - 1].t;
+
+    // ---- the land ---------------------------------------------------------
+    const map = L.map('map', { zoomControl:false, dragging:false, scrollWheelZoom:false,
+        doubleClickZoom:false, boxZoom:false, keyboard:false, touchZoom:false, attributionControl:false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png').addTo(map);
+    map.fitBounds(L.latLngBounds(hikes.filter(h => h.latitude).map(h => [h.latitude, h.longitude])).pad(0.06));
+    const canvas = L.canvas({ padding: 0.3 });
+    const layersById = {};
+    hikes.forEach(h => {
+        const group = [];
+        const coords = geomById[h.trail_id];
+        if (coords) group.push(L.polyline(coords.map(c => [c[1], c[0]]),
+            { color: h.inkColor, weight: 2, opacity: 0.9, renderer: canvas }));
+        if (h.latitude) group.push(L.circleMarker([h.latitude, h.longitude],
+            { radius: 3.2, color: '#fffdf6', weight: 1, fillColor: h.inkColor, fillOpacity: 1, renderer: canvas }));
+        layersById[h.trail_id] = { layers: group, on: false };
+    });
+
+    let nowT = tLast;
+    function applyReveal() {
+        hikes.forEach(h => {
+            const rec = layersById[h.trail_id], want = h.t <= nowT + DAY / 2;
+            if (want && !rec.on) { rec.layers.forEach(l => l.addTo(map)); rec.on = true; }
+            else if (!want && rec.on) { rec.layers.forEach(l => map.removeLayer(l)); rec.on = false; }
+            if (h.dotEl) h.dotEl.classList.toggle('future', !want);
+        });
+        trips.forEach(tr => tr.bracketEl.classList.toggle('future', !(tr.hikes[0].t <= nowT + DAY / 2)));
+    }
+
+    // ---- the scrolling, time-proportional chain --------------------------
+    const timeline = document.getElementById('timeline');
+    const viewport = document.getElementById('tl-viewport');
+    const track = document.getElementById('tl-track');
+    const PX_PER_DAY = 5;                       // compact + proportional; tunable
+    // spacing floors so nothing overlaps — SAME-DAY hikes are guaranteed apart
+    const gapBefore = (prev, h) => {
+        if (!prev) return 0;
+        if (prev.date_completed === h.date_completed) return 14;   // same day → clearly separate
+        const a = tripOfHike[prev.trail_id], b = tripOfHike[h.trail_id];
+        if (a && a === b) return 11;             // same trip → tight cluster
+        if (a || b) return 17;                    // trip boundary → clear break
+        return 12;                                // lone ↔ lone
+    };
+
+    let PAD = 0, totalW = 0;
+    // The clock is derived from the ACTUAL laid-out dot positions (piecewise
+    // linear between them), so the centre line and the ink can never drift:
+    // a dot sits under the line exactly when nowT equals that dot's date.
+    const timeToX = t => {
+        if (t <= t0) return hikes[0].x;
+        if (t >= tLast) return hikes[H - 1].x;
+        let i = 0; while (i < H - 1 && hikes[i + 1].t <= t) i++;
+        const a = hikes[i], b = hikes[i + 1], dt = b.t - a.t;
+        return dt ? a.x + (t - a.t) / dt * (b.x - a.x) : a.x;
+    };
+    const xToTime = cx => {
+        if (cx <= hikes[0].x) return t0;
+        if (cx >= hikes[H - 1].x) return tLast;
+        let i = 0; while (i < H - 1 && hikes[i + 1].x <= cx) i++;
+        const a = hikes[i], b = hikes[i + 1], dx = b.x - a.x;
+        return dx ? a.t + (cx - a.x) / dx * (b.t - a.t) : a.t;
+    };
+    const timeAtCenter = () => xToTime(viewport.scrollLeft + viewport.clientWidth / 2);
+    const scrollForTime = t => timeToX(t) - viewport.clientWidth / 2;
+
+    // grid + trips + dots: structure placed once, positions set in layout()
+    const monthEls = [];
+    { const frag = document.createDocumentFragment();
+      const d = new Date(t0); d.setUTCDate(1); d.setUTCHours(0,0,0,0);
+      while (d.getTime() <= tLast + 40 * DAY) {
+        const t = Math.max(t0, d.getTime());
+        if (d.getUTCMonth() === 0) {
+            const line = document.createElement('div'); line.className = 'tl-yline';
+            const lbl = document.createElement('div'); lbl.className = 'tl-year';
+            lbl.textContent = d.getUTCFullYear(); lbl.style.color = ATLAS_CONFIG.COLOR_MAP[d.getUTCFullYear()] || '#999';
+            frag.append(line, lbl); monthEls.push({ t, line, lbl });
+        } else {
+            const tick = document.createElement('div'); tick.className = 'tl-mtick';
+            let lbl = null;
+            if (d.getUTCMonth() % 3 === 0) {
+                lbl = document.createElement('div'); lbl.className = 'tl-mo';
+                lbl.textContent = d.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+                frag.append(lbl);
+            }
+            frag.append(tick); monthEls.push({ t, tick, lbl });
+        }
+        d.setUTCMonth(d.getUTCMonth() + 1);
+      } track.appendChild(frag); }
+
+    trips.forEach(tr => {
+        tr.fillEl = document.createElement('div'); tr.fillEl.className = 'tl-fill';
+        tr.fillEl.style.background = tr.hikes[0].inkColor;
+        tr.bracketEl = document.createElement('div'); tr.bracketEl.className = 'tl-bracket';
+        tr.bracketEl.style.borderColor = tr.hikes[0].inkColor;
+        track.append(tr.fillEl, tr.bracketEl);
+    });
+    hikes.forEach(h => {
+        const dot = document.createElement('div');
+        dot.className = 'tl-dot' + (h.hike_type === 'Viewpoint' ? ' viewpoint' : '');
+        dot.style.background = h.inkColor;
+        dot.addEventListener('mouseenter', () => { hoverHike = h; renderReadout(h); });
+        dot.addEventListener('mouseleave', () => { hoverHike = null; renderReadout(playheadHike()); });
+        dot.addEventListener('click', e => { e.stopPropagation(); raiseStub(h); });
+        h.dotEl = dot; track.appendChild(dot);
+    });
+
+    function layout() {
+        PAD = viewport.clientWidth;
+        // proportional base, then a min-gap sweep so nothing can overlap
+        let prev = null;
+        hikes.forEach(h => {
+            const base = PAD / 2 + (h.t - t0) / DAY * PX_PER_DAY;
+            h.x = prev ? Math.max(base, prev.x + gapBefore(prev, h)) : PAD / 2;
+            prev = h;
+        });
+        totalW = hikes[H - 1].x + PAD / 2;
+        track.style.width = totalW + 'px';
+        // grid rides the SAME mapping as the dots, so year lines sit correctly among them
+        monthEls.forEach(m => {
+            const x = timeToX(m.t);
+            if (m.line) m.line.style.left = x + 'px';
+            if (m.tick) m.tick.style.left = x + 'px';
+            if (m.lbl) m.lbl.style.left = x + 'px';
+        });
+        hikes.forEach(h => { h.dotEl.style.left = h.x + 'px'; });
+        trips.forEach(tr => {
+            const a = tr.hikes[0].x, b = tr.hikes[tr.hikes.length - 1].x, r = 7;
+            tr.fillEl.style.left = (a - r) + 'px'; tr.fillEl.style.width = (b - a + 2 * r) + 'px';
+            tr.bracketEl.style.left = (a - r) + 'px'; tr.bracketEl.style.width = (b - a + 2 * r) + 'px';
+        });
+    }
+
+    // ---- the readout (updates on scroll, hover, and play) ----------------
+    const roDate = document.getElementById('ro-date'), roTitle = document.getElementById('ro-title'),
+          roLoc = document.getElementById('ro-loc'), roFoot = document.getElementById('ro-foot'),
+          roTrip = document.getElementById('ro-trip'), phPill = document.getElementById('ph-pill'),
+          consoleEl = document.getElementById('console'), notch = document.getElementById('strata-notch');
+    let hoverHike = null;
+    const playheadHike = () => { let h = null; for (const x of hikes) { if (x.t <= nowT + DAY / 2) h = x; else break; } return h; };
+
+    function renderReadout(h) {
+        const pd = new Date(nowT).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
+        phPill.textContent = pd;
+        if (!h) { roDate.textContent = pd; roTitle.textContent = 'Before the first trailprint';
+            roLoc.textContent = ''; roFoot.innerHTML = ''; roTrip.textContent = ''; return; }
+        roDate.textContent = new Date(h.t).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
+        roTitle.textContent = h.trail_name;
+        roLoc.textContent = h.location;
+        const tr = tripOfHike[h.trail_id]; roTrip.textContent = tr ? tr.name : '';
+        roFoot.innerHTML = h.hike_type === 'Viewpoint'
+            ? `<div class="v" style="font-size:11px">Viewpoint<small>a scenic stop</small></div>`
+            : `<div class="v">${h.miles}<small>miles</small></div>
+               <div class="v">${(h.elevation_gain||0).toLocaleString()}<small>ft gain</small></div>
+               <div class="v">${h.difficulty}<small>grade</small></div>`;
+    }
+
+    let rafPend = null;
+    function onScroll() {
+        nowT = Math.max(t0, Math.min(tLast, timeAtCenter()));
+        applyReveal();
+        renderReadout(hoverHike || playheadHike());
+        notch.style.left = (12 + (nowT - t0) / (tLast - t0) * (timeline.clientWidth - 24)) + 'px';
+        scapeFar.style.backgroundPositionX = (-viewport.scrollLeft * 0.12) + 'px';    // far range drifts slowly
+        scapeNear.style.backgroundPositionX = (-viewport.scrollLeft * 0.30) + 'px';   // near range keeps pace
+    }
+    viewport.addEventListener('scroll', () => { if (!rafPend) rafPend = requestAnimationFrame(() => { rafPend = null; onScroll(); }); });
+
+    // ---- expand/collapse the chain on intent -----------------------------
+    let openT = null, closeT = null, playing = false, dragging = false;
+    function openChain() { clearTimeout(closeT); if (!openT) openT = setTimeout(() => { timeline.classList.add('open'); openT = null; }, 70); }
+    function scheduleCollapse() {
+        clearTimeout(closeT);
+        closeT = setTimeout(() => {
+            if (playing || dragging || timeline.matches(':hover')) { scheduleCollapse(); return; }
+            timeline.classList.remove('open');
+        }, 600);
+    }
+    timeline.addEventListener('mouseenter', openChain);
+    timeline.addEventListener('mouseleave', () => { clearTimeout(openT); openT = null; scheduleCollapse(); });
+
+    // wheel over the chain scrubs it; drag grabs it
+    timeline.addEventListener('wheel', e => {
+        e.preventDefault(); stopPlay(); openChain();
+        viewport.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
+    }, { passive: false });
+    let dragX = 0, dragS = 0;
+    viewport.addEventListener('mousedown', e => { dragging = true; dragX = e.clientX; dragS = viewport.scrollLeft;
+        viewport.classList.add('grabbing'); stopPlay(); });
+    window.addEventListener('mousemove', e => { if (dragging) viewport.scrollLeft = dragS - (e.clientX - dragX); });
+    window.addEventListener('mouseup', () => { dragging = false; viewport.classList.remove('grabbing'); });
+
+    // ---- the sheet stub (proves the click-through only) ------------------
+    const stub = document.getElementById('stub');
+    function raiseStub(h) {
+        const img = (h.images && h.images[0])
+            ? `<img class="stub-photo" src="${cloudinaryUrl(h.images[0], 'w_500,h_240,c_fill,q_auto,f_auto')}">` : '';
+        stub.innerHTML = `<button class="stub-close" onclick="this.parentNode.classList.remove('on')">✕</button>
+            <div class="stub-kicker">The sheet rises here</div>${img}
+            <div class="stub-title">${h.trail_name}</div>
+            <div class="ro-loc" style="color:var(--stone)">${new Date(h.t).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric',timeZone:'UTC'})} · ${h.location}</div>
+            <div class="stub-note">In the build, clicking a mark raises the real sheet — the abbreviated Light Table
+            with its living acetate. The chain also glides that hike to the centre line, so the clock and the sheet agree.</div>`;
+        stub.classList.add('on');
+        openChain(); viewport.scrollTo({ left: scrollForTime(h.t), behavior: 'smooth' });
+    }
+
+    // ---- ride the expedition ---------------------------------------------
+    const playBtn = document.getElementById('play-btn');
+    let playRaf = null;
+    function stopPlay() { playing = false; if (playRaf) cancelAnimationFrame(playRaf); playRaf = null;
+        playBtn.textContent = '▶'; consoleEl.classList.remove('lit'); scheduleCollapse(); }
+    function startPlay() {
+        playing = true; playBtn.textContent = '❚❚'; consoleEl.classList.add('lit'); timeline.classList.add('open');
+        let i = hikes.findIndex(h => h.t > nowT + DAY / 2);
+        if (i < 0) { i = 0; viewport.scrollLeft = scrollForTime(t0); }
+        let fromS = viewport.scrollLeft, toS = scrollForTime(hikes[i].t), start = performance.now();
+        const SEG = 600;
+        const frame = now => {
+            if (!playing) return;
+            const k = Math.min(1, (now - start) / SEG), e = k * k * (3 - 2 * k);
+            viewport.scrollLeft = fromS + (toS - fromS) * e;
+            if (k >= 1) {
+                if (++i >= H) { stopPlay(); return; }
+                fromS = viewport.scrollLeft; toS = scrollForTime(hikes[i].t); start = now;
+            }
+            playRaf = requestAnimationFrame(frame);
+        };
+        playRaf = requestAnimationFrame(frame);
+    }
+    playBtn.addEventListener('click', () => { playing ? stopPlay() : startPlay(); });
+
+    // ---- the mountainscape (flair): two ranges, far drifts slower --------
+    const scapeFar = document.getElementById('scape-far'), scapeNear = document.getElementById('scape-near');
+
+    // ---- strata ribbon (collapsed teaser): width by hikes per year -------
+    { const strata = document.getElementById('strata'), byYear = {};
+      hikes.forEach(h => byYear[h.year] = (byYear[h.year] || 0) + 1);
+      Object.keys(byYear).sort().forEach(y => {
+          const seg = document.createElement('div');
+          seg.style.width = (byYear[y] / H * 100) + '%';
+          seg.style.background = ATLAS_CONFIG.COLOR_MAP[y];
+          strata.appendChild(seg);
+      }); }
+
+    // ---- boot + resize ---------------------------------------------------
+    function boot() { layout(); viewport.scrollLeft = scrollForTime(tLast); onScroll(); }
+    window.addEventListener('resize', () => { const t = nowT; layout(); viewport.scrollLeft = scrollForTime(t); onScroll(); });
+    boot();
+    applyReveal();
+})();
+</script>
+</body>
+</html>

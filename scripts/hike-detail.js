@@ -900,20 +900,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ===================== the doors to the land ===================== */
     // OUT: this trail, standing on the land — the map arrives with its sheet
     // already risen on this very hike.
-    function wireLandDoor(hike) {
-        $('land-door').href = `map.html?sheet=${hike.trail_id}`;
+    // Did the visitor step through from the map? (the sessionStorage handshake
+    // map.js wrote, still fresh) — then "back" must restore the land exactly.
+    function cameFromMap() {
+        try {
+            const s = JSON.parse(sessionStorage.getItem('atlasLandState'));
+            return !!(s && s.at && Date.now() - s.at < 6 * 3600 * 1000);
+        } catch (e) { return false; }
     }
-    // BACK: every road back must lead to the same place. When the visitor
-    // stepped through from the map (sessionStorage handshake, written by
-    // map.js), the return chip appears AND the nav's own "Interactive Map"
-    // link is rewritten to carry ?restore=land — so the chip, the nav, and
-    // the browser's back button all restore the land exactly: camera,
-    // timeline moment, basemap, risen sheet.
+    // BACK is the ONE "See on the Land" door (its back-arrow signals the return).
+    // From the map, it carries ?restore=land — camera, timeline moment, basemap,
+    // risen sheet, all put back exactly. Arriving cold (a shared link, the
+    // Logbook), it just opens the map onto this trail's sheet.
+    function wireLandDoor(hike) {
+        $('land-door').href = cameFromMap() ? 'map.html?restore=land' : `map.html?sheet=${hike.trail_id}`;
+    }
+    // The nav's "Interactive Map" link and the browser's back button lead to the
+    // same restored land when the visitor came from there.
     (function wireReturnDoors() {
-        let state = null;
-        try { state = JSON.parse(sessionStorage.getItem('atlasLandState')); } catch (e) { /* no door */ }
-        if (!(state && state.at && Date.now() - state.at < 6 * 3600 * 1000)) return;
-        $('return-chip').style.display = 'flex';
+        if (!cameFromMap()) return;
         const navMapLink = document.querySelector('#top-bar-container a[href="map.html"]');
         if (navMapLink) navMapLink.href = 'map.html?restore=land';
     })();

@@ -70,8 +70,9 @@
                             <div class="c-trip" id="c-trip"></div>
                         </div>
                         <div class="ct-right">
-                            <a class="land-door" id="land-door" href="map.html" title="See this trail standing on the land">
-                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+                            <a class="land-door" id="land-door" href="map.html" title="Back to the map — see this trail on the land">
+                                <svg class="ld-back" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 5l-7 7 7 7M6 12h13"/></svg>
+                                <svg class="ld-map" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
                                 <span>SEE ON<br>THE LAND</span>
                             </a>
                             <button class="full-btn" id="full-btn" title="Give the map the whole table (Esc to return)" aria-label="Expand the map">
@@ -158,11 +159,6 @@
     <!-- The door back: appears only when the visitor stepped through from the
          map — it returns the land exactly as they left it (camera, moment,
          basemap, risen sheet) via the sessionStorage handshake. -->
-    <a class="return-chip" id="return-chip" href="map.html?restore=land" style="display:none">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6 8 12l6 6"/><path d="M20 4v16"/></svg>
-        <span><span class="rt">RETURN TO THE LAND</span><br>
-        <span class="rs">the map is where you left it</span></span>
-    </a>
 
     <!-- The lightbox: photos as gloriously as they deserve -->
     <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Photo viewer">

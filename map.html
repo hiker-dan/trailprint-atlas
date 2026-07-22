@@ -133,6 +133,13 @@
              only when the tile sheets report themselves loaded -->
         <div class="veil" id="veil"><div class="veil-text" id="veil-text"></div></div>
 
+        <!-- the resume cue: a quiet nudge, shown only after you step off the
+             tour early, pointing you back to any trail to pick the film up -->
+        <div class="resume-cue" id="resume-cue" aria-live="polite">
+            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z"/></svg>
+            <span>The expedition is paused &mdash; open any trail to pick it up from there</span>
+        </div>
+
         <!-- THE SURVEYOR'S CHAIN: the map's scrolling, time-proportional
              timeline (July 2026). scripts/atlas-chain.js builds the whole
              instrument inside this one element — the mountainscape, the

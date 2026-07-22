@@ -34,17 +34,6 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
    as ink pressed into the page, crisp to z16 */
 .hillshade-multiply { mix-blend-mode: multiply; }
 
-/* While the camera is scaling (map.js adds .map-zooming for the zoom's
-   duration), shed the cheapest-to-lose parts of the compositing stack — the
-   full-viewport parchment MULTIPLY wash and the tile CSS filters — which force
-   a whole-region re-rasterize on every zoom frame. The terrain hillshade STAYS
-   (losing it flattens the map too visibly); the wash's warmth returns the
-   instant the zoom settles. display/filter (never opacity) keep the restore
-   instant, with no warm-up fade afterward. */
-.map-zooming .parchment-wash { display: none; }
-.map-zooming .atlas-labels,
-.map-zooming .basemap-soften { filter: none; }
-
 /* Style for fading tile layers */
 .fadeable-tile-layer { transition: opacity 0.5s ease-in-out !important; }
 
@@ -234,11 +223,17 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .lg-loc { font-size: 10.5px; font-style: italic; color: var(--stone); margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lg-stats { font-size: 11px; color: var(--charcoal); }
 .lg-with { font-size: 10.5px; color: var(--stone); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the plaque's door — the compact kin of the sheet's .ms-bridge, styled like
+   the hike page's small "See on the Land" door: a brass-framed cream button
+   that inverts to ink on hover */
 .lg-log {
-    display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--trail-green); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
+    padding: 4px 11px; font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #24401f; background: #fbf6e6;
+    border: 1px solid #a5854a; border-radius: 5px; text-decoration: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
-.lg-log:hover { text-decoration: underline; }
+.lg-log:hover { background: #24401f; color: #fbf6e6; }
 .deck-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
 /* the chapter readout stacks OVER the transport row so the console stays narrow
    instead of spreading them across a wide bar. Both parts of the readout stack
@@ -427,7 +422,7 @@ a.fc-open-log:hover { background-color: #3d684a; text-decoration: none; }
     background: #fffdf6; border: 1px solid #d8ccae; border-bottom: none;
     border-radius: 6px 6px 0 0;
     box-shadow: 0 -8px 40px rgba(20, 15, 5, 0.45);
-    padding: 0 22px 18px;
+    padding: 0 22px;
     font-family: var(--font-body);
 }
 /* the sheet beneath, peeking from the stack */
@@ -435,14 +430,50 @@ a.fc-open-log:hover { background-color: #3d684a; text-decoration: none; }
     content: ''; position: absolute; inset: 0 -5px 0 auto; width: 5px;
     background: #efe6c9; border: 1px solid #d8ccae; z-index: -1;
 }
+/* a real trailing spacer box, NOT container padding-bottom — a scroll
+   container drops its own bottom padding at the scroll end (Chrome included),
+   so the last element (the field-log door) would tuck under the condensed
+   timeline ribbon that rides over the sheet's foot. A laid-out box always
+   contributes its height, so this clears the ribbon reliably. */
+.ms-sheet::after { content: ''; display: block; height: 42px; }
 
 /* while the sheet is up, the console chrome steps aside (the sheet covers
-   the rail's column anyway; a half-hidden deck reads as a bug) */
+   the rail's column anyway; a half-hidden deck reads as a bug). The finder
+   goes with them: it sits top-left over the very strip the trail frames into,
+   so leaving it up clips tall trails (Lake Hollywood's dam tip vanished under
+   it) — and you're reading one hike now, not searching. */
 body.sheet-open .deck,
+body.sheet-open .finder,
 body.sheet-open .control-rail { opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
 
+/* the timeline is the Atlas's spine — a raised sheet must never chop it in
+   half. While reading, the chain rides OVER the sheet as its slim year-ink
+   ribbon (Danny: "let the timeline sit on top"), running unbroken across the
+   foot of the screen. It stays tucked — scrubbing is disabled while a sheet is
+   up, so it never needs to expand under it — while its dots stay clickable to
+   leaf between hikes. */
+body.sheet-open .atlas-chain { z-index: 2100; height: 13px; }
+
+/* the resume cue: a quiet top-centre nudge shown only after you step off the
+   tour early (JS adds .show), pointing you back to any trail to pick it up */
+.resume-cue {
+    position: absolute; z-index: 1400; left: 50%; top: 14px;
+    transform: translateX(-50%) translateY(-10px);
+    display: flex; align-items: center; gap: 9px; white-space: nowrap;
+    padding: 8px 17px; border-radius: 999px;
+    background: rgba(20, 30, 18, 0.92); color: #ece3ce; border: 1px solid #7a5f36;
+    font-family: var(--font-display); font-size: 11px; letter-spacing: 0.05em;
+    box-shadow: 0 5px 20px rgba(15, 22, 12, 0.42);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.resume-cue svg { flex: 0 0 auto; width: 12px; height: 12px; fill: #cfae6e; }
+.resume-cue.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* the two sheet actions stack in a right-aligned column; the title block flows
+   to their left, so "Play from here" costs no extra vertical line */
+.ms-actions { float: right; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; margin: 10px -4px 6px 14px; }
 .ms-lower {
-    position: sticky; top: 10px; z-index: 6; float: right; margin: 10px -4px 0 12px;
     display: flex; align-items: center; gap: 7px; padding: 6px 13px; cursor: pointer;
     border: 1px solid #a5854a; border-radius: 5px; background: #fbf6e6; color: #24401f;
     font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
@@ -460,6 +491,19 @@ body.sheet-open .control-rail { opacity: 0; pointer-events: none; transition: op
 }
 .ms-sub { font-size: 12.5px; font-style: italic; color: #6f6a58; margin-top: 4px; }
 .ms-with { font-size: 12px; color: #6f6a58; margin-top: 2px; }
+/* "Play from here" — the doorway INTO the film (vs. the cream doors that lead
+   to other pages). A filled evergreen action so it reads as "this sets the map
+   in motion," with a play glyph. Sits under "Lower the sheet" in the stack. */
+.ms-play {
+    display: flex; align-items: center; gap: 7px; cursor: pointer;
+    padding: 6px 13px; background: #24401f; color: #f3ecd8;
+    border: 1px solid #1b3016; border-radius: 5px;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em; white-space: nowrap;
+    box-shadow: 0 1px 4px rgba(20, 30, 18, 0.25);
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.ms-play svg { width: 10px; height: 10px; fill: #cfae6e; }
+.ms-play:hover { background: #2f5c40; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(20, 30, 18, 0.32); }
 
 /* repeat visits: the sheet's date stamps re-fill it in place */
 .ms-visits { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 9px 0 1px; }
@@ -513,21 +557,25 @@ body.sheet-open .control-rail { opacity: 0; pointer-events: none; transition: op
 .ms-ff { margin: 0 0 12px; font-size: 11.5px; line-height: 1.55; color: #6f6a58; }
 .ms-ff b { color: #24401f; }
 
+/* The bridge to the full hike page — the other face of the hike page's own
+   "Return to the Land" door, so it wears the same coin: cream paper, a brass
+   frame with a brass spine, an icon that steps through, and the two-line
+   display/italic label. (The lt-/brass palette lives in hike.css, which this
+   page doesn't load, so the values are inlined to match exactly.) */
 .ms-bridge {
-    display: inline-block; font-family: var(--font-display); font-size: 10px;
-    letter-spacing: 0.16em; color: #2f5c40; font-weight: 700; text-decoration: none;
-    border-bottom: 1.5px solid rgba(47, 92, 64, 0.35); padding-bottom: 2px;
+    display: flex; align-items: center; gap: 13px;
+    margin-top: 20px; padding: 13px 18px; text-decoration: none;
+    background: #fffdf6;
+    border: 1px solid #a5854a; border-left: 4px solid #a5854a; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(20, 15, 5, 0.22);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
-.ms-bridge:hover { border-bottom-color: #2f5c40; }
-
-/* --- the ink steps aside for the flight ---
-   Leaflet CSS-scales vector strokes during a zoom animation, so a 5px trail
-   flying from continental zoom to z15 briefly becomes a screen-filling slab
-   of color. During a framing flight the trail pane dims to a ghost and the
-   ink fades back in on landing — arrival reads as the ink settling onto the
-   land instead of a smear correcting itself. */
-.leaflet-mainTrail-pane { transition: opacity 0.4s ease; }
-.ink-flight .leaflet-mainTrail-pane { opacity: 0.1; }
+.ms-bridge svg { flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: #7a5f36; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.25s ease; }
+.ms-bridge-copy { display: flex; flex-direction: column; gap: 2px; text-align: left; }
+.ms-bridge-main { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.2em; color: #24401f; }
+.ms-bridge-sub { font-size: 11.5px; font-style: italic; color: #6f6a58; }
+.ms-bridge:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(20, 15, 5, 0.3); }
+.ms-bridge:hover svg { transform: translateX(4px); }
 
 /* --- an undeveloped slide on the sheet: same "developing on the light box"
    treatment as the hike page's strip, so a cold Cloudinary cache never

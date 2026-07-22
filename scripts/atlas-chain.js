@@ -33,7 +33,7 @@ const AtlasChain = (() => {
     let t0 = 0, tLast = 1;
     let PAD = 0, totalW = 0;
     let onScrubCb = null, onSelectCb = null;
-    let ready = false, forcedOpen = false, suppressScrub = false;
+    let ready = false, forcedOpen = false, suppressScrub = false, locked = false;
     let openTimer = null, closeTimer = null, rafPend = null;
 
     const inkOf = h => ATLAS_CONFIG.COLOR_MAP[String(new Date(h.t).getUTCFullYear())] || ATLAS_CONFIG.DEFAULT_COLOR;
@@ -169,7 +169,7 @@ const AtlasChain = (() => {
             dot.addEventListener('mouseenter', () => focusTrip(tripOfHike[h.trail_id] || null));
             dot.addEventListener('mouseleave', () => { if (!forcedOpen) focusTrip(null); });
             dot.addEventListener('mousedown', e => e.stopPropagation());   // a mark is a select, not a scrub
-            dot.addEventListener('click', e => { e.stopPropagation(); if (onSelectCb) onSelectCb(h); });
+            dot.addEventListener('click', e => { e.stopPropagation(); if (!locked && onSelectCb) onSelectCb(h); });
             h.dotEl = dot; track.appendChild(dot);
         });
 
@@ -228,8 +228,15 @@ const AtlasChain = (() => {
                 cutoff != null ? orderOf[fh.trail_id] > cutoff : fh.t > nowT + DAY / 2);
         });
         // the pill is owned by onScroll (the viewport centre) so it glides
-        // cleanly as the chain follows a leg; here we only move the strata notch
-        notch.style.left = (12 + (Math.min(nowT, tLast) - t0) / (tLast - t0 || 1) * (root.clientWidth - 24)) + 'px';
+        // cleanly as the chain follows a leg; here we only move the strata notch.
+        // The notch rides the SAME count-proportional axis as the strata ribbon
+        // (each year's band is sized by its hike count, not its calendar span), so
+        // it lands exactly on the band of the hike you're on — a time-proportional
+        // notch drifted off the colored bands and never sat where you left off.
+        let frac;
+        if (cutoff != null) frac = cutoff < 0 ? 0 : (cutoff + 0.5) / H;
+        else { let n = 0; while (n < H && hikes[n].t <= nowT + DAY / 2) n++; frac = (n - 0.5) / H; }
+        notch.style.left = (12 + Math.max(0, Math.min(1, frac)) * (root.clientWidth - 24)) + 'px';
     }
 
     // -- trips: reveal the name on focus (hover / active leg) -----------------
@@ -269,6 +276,7 @@ const AtlasChain = (() => {
 
     // -- collapse / expand on intent (never dims) ----------------------------
     function openChain() {
+        if (locked) return;
         clearTimeout(closeTimer);
         if (!openTimer && !root.classList.contains('open'))
             openTimer = setTimeout(() => { root.classList.add('open'); openTimer = null; }, 70);
@@ -287,11 +295,13 @@ const AtlasChain = (() => {
         });
         // wheel over the chain scrubs it horizontally; drag grabs it
         root.addEventListener('wheel', e => {
+            if (locked) return;
             e.preventDefault(); openChain();
             viewport.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY);
         }, { passive: false });
         let dragging = false, dragX = 0, dragS = 0;
         viewport.addEventListener('mousedown', e => {
+            if (locked) return;
             dragging = true; dragX = e.clientX; dragS = viewport.scrollLeft;
             viewport.classList.add('grabbing');
         });
@@ -373,6 +383,13 @@ const AtlasChain = (() => {
         else scheduleCollapse();
     }
 
-    return { init, scrollToTime, scrollToHike, scrollBetween, timeAtCenter, setReveal, forceOpen,
+    // Lock the chain to its static condensed ribbon (used while a sheet is up):
+    // no expand, no scrub, no drag — just the year-ink strip showing your spot.
+    function setLocked(on) {
+        locked = on;
+        if (on) { clearTimeout(openTimer); openTimer = null; clearTimeout(closeTimer); root.classList.remove('open'); }
+    }
+
+    return { init, scrollToTime, scrollToHike, scrollBetween, timeAtCenter, setReveal, forceOpen, setLocked,
         get ready() { return ready; } };
 })();

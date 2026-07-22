@@ -34,6 +34,16 @@ map.getPane('mainTrailPane').style.zIndex = 450;
 map.createPane('threadPane');
 map.getPane('threadPane').style.zIndex = 430;
 
+// Wide-padding vector renderers. Leaflet's default per-pane SVG renderer only
+// draws a thin margin beyond the viewport (padding 0.1), so a quick pan or a
+// zoom runs the trail ink off the edge of its own canvas and it visibly swims
+// against the basemap until the next re-render. A generous buffer keeps the
+// whole surrounding neighborhood of ink laid out, so the trails (and the
+// viewpoint dots) stay locked to the land as you move and zoom around. Shared
+// per pane so there is exactly one SVG each, not one per trail.
+const trailRenderer = L.svg({ pane: 'mainTrailPane', padding: 0.5 });
+const threadRenderer = L.svg({ pane: 'threadPane', padding: 0.5 });
+
 // --- Zoom-aware stamp reveal ---
 // Below this zoom the engraved stamps fold back into their trailhead dots
 // (via CSS on .stamp-seat) so the trailprints own the wide view; the stamps
@@ -45,18 +55,6 @@ const updateIconVisibility = () => {
 map.on('zoomend', updateIconVisibility);
 updateIconVisibility();
 
-// --- Zoom performance: shed the compositing stack while the camera scales ---
-// The Atlas outfit stacks two mix-blend-mode:multiply layers (the parchment
-// wash + the hillshade) and two CSS-filtered sheets over the whole viewport.
-// At rest that stack is the whole look; but a blend forces the browser to
-// re-rasterize the entire blended region on every animation frame, so during
-// a zoom — when the tiles are already scaling and blurred — it drops frames.
-// We hide the blended/filtered layers only while zooming (a class the CSS
-// keys off) and restore them the instant it settles. Instant both ways
-// (visibility/display, not opacity) so there is no warm-up fade afterward.
-map.on('zoomstart', () => map.getContainer().classList.add('map-zooming'));
-map.on('zoomend', () => map.getContainer().classList.remove('map-zooming'));
-
 // ===========================================================================
 // The basemap wardrobe. Three outfits, all pre-added at opacity 0 and
 // crossfaded (the .fadeable-tile-layer transition), never swapped:
@@ -67,15 +65,24 @@ map.on('zoomend', () => map.getContainer().classList.remove('map-zooming'));
 //               read like a 2010s embed.
 //   Satellite — the real ground, with place names.
 // ===========================================================================
-// Tiles load EAGERLY (Leaflet's defaults): requests go out while the camera
-// is still moving, so free roaming feels immediate — deferring until idle
-// was tried with the old camera flights and made every pan trail bare paper.
-// The expedition never sees churn either way: its cuts happen behind the
-// veil, with prefetchTiles() warming each landing. keepBuffer holds a wide
-// apron of loaded tiles so small pans never reveal the paper beneath.
+// Tile loading is tuned for smooth MANUAL roaming — the camera never flies on
+// its own any more (navigation cuts behind the veil), so the old "load eagerly
+// through every level of a flight" reasoning is retired. Two knobs:
+//   updateWhenIdle:false   — a PAN requests tiles immediately, so dragging the
+//                            map never trails bare paper behind the cursor.
+//   updateWhenZooming:false — but a ZOOM holds its requests until the wheel
+//                            settles. Spinning fast used to fire a whole fresh
+//                            tile set at every level it flew through (z10, 11,
+//                            12, 13…), each arriving half-loaded and pruned
+//                            before the next — that was the patchwork churn.
+//                            Now the current tiles simply scale (a clean, brief
+//                            blur) and one crisp sheet loads at the level you
+//                            land on.
+// keepBuffer holds a wide apron of loaded tiles so small pans never reveal the
+// paper beneath; the z6 underlays mean a zoom never bottoms out on blank page.
 const TILE = (url, opts = {}) => L.tileLayer(url, {
     className: 'fadeable-tile-layer', opacity: 0, attribution: '',
-    updateWhenIdle: false, updateWhenZooming: true, keepBuffer: 8, ...opts
+    updateWhenIdle: false, updateWhenZooming: false, keepBuffer: 8, ...opts
 });
 const VOYAGER_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
 const HILLSHADE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
@@ -233,6 +240,10 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
             sub.textContent = `${data.length - vps} hikes · ${vps} viewpoints · ${trailCount} trails`;
         }
         bootSpine(data);
+        // the resting console previews the newest outing (a live named card, not
+        // the blank ledger) so the deck reads as a preview from first paint. A
+        // ?leg/?sheet/?restore boot below overrides it with its own hike.
+        if (legs.length) previewPlaque(legs[legs.length - 1].h);
         if (FOCUS_STATE) zoomToState(FOCUS_STATE);
         pendingFocusState = '';
         // ?leg=N lands instantly on an expedition leg, world rendered to that
@@ -428,14 +439,14 @@ function buildTrailRef(hikesForTrail) {
         if (segs) {
             segs.forEach(ll => {
                 ll.forEach(p => allPts.push(p));
-                lines.push(L.polyline(ll, { color: col, weight: 5, opacity: 0.85, baseOpacity: 0.85, pane: 'mainTrailPane' }));
+                lines.push(L.polyline(ll, { color: col, weight: 5, opacity: 0.85, baseOpacity: 0.85, pane: 'mainTrailPane', renderer: trailRenderer }));
             });
         } else if (typeof h.latitude === 'number') {
             // a viewpoint's ink is its dot — always visible, unlike the
             // zoom-gated icon above it
             allPts.push([h.latitude, h.longitude]);
             lines.push(L.circleMarker([h.latitude, h.longitude],
-                { radius: 4.5, color: '#fffdf6', weight: 1.5, fillColor: col, fillOpacity: 0.95, opacity: 1, baseOpacity: 1, pane: 'mainTrailPane' }));
+                { radius: 4.5, color: '#fffdf6', weight: 1.5, fillColor: col, fillOpacity: 0.95, opacity: 1, baseOpacity: 1, pane: 'mainTrailPane', renderer: trailRenderer }));
         } else {
             return;
         }
@@ -840,9 +851,14 @@ function buildSheetHtml(sorted, rep) {
             <div class="no">${String(i + 1).padStart(2, '0')}</div></div>`).join('');
     const ff = [sheetFfLine(rep.flora), sheetFfLine(rep.fauna)].filter(Boolean).join('<br>');
     return `
-        <button class="ms-lower" type="button" title="Lower the sheet (Esc)">
-            <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg> LOWER THE SHEET
-        </button>
+        <div class="ms-actions">
+            <button class="ms-lower" type="button" title="Lower the sheet (Esc)">
+                <svg viewBox="0 0 12 12"><path d="M2 4l4 4 4-4"/></svg> LOWER THE SHEET
+            </button>
+            <button class="ms-play" type="button" title="Watch the expedition roll on from this hike">
+                <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 2l7 4-7 4z"/></svg> PLAY FROM HERE
+            </button>
+        </div>
         <div class="ms-collar">
             <div class="ms-kicker">THE TRAILPRINT ATLAS · SHEET NO. ${rep.trail_id.replace('tta_', '')} · ${rep.hike_type.toUpperCase()}</div>
             <h2 class="ms-title">${rep.trail_name}</h2>
@@ -862,7 +878,13 @@ function buildSheetHtml(sorted, rep) {
         ${printsHtml ? `<div class="ms-k">The Slides</div><div class="ms-prints">${printsHtml}</div>` : ''}
         ${rep.description ? `<div class="ms-k">Trail Notes</div><p class="ms-notes">${formatHikeText(rep.description)}</p>` : ''}
         ${ff ? `<p class="ms-ff">${ff}</p>` : ''}
-        <a class="ms-bridge" href="hike.html?id=${rep.trail_id}">OPEN THE FULL FIELD LOG &rarr;</a>`;
+        <a class="ms-bridge" href="hike.html?id=${rep.trail_id}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 16 12l-6 6"/><path d="M4 4v16"/></svg>
+            <span class="ms-bridge-copy">
+                <span class="ms-bridge-main">OPEN THE FULL FIELD LOG</span>
+                <span class="ms-bridge-sub">the whole day &mdash; the map, every slide &amp; the almanac</span>
+            </span>
+        </a>`;
 }
 
 /** Wires the acetate to the land: the profile drawn in the year's ink, and a
@@ -922,7 +944,7 @@ async function wireSheetAcetate(rep) {
         readout.textContent = `MILE ${(f * rep.miles).toFixed(1)} · ${profile[i].toLocaleString()} FT`;
         if (!sheetWalker) sheetWalker = L.circleMarker(latlngs[0], {
             radius: 7, color: '#fff', weight: 2, fillColor: '#c0392b', fillOpacity: 1,
-            interactive: false, pane: 'mainTrailPane'
+            interactive: false, pane: 'mainTrailPane', renderer: trailRenderer
         }).addTo(map);
         sheetWalker.setLatLng(ptAt(f));
     });
@@ -958,18 +980,11 @@ function raiseSheet(ref, hike, { instant = false, pushUrl = true, cold = false }
     if (playing) haltPlayback();
     closeFieldCard();
 
-    // the trail may sit ahead of the timeline's moment — walk time forward
-    // to this visit so its ink exists to look at
-    const legIxOf = legIndexById[rep.trail_id];
-    if (legIxOf !== undefined && legIxOf > inkIx) {
-        inkIx = legIxOf;
-        nowT = legs[inkIx].t;
-        legIx = inkIx;
-        syncScrub();
-        applyReveal();
-        if (mode === 'expedition') updateDeck();
-    }
-
+    // Opening a hike is "go to this hike": the map's moment moves to it, in
+    // EITHER direction (backward too, not only to lay a future trail's ink), so
+    // the timeline marker — expanded and condensed — the reveal, the preview,
+    // and the resume point all land on this hike. That's what makes leafing
+    // around feel live and makes "play from here" a continuation, not a jump.
     // Remember where the land stood so "lower the sheet" can return there —
     // but only for a live click. A COLD raise (a page boot: a shared ?sheet=
     // link, or the return-from-log restore) has no meaningful "before": the
@@ -979,39 +994,77 @@ function raiseSheet(ref, hike, { instant = false, pushUrl = true, cold = false }
     // (a deep link), so lowering simply stays framed on the trail.
     if (!sheetHikeId && !cold) sheetCameraBefore = { center: map.getCenter(), zoom: map.getZoom() };
     sheetHikeId = rep.trail_id;
-    sheetBodyEl.innerHTML = buildSheetHtml(sorted, rep);
-    sheetBodyEl.scrollTop = 0;
-    sheetRiseEl.classList.add('up');
-    document.body.classList.add('sheet-open');
-
-    sheetBodyEl.querySelector('.ms-lower').addEventListener('click', () => lowerSheet());
-    sheetBodyEl.querySelectorAll('.ms-stamp').forEach(btn => btn.addEventListener('click', () => {
-        const h = ref.group.find(x => x.trail_id === btn.dataset.id);
-        if (h) raiseSheet(ref, h);
-    }));
-    sheetBodyEl.querySelectorAll('.ms-print').forEach(p => p.addEventListener('click', () => {
-        saveLandState();
-        window.location.href = `hike.html?id=${p.dataset.id}`;
-    }));
-    sheetBodyEl.querySelector('.ms-bridge').addEventListener('click', saveLandState);
-    // each slide develops when its own frame arrives (same treatment as the
-    // hike page's strip) — cached images are already complete here
-    sheetBodyEl.querySelectorAll('.ms-print img').forEach(img => {
-        const mount = img.closest('.ms-print');
-        const develop = () => mount.classList.add('loaded');
-        if (img.complete && img.naturalWidth) develop();
-        else {
-            img.addEventListener('load', develop, { once: true });
-            img.addEventListener('error', develop, { once: true });
-        }
-    });
-
+    if (typeof AtlasChain !== 'undefined') AtlasChain.setLocked(true);   // timeline goes static while reading
+    dismissResumeHint();
     spotlightTrailName = ref.name;
-    applySpotlight();
     markActiveRow(ref.name);
-    frameLayer(ref, { instant, padding: sheetFramePadding() });
     if (pushUrl) syncSheetUrl(rep.trail_id);
-    wireSheetAcetate(rep);
+
+    // Commit the card: swap in this hike's content, wire it, and raise the sheet.
+    // On a blink this runs behind the veil (below) so the card and the fully-inked
+    // trail appear together over ground that has finished loading — never popping
+    // in while the map is still repositioning. (A sheet already up simply keeps
+    // showing the old hike until the new one lands.)
+    const commit = () => {
+        if (sheetHikeId !== rep.trail_id) return;   // a newer raise superseded us
+        sheetBodyEl.innerHTML = buildSheetHtml(sorted, rep);
+        sheetBodyEl.scrollTop = 0;
+        sheetBodyEl.querySelector('.ms-lower').addEventListener('click', () => lowerSheet());
+        sheetBodyEl.querySelectorAll('.ms-stamp').forEach(btn => btn.addEventListener('click', () => {
+            const h = ref.group.find(x => x.trail_id === btn.dataset.id);
+            if (h) raiseSheet(ref, h);
+        }));
+        sheetBodyEl.querySelectorAll('.ms-print').forEach(p => p.addEventListener('click', () => {
+            saveLandState();
+            window.location.href = `hike.html?id=${p.dataset.id}`;
+        }));
+        sheetBodyEl.querySelector('.ms-bridge').addEventListener('click', saveLandState);
+        // "Play from here" drops the tour into gear from this hike; opening a
+        // trail is also how you answer the resume cue, so it retires when you do.
+        const playBtn = sheetBodyEl.querySelector('.ms-play');
+        if (playBtn) playBtn.addEventListener('click', () => playFromHike(rep.trail_id));
+        // each slide develops when its own frame arrives (same treatment as the
+        // hike page's strip) — cached images are already complete here
+        sheetBodyEl.querySelectorAll('.ms-print img').forEach(img => {
+            const mount = img.closest('.ms-print');
+            const develop = () => mount.classList.add('loaded');
+            if (img.complete && img.naturalWidth) develop();
+            else {
+                img.addEventListener('load', develop, { once: true });
+                img.addEventListener('error', develop, { once: true });
+            }
+        });
+        sheetRiseEl.classList.add('up');
+        document.body.classList.add('sheet-open');
+        wireSheetAcetate(rep);
+    };
+
+    // Everything the eye would see change — the timeline moment stepping to this
+    // hike, its ink revealing, the deck, the spotlight, the camera reframing (an
+    // INSTANT fit, never a flight), and the card itself — happens together in
+    // land(). When the camera has to move, land() runs behind the veil so the map
+    // only ever appears finished; when the trail is already on screen, it runs in
+    // the open (nothing to hide, so no blink).
+    const pad = sheetFramePadding();
+    const land = () => {
+        const legIxOf = legIndexById[rep.trail_id];
+        if (legIxOf !== undefined && legIxOf !== inkIx) {
+            inkIx = legIxOf;
+            nowT = legs[inkIx].t;
+            legIx = inkIx;
+            syncScrub();
+            applyReveal();
+            updateDeck();
+        }
+        applySpotlight();
+        // prime the deck's preview so closing the sheet reveals this hike (name
+        // and all), not a stale card from wherever the playhead last sat
+        previewPlaque(rep);
+        frameLayer(ref, { instant: true, padding: pad });
+        commit();
+    };
+    if (!instant && cameraWillMove(ref, pad)) blinkTo(land);
+    else land();
 }
 
 /**
@@ -1019,9 +1072,10 @@ function raiseSheet(ref, hike, { instant = false, pushUrl = true, cold = false }
  * the first raise (the pull + Esc); a bare-land click lowers in place, since
  * that click usually means "let me look around here".
  */
-function lowerSheet({ restoreCamera = true, pushUrl = true } = {}) {
+function lowerSheet({ pushUrl = true } = {}) {
     if (!sheetHikeId) return;
     sheetHikeId = null;
+    if (typeof AtlasChain !== 'undefined') AtlasChain.setLocked(false);   // the timeline is live again
     sheetRiseEl.classList.remove('up');
     document.body.classList.remove('sheet-open');
     if (sheetWalker) { map.removeLayer(sheetWalker); sheetWalker = null; }
@@ -1029,10 +1083,9 @@ function lowerSheet({ restoreCamera = true, pushUrl = true } = {}) {
     applySpotlight();
     markActiveRow(null);
     if (pushUrl) syncSheetUrl(null);
-    if (restoreCamera && sheetCameraBefore) {
-        beginInkFlight();
-        map.flyTo(sheetCameraBefore.center, sheetCameraBefore.zoom);
-    }
+    // Lowering leaves you exactly where you are — on the hike you opened — to
+    // explore or pick another to resume from. (The old "fly back to where you
+    // were before" yanked you off an earlier hike whose ink had rolled back.)
     sheetCameraBefore = null;
 }
 
@@ -1086,6 +1139,7 @@ function restoreLandState() {
         legIx = inkIx;
         nowT = legs[inkIx].t;
         applyReveal();
+        if (legs[inkIx]) previewPlaque(legs[inkIx].h);   // preview the restored moment
         // the chain is the clock: park it on the restored moment so returning
         // from a hike page resumes exactly where the animation stood, not the
         // whole-Atlas end. ('auto' scroll suppresses its own onScrub feedback.)
@@ -1162,6 +1216,9 @@ function scrubRevealToTime(t) {
     nowT = tt;
     holdLegId = null;
     applyReveal();
+    // scrubbing in free mode previews the hike under the playhead in the deck —
+    // the name is right there as you slide, and the tour picks up from it
+    if (!playing && legs[inkIx]) previewPlaque(legs[inkIx].h);
 }
 
 // --- Framing: fit a trail into the open space beside the card + deck.
@@ -1205,21 +1262,33 @@ function frameLayer(ref, { instant = false, padding = null } = {}) {
     }
     prefetchTiles(b, opts);
     if (instant) map.fitBounds(b, { ...opts, animate: false });
-    else { beginInkFlight(); map.flyToBounds(b, opts); }
+    else map.flyToBounds(b, opts);
     return true;
 }
 
-/** Dims the trail ink for the length of one camera flight (see map.css).
-    The timer is the safety line: if moveend never comes (an interrupted
-    flight mid-gesture), the ink must not stay ghosted forever. */
-let inkFlightTimer = null;
-function beginInkFlight() {
-    const c = map.getContainer();
-    c.classList.add('ink-flight');
-    const land = () => { clearTimeout(inkFlightTimer); c.classList.remove('ink-flight'); };
-    map.once('moveend', land);
-    clearTimeout(inkFlightTimer);
-    inkFlightTimer = setTimeout(land, 4500);
+/** Will framing this trail actually move the camera? (Same test frameLayer uses
+    for its 'noop' — pulled out so a caller can decide to dim the ink BEFORE it
+    frames, without a stale dim flickering on a hike that's already on screen.) */
+function cameraWillMove(ref, padding) {
+    const b = refTargetBounds(ref);
+    if (!b) return false;
+    if (!map._getBoundsCenterZoom) return true;
+    const cz = map._getBoundsCenterZoom(b, { ...(padding || cardFramePadding()), maxZoom: FRAME_MAX_ZOOM });
+    return map.getZoom() !== cz.zoom || map.getCenter().distanceTo(cz.center) >= 2;
+}
+
+// --- The ink pane: always at full -------------------------------------------
+// The trail ink used to be dimmed and faded around live camera flights. Now that
+// navigation cuts behind the veil (blinkTo) — the map only ever reappears once
+// it's finished — there is no in-flight dim to manage: the ink simply stays at
+// full. endInkFlight() is kept as a cheap belt-and-suspenders reset the
+// expedition's entry/reset call, guaranteeing a render never lands faint.
+function inkPane() { return map.getPane('mainTrailPane'); }
+function endInkFlight() {
+    const p = inkPane();
+    p.style.transition = 'none';
+    p.style.opacity = '1';
+    p.style.willChange = 'auto';
 }
 
 // --- Tile prefetch: we know where the camera is going before it moves, so
@@ -1293,6 +1362,11 @@ let mode = 'free';              // 'free' | 'expedition'
 let playing = false;
 let legIx = -1;
 let holdLegId = null;           // suppresses one visit's ink until its draw lands
+// When you escape the tour early it pauses IN PLACE (camera + reveal held). The
+// paused POSITION is simply inkIx — the newest inked leg — so opening an earlier
+// trail (which walks the reveal back to it) moves the resume point with it. This
+// flag just marks that a paused tour is waiting to be picked up.
+let tourPaused = false;
 let expToken = 0;
 const cancelRun = () => { expToken++; };
 const DWELL_MS = 3000;
@@ -1374,6 +1448,32 @@ async function softCut(applyView, tk) {
     veilEl.classList.remove('on');
     await sleep(320);
     veilEl.classList.remove('fast');
+}
+
+// --- The free-roam blink: navigation without a flight ------------------------
+// Clicking a hike (on the timeline or on the map) never flies the camera across
+// the land any more — that zoom-out-and-back was the page's most expensive and
+// ugliest move (blurry mid-flight tiles, a whole-viewport re-raster every frame,
+// worst of all at 4K). Instead we cut behind the same parchment veil the
+// expedition uses: the veil covers the map, the new hike snaps into frame and
+// its tiles load UNSEEN, then the veil lifts onto a finished view. `applyBehind`
+// does all the reposition/reveal/card work while the paper hides it.
+// A monotonic generation makes rapid clicks safe: a newer blink owns the screen,
+// and the older one bows out without lifting the veil onto a half-loaded view.
+let blinkGen = 0;
+async function blinkTo(applyBehind) {
+    const gen = ++blinkGen;
+    veilEl.classList.add('fast');
+    veilTextEl.innerHTML = '';
+    veilEl.classList.add('on');
+    await sleep(300);                       // the paper fully covers the map
+    if (gen !== blinkGen) return;           // a newer blink took over the screen
+    applyBehind();                          // reposition + reveal + card, all unseen
+    await waitTiles(2000);                  // the landing's tiles resolve behind the veil
+    if (gen !== blinkGen) return;
+    veilEl.classList.remove('on');
+    await sleep(320);
+    if (gen === blinkGen) veilEl.classList.remove('fast');
 }
 
 // --- the structure: chapters, scenes, and shots, rebuilt with every render ---
@@ -1501,7 +1601,7 @@ function syncThreads(ix) {
         const want = i <= ix;
         if (want && !threadAt.has(i)) {
             const line = L.polyline(threadPts(legs[i - 1].head, legs[i].head),
-                { color: '#2f5c40', weight: 1.8, opacity: 0.3, dashArray: '7 7', interactive: false, pane: 'threadPane' }).addTo(threadGroup);
+                { color: '#2f5c40', weight: 1.8, opacity: 0.3, dashArray: '7 7', interactive: false, pane: 'threadPane', renderer: threadRenderer }).addTo(threadGroup);
             threadAt.set(i, line);
         } else if (!want && threadAt.has(i)) {
             threadGroup.removeLayer(threadAt.get(i));
@@ -1514,8 +1614,8 @@ function syncThreads(ix) {
     dashed line and the timeline cross the gap between chapters in lockstep. */
 async function drawJourneyLine(a, b, tk, fromId = null, toId = null) {
     const pts = threadPts(a, b);
-    const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false, pane: 'threadPane' }).addTo(threadGroup);
-    const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1, pane: 'threadPane' }).addTo(map);
+    const line = L.polyline([pts[0]], { color: '#2f5c40', weight: 2.6, opacity: 0.9, dashArray: '7 7', interactive: false, pane: 'threadPane', renderer: threadRenderer }).addTo(threadGroup);
+    const pen = L.circleMarker(pts[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: '#2f5c40', fillOpacity: 1, pane: 'threadPane', renderer: threadRenderer }).addTo(map);
     const t0ms = performance.now(), dur = 1900;
     await new Promise(res => (function f(now) {
         if (tk !== expToken) return res();
@@ -1541,8 +1641,8 @@ async function drawTrailAnim(leg, tk) {
     if (!s) { await pulsePoint(leg.head, col, tk); return []; }
     const all = s.flat();
     const dur = Math.min(2400, 1000 + (leg.h.miles || 1) * 130);
-    const line = L.polyline([all[0]], { color: col, weight: 5, opacity: 0.85, pane: 'mainTrailPane', interactive: false }).addTo(map);
-    const pen = L.circleMarker(all[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: col, fillOpacity: 1, pane: 'mainTrailPane' }).addTo(map);
+    const line = L.polyline([all[0]], { color: col, weight: 5, opacity: 0.85, pane: 'mainTrailPane', renderer: trailRenderer, interactive: false }).addTo(map);
+    const pen = L.circleMarker(all[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: col, fillOpacity: 1, pane: 'mainTrailPane', renderer: trailRenderer }).addTo(map);
     const t0ms = performance.now();
     await new Promise(res => (function f(now) {
         if (tk !== expToken) return res();
@@ -1571,10 +1671,10 @@ async function pulsePoint(ll, col, tk) {
 }
 
 // --- the field plaque: the ledger inside the deck, no photo by decision ---
-async function setPlaque(h) {
+function plaqueHtml(h) {
     const d = new Date(h.date_completed);
     const isVp = isViewpoint(h);
-    const html = `
+    return `
         <div class="lg-kicker">${h.hike_type} &middot; ${MONTH_NAMES[d.getUTCMonth()].slice(0, 3)} ${d.getUTCDate()}, ${d.getUTCFullYear()}</div>
         <div class="lg-name">${h.trail_name}</div>
         <div class="lg-loc">${h.location} &bull; ${h.region}</div>
@@ -1583,17 +1683,37 @@ async function setPlaque(h) {
         ${h.hiked_with && h.hiked_with.length ? `<div class="lg-with">With ${h.hiked_with.join(', ')}</div>`
             : (h.hike_size === 'Solo' ? '<div class="lg-with">Walked solo</div>' : '')}
         <a class="lg-log" href="hike.html?id=${h.trail_id}">Open the Field Log &rarr;</a>`;
+}
+// which hike the plaque is currently showing, so scrubbing doesn't re-render
+// the same card every frame
+let plaquePreviewId = null;
+async function setPlaque(h) {
+    const html = plaqueHtml(h);
     if (!plaqueEl.classList.contains('dim') && lgInnerEl.innerHTML) {
         lgInnerEl.classList.add('swap');
         await sleep(240);
     }
+    plaquePreviewId = h.trail_id;
     plaqueEl.style.setProperty('--lg', yearColorOf(h));
     lgInnerEl.innerHTML = html;
     plaqueEl.classList.remove('dim');
     lgInnerEl.classList.remove('swap');
 }
+/** Free-mode live preview: as you scrub or click a hike, the plaque names the
+    hike under the playhead (no swap fade — it must keep up with a drag), so
+    there's always a preview of where you are, and stepping into the tour from
+    here feels continuous rather than a cold start. */
+function previewPlaque(h) {
+    if (!plaqueEl || !h || plaquePreviewId === h.trail_id) return;
+    plaquePreviewId = h.trail_id;
+    plaqueEl.style.setProperty('--lg', yearColorOf(h));
+    lgInnerEl.innerHTML = plaqueHtml(h);
+    lgInnerEl.classList.remove('swap');
+    plaqueEl.classList.remove('dim');
+}
 const dimPlaque = () => plaqueEl.classList.add('dim');
 function restPlaque() {
+    plaquePreviewId = null;
     plaqueEl.classList.add('dim');
     plaqueEl.style.setProperty('--lg', '#d8ccae');
     lgInnerEl.innerHTML = `<div class="lg-kicker">The field ledger</div>
@@ -1646,8 +1766,10 @@ async function ceremony(prevIx, ix, tk) {
     await softCut(() => setShotView(ix), tk);
 }
 
-async function legSequence(prevIx, ix, tk) {
-    await ceremony(prevIx, ix, tk); if (tk !== expToken) return;
+async function legSequence(prevIx, ix, tk, skipCeremony = false) {
+    // skipCeremony: a clean resume already wiped to blank and framed this shot
+    // behind its own blink, so re-running the ceremony would just double-cut
+    if (!skipCeremony) { await ceremony(prevIx, ix, tk); if (tk !== expToken) return; }
     const leg = legs[ix];
     // the console flips the moment the new hike's pen touches the map
     nowT = leg.t;
@@ -1671,15 +1793,33 @@ async function legSequence(prevIx, ix, tk) {
 
 async function playFrom(ix) {
     cancelRun(); const tk = expToken;
+    tourPaused = false;          // the tour is rolling again — no paused point waits
+    dismissResumeHint();
     mode = 'expedition';
     playing = true;
     setThreads(true);
     setCinema(true);
     updateDeck();
+    // Resuming onto ground that's already inked (you played from a hike you were
+    // looking at)? Wipe back to just-before this leg AND frame its shot behind a
+    // single blink, so the veil lifts onto blank land and the trail draws in —
+    // never the old "back from the blink already drawn → cut to blank → redraw".
+    let skipFirstCeremony = false;
+    if (inkIx >= ix) {
+        await softCut(() => {
+            inkIx = ix - 1;
+            nowT = ix > 0 ? legs[ix - 1].t : t0 - 1;
+            holdLegId = null;
+            applyReveal();
+            setShotView(ix);
+        }, tk);
+        if (tk !== expToken) return;
+        skipFirstCeremony = true;
+    }
     let prev = ix - 1;
     for (let k = ix; k < legs.length; k++) {
         legIx = k;
-        await legSequence(prev, k, tk); if (tk !== expToken) return;
+        await legSequence(prev, k, tk, k === ix && skipFirstCeremony); if (tk !== expToken) return;
         prev = k;
         await sleep(isViewpoint(legs[k].h) ? DWELL_VIEWPOINT_MS : DWELL_MS);
         if (tk !== expToken) return;
@@ -1689,22 +1829,26 @@ async function playFrom(ix) {
 
 async function startExpedition() {
     if (!legs.length) return;
-    lowerSheet({ restoreCamera: false });
+    lowerSheet();
     closeFieldCard();
+    endInkFlight();               // enter the tour with the ink at full, never a stray free-mode dim
     cancelRun(); const tk = expToken;
     mode = 'expedition';
     playing = true;
     setCinema(true);
+    // reset the clock to "before the first trail" up front, so bailing during
+    // the intro reads as a fresh start (nothing to resume), not a stale pause at
+    // the last leg. The visual clear (applyReveal) still waits for the veil.
+    nowT = t0 - 1;
+    legIx = -1;
+    inkIx = -1;
+    holdLegId = null;
     updateDeck();
     const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear();
     await veilIn(`<div class="veil-kicker">The Trailprint Atlas</div>
         <div class="veil-title">The expedition begins</div>
         <div class="veil-sub">${y0} – ${y1}, told one trail at a time</div>`, 1700);
     if (tk !== expToken) return;
-    nowT = t0 - 1;
-    legIx = -1;
-    inkIx = -1;
-    holdLegId = null;
     applyReveal();
     threadGroup.clearLayers();
     threadAt.clear();
@@ -1713,15 +1857,12 @@ async function startExpedition() {
     playFrom(0);
 }
 
-async function finale(tk) {
-    playing = false;
-    setThreads(false);   // the resting Atlas is pure trailprints — no rigging
-    dimPlaque();
-    await veilIn(`<div class="veil-kicker">The expedition rests</div>
-        <div class="veil-title">The whole Atlas</div>
-        <div class="veil-sub">every trail, on the land itself</div>`, 1500);
-    if (tk !== expToken) return;
+// Land in free mode on the whole, fully-inked Atlas — the shared destination
+// of both the natural finale and an early escape. The registry stays whole so
+// a later "resume" can still walk the itinerary.
+function settleWholeAtlas() {
     mode = 'free';
+    tourPaused = false;          // played through — no paused tour waits
     nowT = t1;
     legIx = legs.length - 1;
     inkIx = legs.length - 1;
@@ -1735,8 +1876,21 @@ async function finale(tk) {
     });
     holdLegId = null;
     applyReveal();
-    syncThreads(legs.length - 1);   // registry stays whole for a later resume
+    syncThreads(legs.length - 1);
     if (fullBounds) map.fitBounds(fullBounds, { animate: false });
+}
+
+// The natural end: played through the last leg. The earned ceremony — a held
+// farewell slide, then the whole Atlas laid bare.
+async function finale(tk) {
+    playing = false;
+    setThreads(false);   // the resting Atlas is pure trailprints — no rigging
+    dimPlaque();
+    await veilIn(`<div class="veil-kicker">The expedition rests</div>
+        <div class="veil-title">The whole Atlas</div>
+        <div class="veil-sub">every trail, on the land itself</div>`, 1500);
+    if (tk !== expToken) return;
+    settleWholeAtlas();
     await waitTiles(); if (tk !== expToken) { setCinema(false); return; }
     await veilOut();
     setCinema(false);
@@ -1745,10 +1899,48 @@ async function finale(tk) {
     updateDeck();
 }
 
+// Escaping the tour early (the ✕ / Esc) is NOT the finale — that grand slide is
+// earned by playing to the end. Bailing PAUSES the film in place: the camera
+// and the ink stay exactly where the tour left off, the chrome returns, and a
+// quiet cue invites you to open any trail to pick the film back up from there.
 function endExpedition() {
     cancelRun();
-    finale(expToken);
+    playing = false;
+    setThreads(false);
+    mode = 'free';
+    holdLegId = null;
+    veilEl.classList.remove('on', 'fast');     // if we bailed mid-cut, lift it now
+    if (inkIx < 0) {
+        // bailed before a single trail was drawn — nothing to pause on, so just
+        // lay the whole Atlas out to explore
+        tourPaused = false;
+        settleWholeAtlas();
+    } else {
+        tourPaused = true;                     // a paused tour waits at inkIx
+        applyReveal();                         // hold the ink at the paused moment
+        showResumeHint();                      // "open any trail to resume"
+    }
+    setCinema(false);                          // chrome returns; the camera stays put
+    restPlaque();
+    syncScrub();
+    updateDeck();
 }
+
+// Drop into the tour from a specific hike — the sheet's "play from here", and
+// the same path the resume cue points at. Draws that hike, then rolls on.
+function playFromHike(trailId) {
+    const ix = legIndexById[trailId];
+    if (ix === undefined) return;
+    lowerSheet();
+    playFrom(ix);
+}
+
+// The resume cue: a quiet nudge after you step off the tour, pointing you back
+// to any trail to pick the film up. It retires the moment you open one (or the
+// film rolls again).
+const resumeCueEl = document.getElementById('resume-cue');
+function showResumeHint() { if (resumeCueEl) resumeCueEl.classList.add('show'); }
+function dismissResumeHint() { if (resumeCueEl) resumeCueEl.classList.remove('show'); }
 
 /** The visitor takes the wheel: playback stops, the chrome returns. */
 function haltPlayback() {
@@ -1756,6 +1948,7 @@ function haltPlayback() {
     playing = false;
     setThreads(false);
     setCinema(false);
+    holdLegId = null;            // never leave a mid-draw leg suppressed after a halt
     veilEl.classList.remove('on', 'fast');
     updateDeck();
 }
@@ -1769,6 +1962,7 @@ function resetExpedition() {
     legIx = -1;
     setCinema(false);
     veilEl.classList.remove('on', 'fast');
+    endInkFlight();               // a fresh render always lands with the ink at full
     closeFieldCard();
     restPlaque();
 }
@@ -1842,7 +2036,7 @@ map.on('click', () => {
     if (suppressMapClick) { suppressMapClick = false; return; }
     // a click on bare land lowers the sheet IN PLACE — that click usually
     // means "let me look around here", so the camera stays put
-    if (!playing) { lowerSheet({ restoreCamera: false }); closeFieldCard(); }
+    if (!playing) { lowerSheet(); closeFieldCard(); }
 });
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
@@ -1861,6 +2055,14 @@ function updateDeck() {
     const c = document.getElementById('deck-controls');
     if (!c) return;
     if (mode === 'free') {
+        // a tour paused in place (you stepped off early) offers Resume, right
+        // where you left it; otherwise the deck invites the whole expedition
+        if (tourPaused) {
+            c.innerHTML = `<button class="deck-begin" id="deck-resume" type="button">&#9654;&nbsp; Resume the expedition</button>
+                <span class="deck-leg">paused at leg ${Math.max(0, inkIx) + 1} of ${legs.length}</span>`;
+            document.getElementById('deck-resume').onclick = () => playFrom(Math.max(0, inkIx));
+            return;
+        }
         const trips = chapters.filter(ch => ch.kind === 'trip').length;
         c.innerHTML = `<button class="deck-begin" id="deck-begin" type="button">&#9654;&nbsp; Begin the expedition</button>
             <span class="deck-leg">${chapters.length} chapters · ${trips} expeditions</span>`;
@@ -1886,11 +2088,14 @@ function updateDeck() {
 function syncScrub() {
     const scrub = document.getElementById('timeline-scrub');
     if (scrub) scrub.value = Math.max(0, legIx);
-    // During the expedition the chain IS the playhead: scroll it to follow the
-    // leg being drawn, so the now-line and the date plate travel as the ink is
-    // laid. onScrub is gated off during cinema, so this can't feed back.
-    if (mode === 'expedition' && legIx >= 0 && legs[legIx] && typeof AtlasChain !== 'undefined') {
-        AtlasChain.scrollToHike(legs[legIx].h.trail_id, 'smooth');   // by identity: lands on THIS mark
+    // Keep the chain's centre playhead on the current hike in BOTH modes, so the
+    // EXPANDED timeline shows where you are whether the tour drove you here or you
+    // just clicked a hike. During the expedition the chain is open, so it glides
+    // ('smooth'); in free roam it's condensed under a raised sheet, so the move is
+    // invisible until you reopen it ('auto', no need to animate). onScrub is
+    // suppressed during a programmatic scroll, so this can't feed back.
+    if (legIx >= 0 && legs[legIx] && typeof AtlasChain !== 'undefined') {
+        AtlasChain.scrollToHike(legs[legIx].h.trail_id, mode === 'expedition' ? 'smooth' : 'auto');
     }
 }
 
@@ -2080,7 +2285,7 @@ function setupEventListeners() {
         // scrubbing behind an open card or sheet un-inks its trail — let it go too
         if (cardTrailName && layerReferences[cardTrailName] && layerReferences[cardTrailName].firstLegIx > inkIx) closeFieldCard();
         if (sheetHikeId && legIndexById[sheetHikeId] !== undefined && legIndexById[sheetHikeId] > inkIx) {
-            lowerSheet({ restoreCamera: false });
+            lowerSheet();
         }
         if (mode === 'expedition') updateDeck();
     });

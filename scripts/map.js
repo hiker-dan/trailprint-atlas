@@ -1291,48 +1291,72 @@ function endInkFlight() {
     p.style.willChange = 'auto';
 }
 
-// --- Tile prefetch: we know where the camera is going before it moves, so
-//     the FULL landing viewport — every tile the screen will show, not just
-//     the trail's own box — is requested ahead of the arrival. In ranger
-//     mode the NEXT leg's viewport downloads during the current dwell. The
-//     flight itself glides over the low-altitude underlay; the arrival then
-//     resolves all at once instead of patchworking in. ---
-function prefetchTiles(bounds, fitOpts) {
-    if (!bounds || !map._getBoundsCenterZoom) return;
-    // where exactly will fitBounds put the camera?
-    const target = map._getBoundsCenterZoom(bounds, fitOpts || { ...cardFramePadding(), maxZoom: FRAME_MAX_ZOOM });
-    const zoom = Math.round(target.zoom);
-    // the geographic rectangle the whole screen will cover at that moment
-    const half = map.getSize().divideBy(2);
-    const pixelCenter = map.project(target.center, zoom);
-    const nw = map.unproject(pixelCenter.subtract(half), zoom);
-    const se = map.unproject(pixelCenter.add(half), zoom);
-    const tileXY = (lat, lng, z) => {
-        const n = Math.pow(2, z);
-        const rad = lat * Math.PI / 180;
-        return [
-            Math.floor((lng + 180) / 360 * n),
-            Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n)
-        ];
-    };
+// --- Tile warming: pull tiles into the browser's cache BEFORE they're needed
+//     on screen, so an arrival (or the next zoom step) resolves all at once
+//     instead of patchworking in. `new Image().src` fires the request; the CDN
+//     answer sits in cache, and Leaflet's real request moments later is a cache
+//     hit. Two callers lean on this: the blink's landing viewport, and the
+//     predictive neighbour-zoom warmer below. ---
+function warmTilesAt(center, zoom, spread = 1) {
+    if (zoom < 0 || !map._getBoundsCenterZoom) return;
+    const half = map.getSize().multiplyBy(spread / 2);
     BASEMAPS[currentBasemap].tiles.forEach((opacity, layer) => {
         if ((layer.options.maxNativeZoom || 99) <= 6) return;   // underlays keep themselves warm
         const z = Math.min(zoom, layer.options.maxNativeZoom || layer.options.maxZoom || zoom);
-        const [x1, y1] = tileXY(nw.lat, nw.lng, z);
-        const [x2, y2] = tileXY(se.lat, se.lng, z);
-        if ((x2 - x1 + 1) * (y2 - y1 + 1) > 60) return;   // a huge area isn't worth warming
+        if (z < 0) return;
+        const pc = map.project(center, z);
+        const nw = map.unproject(pc.subtract(half), z);
+        const se = map.unproject(pc.add(half), z);
+        const n = Math.pow(2, z);
+        const tx = lng => Math.floor((lng + 180) / 360 * n);
+        const ty = lat => {
+            const rad = lat * Math.PI / 180;
+            return Math.floor((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2 * n);
+        };
+        const x1 = tx(nw.lng), x2 = tx(se.lng), y1 = ty(nw.lat), y2 = ty(se.lat);
+        if ((x2 - x1 + 1) * (y2 - y1 + 1) > 64) return;   // a huge area isn't worth warming
         const subs = layer.options.subdomains || 'abc';
         let i = 0;
         for (let x = x1; x <= x2; x++) {
             for (let y = y1; y <= y2; y++) {
+                if (y < 0 || y >= n) continue;             // above the pole / off-world: no such tile (a 400)
+                const wx = ((x % n) + n) % n;              // longitude wraps the globe; keep x in range
                 new Image().src = L.Util.template(layer._url, {
-                    s: subs[(i++) % subs.length], z, x, y,
+                    s: subs[(i++) % subs.length], z, x: wx, y,
                     r: L.Browser.retina ? '@2x' : ''
                 });
             }
         }
     });
 }
+
+/** Warm the exact viewport a fitBounds landing will show (the blink's arrival,
+    and each ranger leg during its dwell). */
+function prefetchTiles(bounds, fitOpts) {
+    if (!bounds || !map._getBoundsCenterZoom) return;
+    const target = map._getBoundsCenterZoom(bounds, fitOpts || { ...cardFramePadding(), maxZoom: FRAME_MAX_ZOOM });
+    warmTilesAt(target.center, Math.round(target.zoom), 1);
+}
+
+// --- Predictive neighbour-zoom warming: always a step ahead of the wheel -----
+// The crisp-centre-with-a-blurry-halo just after a manual zoom is pure latency —
+// the new level's tiles haven't downloaded yet. So the moment the map comes to
+// REST we quietly warm one level IN and one level OUT for the current view (a
+// touch wider than the screen) into the cache. Whichever way the wheel turns
+// next, the tiles are already there and the step lands sharp instead of
+// resolving in. Debounced so a flurry of wheel steps warms once, at the finish;
+// idle-only so it never competes with the tiles the screen is actively loading.
+let warmTimer = null;
+function warmNeighbourZooms() {
+    clearTimeout(warmTimer);
+    warmTimer = setTimeout(() => {
+        if (playing) return;                 // the tour warms its own next leg
+        const c = map.getCenter(), z = map.getZoom();
+        warmTilesAt(c, z + 1, 1.1);          // the zoom-IN detail, slightly wider
+        warmTilesAt(c, z - 1, 1.1);          // the zoom-OUT surround
+    }, 350);
+}
+map.on('zoomend moveend', warmNeighbourZooms);
 
 /** Click a trail (on the map or in the register): spotlight + card + frame. */
 function focusTrail(trailName) {

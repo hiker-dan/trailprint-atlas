@@ -1,26 +1,27 @@
-# State of the Atlas — July 2026
+# State of the Atlas — July 2026 (re-audited 24 July)
 
-*The living plan of record for The Trailprint Atlas. This July revision supersedes the
-June 2026 audit (preserved in git history), which had done its job: the original
-six-phase roadmap is now substantially complete, and two full redesigns that weren't
-even in that plan have since landed. This document is where we are and where we're going.*
+*The living plan of record for The Trailprint Atlas. This revision re-audits the July
+plan against the actual code and data after the map redesign — which ran far longer
+than anyone expected — plus the backlog, the elevation ground-truthing, and the
+homepage inset plates. Everything below was verified in the codebase or in a live
+browser, not assumed. The June 2026 audit and the original six-phase roadmap live
+in git history.*
 
 ---
 
-## How we got here (June → July 2026)
+## Where the build actually stands
 
-The June audit delivered its verdict — *renovate, don't rebuild* — and we executed it.
-Phases 0–2 (bug-fixing, architecture, performance) are done. The hike-entry pipeline
-shipped (Phase 3). Then the work outran the plan: we rebuilt the **home page** (The Life
-in Trails hero film, Threads of the Trail, The Observatory, The Record Books), rebuilt the
-**interactive map** (Chapters of the Land + the Expedition Line — a locked-camera cinematic
-expedition), rebuilt **Echoes** (Fresh Tracks, Trail Echoes, the Runyon Canyon Local Loop),
-and shipped the **Trail Crew** companion pages. None of those were in the June roadmap; they
-became the heart of the site. The map redesign closed in July with the engraved trailhead
-stamps, the formula-driven **Blaze Rose** year palette, glowing echo halos, and
-footprint-based framing.
+**The redesign arc is one page from finished.** Home, the interactive map, the hike
+page, Echoes, and Trail Crew all speak the engraved-atlas language. **`trip.html`
+does not** — it is the last page still wearing the old skin (see item 1 below).
 
-So the six-phase structure has served its purpose. What follows is a fresh accounting.
+**The data is complete and caught up.** 123 records, 8 Jan 2022 → 18 Jul 2026;
+113 hikes and 10 viewpoints; every `description`, `flora` and `fauna` filled.
+The logbook has no gaps.
+
+**Two whole workstreams landed that were never in any plan:** the USGS elevation
+ground-truthing (every summit re-surveyed against 3DEP) and the map's efficiency
+diet (1,916 → 674 tile requests on a fixed session).
 
 ---
 
@@ -30,139 +31,126 @@ So the six-phase structure has served its purpose. What follows is a fresh accou
 |---|---|
 | **0 — Trailhead** (housekeeping) | ✅ Done |
 | **1 — New Bones** (architecture) | ✅ Done (config.js, atlas-data.js, single nav, extracted CSS/JS) |
-| **2 — Pack Lighter** (perf + mobile) | ✅ Perf done (GPX→geojson pipeline, SVG optimization, intro skip). ⏸ **Mobile still deferred by choice** |
-| **3 — Catch Up the Logbook** (data) | 🔜 Pipeline shipped (`new-hike.py`); **backlog nearly finished** (109 records through May 2026, a few months of 2026 left). Runyon became Echoes' Local Loop |
-| **4 — Find Your Voice** (storytelling) | ◐ Trip pages ✅, Local Loop ✅, elevation profiles ✅, fire memorial ✅, loading phrases ✅. **Journal (`notes`) and The Overlook statement still empty — deferred** |
-| **5 — New Summits** (expansion) | ◐ Companions (Trail Crew) ✅, Data Deep-Dive (Observatory) ✅, Trailprint Replay (hero film + map expedition) ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
+| **2 — Pack Lighter** (perf + mobile) | ✅ Perf done, and then some — the July map diet cut tile traffic ~65%. ⏸ **Mobile still deferred by choice** |
+| **3 — Catch Up the Logbook** (data) | ✅ **Done.** Pipeline shipped; backlog fully entered (123 records through 18 Jul 2026). Runyon became Echoes' Local Loop |
+| **4 — Find Your Voice** (storytelling) | ◐ Trip pages ✅, Local Loop ✅, elevation profiles ✅, fire memorial ✅, loading phrases ✅. **Journal (`notes`, 0/123) and The Overlook statement still empty — deferred by choice** |
+| **5 — New Summits** (expansion) | ◐ Trail Crew ✅, Observatory ✅, hero film + map expedition ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
 
 ---
 
-## Audit: what still needs attention
+## Closed since the July plan was written
 
-Rendering the un-redesigned pages against the new engraved-atlas language surfaced these,
-most urgent first:
-
-1. ~~**The hike page is the single biggest gap.**~~ ✅ **Rebuilt July 2026** as The
-   Cartographer's Light Table (see roadmap item 1). It was the most-visited page type and
-   the only one that never got the redesign; it now speaks the same engraved language as
-   the map, and it is ready to hold the journal when the voice arrives.
-2. **The Overlook has no voice.** A lovely photo slideshow + asset credits, but the personal
-   statement — the "why I built this" — is still absent. Deferred with the journal (your words).
-3. **The geography taxonomy has a real smell.** The 9 categories are wildly lopsided:
-   Desert 33, Mountain Forest 21, Chaparral 21 … then singletons — **Coastal (1),
-   Riparian Meadow (1)**, Riparian Forest (3), Coastal Chaparral (4). One-member categories
-   usually mean the taxonomy is too fine or miscatalogued. Deep dive owed — after the backlog.
-4. **Mobile is the deferred elephant.** Every rich thing built this year is desktop-only;
-   the audience is family on phones. Correctly deferred, but the gap grows with each
-   desktop-only marvel. Scheduled for when the build is near-final (Danny's call).
+- **The hike page redesign, all four stages except the last.** The Cartographer's
+  Light Table shipped; the sheet lands on map.html; hike.html traded its strip for
+  the doors. **Stage 3 is now done too** — the Surveyor's Chain (`atlas-chain.js`)
+  is live on the map, the deck's old year-banded scrub is retired, and the
+  explicitly-deferred bug ("returning from a hike page resets the animation to the
+  end") is fixed: `restoreLandState` restores `inkIx` and parks the chain on it.
+  **Only stage 4 remains** — the trip page, the retirements, the docs.
+- **The backlog (old item 5).** Finished ahead of its slot in the order.
+- **Elevation ground truth** (unplanned). `tools/correct-elevations.py` asks USGS
+  3DEP what the ground really is; `summit_elevation` is derived, never typed;
+  `peak_name` added to the schema and backfilled (15 summits, 14 named).
+- **Map efficiency** (unplanned). Speculative tile warming removed, `keepBuffer`
+  8 → 2, blends suspended during a zoom.
+- **The hero film's far-north problem** — flagged in the last revision as "watch
+  the framing when a far-north outlier joins." It arrived, it broke the framing,
+  and it's solved: the film frames the lower 48 and Alaska rides an **inset plate**
+  (Hawaii's is cut and waiting).
+- **Tundra** added as a 10th geography.
 
 ---
 
-## Decisions locked (July 2026)
+## Live problems, found in this audit
 
-- **Single track, features first, backlog last.** No parallel work — the build needs Danny's
-  focused energy; the backlog is the satisfying finishing move.
+**1. Canada readiness was skipped, and it is now a bug, not a prep task.**
+The last plan said Canada work "must precede the backlog." The backlog went in
+first, so three BC hikes are live against code that doesn't know what a province
+is. Verified in the browser:
+- The Territories tile for BC renders the **generic pennant fallback**, not a
+  silhouette, is labelled **"BC"** rather than "British Columbia", and links to
+  the bare `map.html` instead of a filtered view.
+- The Observatory's profile line reads **"left tracks across 8 states"** — the 8
+  includes BC.
+- The header sub-line ("7 states · 1 country") survives, but calls a province a
+  country.
+
+**2. `trip.html` is the last page in the old visual language.** Navy photo hero
+with white overlay text, floating white stat cards, green underlined headings, a
+default-styled Leaflet map with zoom controls, and the retired timeline strip on
+top. Every other page has moved on; this one is jarring beside them.
+
+**3. Retirement debt from the map rebuild.** The deck's `#timeline-scrub` markup
+still exists and `buildTimelineChrome()`/`syncScrub()` still write to it, though
+CSS has hidden it (`.deck-track { display: none }`). `timeline-nav.js` now serves
+only `trip.html`. Both should die with stage 4.
+
+**4. The geography taxonomy is still lopsided, though less so.** Over 123 records:
+Desert 33, Chaparral 24, Mountain Forest 22, Urban Edge 15, Riparian Canyon 13,
+Riparian Forest 6, Coastal Chaparral 4, and three two-member categories (Coastal,
+Tundra, Riparian Meadow). No singletons any more, but the tail is still thin.
+
+**5. Mobile is the deferred elephant, and the herd keeps growing.** Everything
+built this year is desktop-only; the audience is family on phones.
+
+---
+
+## Decisions locked (unchanged)
+
+- **Single track, features first.** No parallel work.
 - **Mobile** deferred until the site is near-final.
 - **Park badges** get procedural placeholder art now; commissioned art drops in later.
-- **Park type is derived from `location`, not a new field** (see below).
+- **Park type is derived from `location`**, not a new field.
 - **The journal + The Overlook voice** deferred until the build is further along.
-- **AI descriptions stay** as the permanent field-guide layer beneath Danny's journal words.
+- **AI descriptions stay** as the field-guide layer beneath Danny's journal words.
 - **Photo privacy gate: cut.**
-- **Canada:** `region` stays "City, PROV" (e.g. *Whistler, BC*); hikes abroad are classified
-  by **province/territory**, the direct analog of US states.
+- **Canada:** `region` stays "City, PROV"; hikes abroad classify by province/territory.
 
 ---
 
-## The refined roadmap — one track, in order
+## The roadmap from here — one track, in order
 
-Sequencing logic: build a section's bones before its data; fix Canada before the Canada trip
-enters; batch the taxonomy change once, over the complete set, at the end.
+Sequencing logic: fix what's visibly wrong before adding anything new; finish the
+redesign arc; then build the new rooms; batch the taxonomy change last, over the
+complete set.
 
-### 1. Hike page redesign  ✅ *(shipped July 2026)*
-The biggest un-redesigned page and every trail's destination. The proven method ran again:
-**five concepts → three mockups → build.** Danny chose **The Cartographer's Light Table** —
-the hike as one desk seen from above. What shipped:
-- The **brass rail**, grafted from the runner-up "Stereoscope" concept: one drag wipes
-  between the topo survey and the satellite land, the route ink unbroken across the divide.
-- The map is **locked** (no pan/zoom) and framed as large as the sheet allows — this page
-  shows the GPX in its glory; roaming belongs to map.html.
-- The **elevation acetate is bolted under the map** at a fixed height, so scrubbing the
-  day's shape always happens with the trail in view.
-- Photos became **35mm slides** on the light box (the old polaroid framing was rejected as
-  carried-over furniture), with a proper full-glory lightbox — the site's one place with
-  true photo interaction.
-- The **vitals band**: distance, gain, summit and grade as large engraved numerals in the
-  title block, where a real survey sheet carries them.
+### 1. Canada readiness  *(small, and overdue — it's live)*
+- A province name map and a **silhouette source for provinces** matching the US
+  map's style, so BC gets a real tile.
+- Fix the "N states" wording → states *and* provinces/countries, everywhere it appears.
+- Deep-link BC's tile the way state tiles link (`map.html?state=…` equivalent).
+- Teach `new-hike.py` the province convention.
+- Safe as-is: interactive map, weather almanac (Open-Meteo is global), park badges.
 
-**Resolved July 2026 — The Continuous Expedition (navigation architecture).** Five concepts,
-two working mockups (`mockups/hike-shared-spine.html`, `mockups/atlas-continuous.html`);
-Danny chose the Continuous Expedition. The architecture:
-- **The map is the Atlas's one navigation surface.** Clicking any trail — or any dot on the
-  re-inked spine — raises a **sheet** (an abbreviated light table) over the land: camera cuts
-  behind the veil to frame the trail in the strip the sheet leaves open; the land stays alive
-  (the sheet's acetate walks a marker on the real trail behind it); lowering the sheet returns
-  you exactly where you stood. `?sheet=tta_NN` keeps every risen sheet shareable.
-- **The full hike page survives** as the fully-fleshed destination, bridged from the sheet
-  ("Open the full Field Log"). Its timeline strip is **removed**, replaced by the return
-  door to the map — time-navigation lives in exactly one place.
-- **The spine replaces BOTH the hike timeline and the map's deck scrub**: the re-inked
-  `AtlasTimeline` component (all machinery kept: trip capsules, journal card, day chips,
-  same-day fanning, time-proportional gaps) gains the now-marker. The expedition player
-  animates it, grabbing it scrubs nowT, transport docks into the band. One clock.
-
-Build order (each stage verified + OK'd before the next): **1. ✅** the sheet on map.html
-(raise/lower/veil/walker/URL, ink-flight fade, time-aware visit, develop sheen) · **2. ✅**
-hike.html trades its strip for the doors (sessionStorage handshake restoring camera + moment
-+ basemap + sheet, across chip / nav link / browser-back) · **3. 🔜** the spine lands on
-map.html, absorbing the deck scrub + transport · **4.** trip page re-ink + retirements + docs.
-
-**Carried into stage 3 (Danny, July 2026):** returning from a full hike page restores the
-camera and the risen sheet, but the *expedition-player / animation* position still resets to
-the end. Deferred deliberately — stage 3 rebuilds the clock as the spine, so the restore of
-"where in the animation you were" is the same work; fix it there rather than patch the deck
-that's about to be retired.
-
-### 2. Canada readiness  *(must precede the backlog)*
-The next trip to add (Whistler, BC) leaves the US. Work:
-- **Rebuild the Territories tiles** (home / Observatory). The code already separates US states
-  from "countries," but draws each tile's silhouette from `assets/blank-us-map.svg`, which
-  has no provinces — a Canadian hike would render a blank tile labeled "BC." Needs: a
-  province name map, a **silhouette source for provinces** (find/commission a Canada SVG that
-  matches the US map's style), and honest counting.
-- **Fix the "X states" summary wording** → states *and* countries/territories.
-- **Region convention:** "City, BC" with province abbreviations; teach `new-hike.py`.
-- Safe as-is: interactive map, weather almanac (Open-Meteo is global), park badges (they key
-  off `location`). Watch the home hero film's framing when a far-north outlier joins.
+### 2. Trip page redesign + the retirements  *(stage 4 — closes the redesign arc)*
+The last page in the old language, and the natural home for the leftover cleanup:
+retire `timeline-nav.js` and the dead deck scrub, and bring the docs current. The
+proven method applies — concepts → mockups → build — and there's a strong starting
+question already: a trip is a **chapter**, and the map's expedition engine already
+knows what a chapter is.
 
 ### 3. Park Badges  *(the trophy case)*
-A collectible-badge page for parks visited. **Park type derives from `location`** via a small
-`parkTypeOf()` helper (same pattern as `isViewpoint()`) — the keyword classifier sorts every
-current park with zero ambiguity into National Park / National Forest / National Monument /
-National Recreation Area / State Park (incl. reserves & rec areas) / Local & Regional. No new
-field; self-maintaining. **Procedural placeholder medallions** (engraved frames in the site's
-language, emblem chosen by derived type) make the wall look intentionally collected from day
-one; commissioned art drops into the identical frame, one park at a time. Auto-fills as hikes
-are added.
+47 unique `location` values are waiting. Park type derives from `location` via a
+`parkTypeOf()` helper (same pattern as `isViewpoint()`) — no new field,
+self-maintaining. **Procedural placeholder medallions** in the site's language make
+the wall look intentionally collected from day one; commissioned art drops into the
+identical frame later, one park at a time.
 
 ### 4. Gear section bones
-A `gear.json` schema + the page scaffold with empty slots — foundation now, slow-fill later.
-"My first kit" → how it evolved. Data collection deferred; the bones come first (Danny's rule).
+A `gear.json` schema + the page scaffold with empty slots. "My first kit" → how it
+evolved. Bones first, data later.
 
-### 5. The backlog  *(the finishing data move)*
-Enter the remaining months of 2026 — including Canada, now that prep is done — through the
-pipeline. `hikes.json` is the sole source of truth going forward.
-
-### 6. Geography deep-dive + reclassification
-Done last, over the complete set: re-examine whether 9 is the right taxonomy, resolve the
-singletons, reclassify in one batch.
+### 5. Geography deep-dive + reclassification
+Over the complete set: is 10 the right taxonomy? Resolve the thin tail, reclassify
+in one batch.
 
 ---
 
 ## Deferred (revisit when the build is near-final)
-- **The Voice** — the journal (`notes`, still 0/109) and The Overlook personal statement.
+- **The Voice** — the journal (`notes`, 0/123) and The Overlook personal statement.
   Danny's words, shaped together; never invented.
-- **The mobile pass** — all pages: touch timeline, tap-toggled tooltips, responsive type,
-  thumb-reach layouts.
+- **The mobile pass** — all pages: touch timeline, tap-toggled tooltips, responsive
+  type, thumb-reach layouts.
 
 ## Leftover, pick-and-choose (anytime)
 - Year in Review pages (auto-stats + a retrospective paragraph, minted each January).
@@ -171,12 +159,12 @@ singletons, reclassify in one batch.
 ---
 
 ## Model note
-Concept sketching and mockup-building both run on **Fable 5** — the divergent ideation stage
-is where the capability edge shows up most (range and originality of concepts), not just the
-coding.
+Concept sketching and mockup-building both run on **Fable 5** — the divergent
+ideation stage is where the capability edge shows up most (range and originality of
+concepts), not just the coding.
 
 ---
 
-*Revised July 2026 after the home, map, and Echoes redesigns. The June audit — the full
-technical + creative teardown that set this all in motion — lives in git history. The trail
-keeps going; so do we.*
+*Re-audited 24 July 2026 against the code and a live browser, after the map redesign,
+the backlog, the elevation ground-truthing, and the inset plates. The trail keeps
+going; so do we.*

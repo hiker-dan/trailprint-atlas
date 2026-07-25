@@ -29,14 +29,18 @@ HIKES_PATH = os.path.join(REPO_ROOT, "data", "hikes.json")
 TRAILS_DIR = os.path.join(REPO_ROOT, "data", "trails")
 OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "trails.geojson")
 ELEV_OUTPUT_PATH = os.path.join(REPO_ROOT, "data", "elevations.json")
+GROUND_PATH = os.path.join(REPO_ROOT, "data", "ground-elevations.json")
 
 # Profile resolution: enough points to keep every ridge and dip readable at
 # panorama size, few enough that a hundred hikes stay a few tens of KB.
 ELEV_POINTS = 120
 
-# Max distance (in degrees, ~2.2 m) a dropped point may sit from the
-# simplified line. Small enough to be invisible at any Leaflet zoom.
-TOLERANCE_DEG = 0.00002
+# Max distance (in degrees, ~5.5 m) a dropped point may sit from the simplified
+# line. Raised from 0.00002 in July 2026 after an A/B at z17 — past the zoom the
+# map ever frames a trail at — showed no discernible difference, while halving
+# the wire payload (139 KB -> 77 KB gzipped across 113 trails). Going further
+# (~9 m) does start to round off switchbacks; this is the sweet spot.
+TOLERANCE_DEG = 0.00005
 
 # ~1.1 m precision; more decimals is GPS noise, not information.
 COORD_DECIMALS = 5
@@ -116,9 +120,19 @@ def main():
     with open(HIKES_PATH) as f:
         hikes = json.load(f)
 
+    # USGS-corrected ground elevations, if correct-elevations.py has been run.
+    # These beat the GPX's own <ele> readings, which are GPS altitude and run
+    # 15-130 ft high. Trails missing from the file fall back to the raw track.
+    try:
+        with open(GROUND_PATH) as f:
+            ground = json.load(f)
+    except (OSError, ValueError):
+        ground = {}
+
     features = []
     warnings = []
     elevations = {}
+    uncorrected = []
     points_before = points_after = 0
 
     referenced = set()
@@ -138,9 +152,14 @@ def main():
             warnings.append(f"{hike['trail_id']}: no track points in '{gpx_name}'")
             continue
 
-        profile = elevation_profile(tree)
-        if profile:
-            elevations[hike["trail_id"]] = profile
+        corrected = ground.get(hike["trail_id"], {}).get("profile")
+        if corrected:
+            elevations[hike["trail_id"]] = corrected
+        else:
+            profile = elevation_profile(tree)
+            if profile:
+                elevations[hike["trail_id"]] = profile
+                uncorrected.append(hike["trail_id"])
 
         simplified = []
         for seg in segments:
@@ -179,7 +198,11 @@ def main():
     out_bytes = os.path.getsize(OUTPUT_PATH)
     print(f"trails.geojson: {len(features)} trails")
     print(f"elevations.json: {len(elevations)} profiles "
-          f"({os.path.getsize(ELEV_OUTPUT_PATH) / 1e3:.0f} KB)")
+          f"({os.path.getsize(ELEV_OUTPUT_PATH) / 1e3:.0f} KB), "
+          f"{len(elevations) - len(uncorrected)} USGS-corrected")
+    if uncorrected:
+        print(f"  still on raw GPS altitude: {', '.join(uncorrected)}\n"
+              f"  -> run: python3 tools/correct-elevations.py")
     print(f"track points:   {points_before:,} -> {points_after:,} "
           f"({100 - 100 * points_after / points_before:.0f}% removed)")
     print(f"payload:        {raw_bytes / 1e6:.1f} MB of GPX -> {out_bytes / 1e3:.0f} KB "

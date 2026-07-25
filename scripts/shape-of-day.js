@@ -11,8 +11,14 @@
  * means a 2,000-foot climb towers and a flat stroll stays a low ribbon —
  * the shape of the day at a glance, comparable across hikes.
  *
+ * Elevation comes from data/ground-elevations.json when the trail has been
+ * corrected (USGS 3DEP ground truth at each recorded coordinate) — the GPX's
+ * own <ele> is GPS altitude and reads 15-130 ft high, which is why the summit
+ * flag and the page's Summit vital used to disagree. The GPX still supplies
+ * the route's shape and coordinates; only the heights are replaced.
+ *
  * Exposes:
- *   AtlasShape.parseGpx(xmlText)  -> track object, or null if undrawable
+ *   AtlasShape.parseGpx(xmlText, corrected)  -> track object, or null
  *   AtlasShape.render(el, track, { onScrub, onLeave })
  */
 const AtlasShape = (() => {
@@ -25,9 +31,11 @@ const AtlasShape = (() => {
 
     /**
      * Parses GPX text into an evenly spaced elevation track.
+     * `corrected` is this trail's entry from ground-elevations.json (optional);
+     * when present its distance-sampled ground profile replaces GPS altitude.
      * Returns null when the file can't yield a drawable profile.
      */
-    function parseGpx(xmlText) {
+    function parseGpx(xmlText, corrected) {
         const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
         const trkpts = [...xml.querySelectorAll('trkpt')];
         if (trkpts.length < 2) return null;
@@ -100,11 +108,28 @@ const AtlasShape = (() => {
             }
         }
 
+        // Ground truth wins. The corrected profile is sampled evenly along the
+        // same distance axis as `samples`, so position maps straight across —
+        // only the heights change, never the route or the mile axis.
+        const prof = corrected && corrected.profile;
+        if (prof && prof.length > 1) {
+            const last = prof.length - 1;
+            samples.forEach((s, i) => {
+                const f = (i / (SAMPLE_COUNT - 1)) * last;
+                const a = Math.floor(f), b = Math.min(last, a + 1);
+                s.ele = prof[a] + (prof[b] - prof[a]) * (f - a);
+            });
+        }
+
         return {
             samples,
             totalMiles: dist,
-            minEle: Math.min(...samples.map(s => s.ele)),
-            maxEle: Math.max(...samples.map(s => s.ele)),
+            corrected: !!prof,
+            // The authoritative high/low come from the corrected profile itself,
+            // not from the resampled curve — resampling can shave a foot or two
+            // off a sharp peak, and this number must equal the Summit vital.
+            minEle: prof ? corrected.low_ft : Math.min(...samples.map(s => s.ele)),
+            maxEle: prof ? corrected.high_ft : Math.max(...samples.map(s => s.ele)),
             startTime,
             endTime
         };
@@ -201,12 +226,15 @@ const AtlasShape = (() => {
         let summit = '';
         if (range >= 120) {
             const peak = samples.reduce((a, b) => (b.ele > a.ele ? b : a));
+            // The flag SITS at the drawn high point but READS the authoritative
+            // figure, so it always states the same number as the Summit vital.
+            const peakFt = Math.round(track.maxEle);
             // Flag text flips to the left when the peak sits near the right edge
             const flagLeft = x(peak.mi) > W - 130;
             summit = `
               <line x1="${x(peak.mi)}" y1="${y(peak.ele)}" x2="${x(peak.mi)}" y2="${y(peak.ele) - 16}" stroke="${evergreen}" stroke-width="1.5"/>
               <path d="M ${x(peak.mi)},${y(peak.ele) - 16} l ${flagLeft ? -12 : 12},4 l ${flagLeft ? 12 : -12},4 Z" fill="${trailGreen}"/>
-              <text x="${x(peak.mi) + (flagLeft ? -16 : 16)}" y="${y(peak.ele) - 8}" text-anchor="${flagLeft ? 'end' : 'start'}" font-size="13" font-weight="700" fill="${evergreen}">${Math.round(peak.ele).toLocaleString()} ft</text>`;
+              <text x="${x(peak.mi) + (flagLeft ? -16 : 16)}" y="${y(peak.ele) - 8}" text-anchor="${flagLeft ? 'end' : 'start'}" font-size="13" font-weight="700" fill="${evergreen}">${peakFt.toLocaleString()} ft</text>`;
         }
 
         el.innerHTML = `

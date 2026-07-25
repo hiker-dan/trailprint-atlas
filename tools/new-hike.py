@@ -72,7 +72,8 @@ IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".heic")
 
 GEOGRAPHIES = [
     "Chaparral", "Coastal", "Coastal Chaparral", "Desert", "Mountain Forest",
-    "Riparian Canyon", "Riparian Forest", "Riparian Meadow", "Urban Edge",
+    "Riparian Canyon", "Riparian Forest", "Riparian Meadow", "Tundra",
+    "Urban Edge",
 ]
 DIFFICULTIES = ["Easy", "Medium", "Hard"]
 HIKE_TYPES = [
@@ -595,27 +596,21 @@ def run_wizard(hikes, gpxs, photos):
 
     was_summit = bool(repeat_of and repeat_of.get("summit_trail"))
     summit_trail = yes_no("Is this a summit trail?", default_no=not was_summit)
+    # summit_elevation is NOT asked for (July 2026). GPS altitude reads 15-130 ft
+    # high, which is why recorded summits never matched the elevation graph.
+    # correct-elevations.py fills it from USGS 3DEP after the GPX is filed, so
+    # the number and the graph's flag come from one source and cannot disagree.
     summit_elevation = None
+    peak_name = None
     if summit_trail:
-        # Best default: the official number logged last time; failing that,
-        # the track's own high point (GPS altitude, so AllTrails' number wins).
-        prev_summit = repeat_of.get("summit_elevation") if repeat_of else None
-        if prev_summit is not None:
-            summit_elevation = ask("Summit elevation in feet", default=prev_summit,
-                                   validate=validate_int)
-        else:
-            track_high = None
-            if points:
-                elevations = [p[2] for p in points if p[2] is not None]
-                if elevations:
-                    track_high = int(round(max(elevations) * 3.28084))
-            if track_high:
-                summit_elevation = ask("Summit elevation in feet — Enter for the track's "
-                                       "high point, or type AllTrails' number",
-                                       default=track_high, validate=validate_int)
-            else:
-                summit_elevation = ask("Summit elevation in feet (like 5712)",
-                                       validate=validate_int)
+        # The peak often isn't the trail's name ("Waterman Mountain Loop Trail"
+        # tops out on Mount Waterman), so the Atlas asks rather than guessing.
+        prev_peak = repeat_of.get("peak_name") if repeat_of else None
+        peak_name = ask("Name of the peak (like Mount Waterman) — Enter if the "
+                        'high point has no name, and it will read "High Point"',
+                        default=prev_peak, allow_empty=True) or None
+        print("    summit elevation will be measured from the track by "
+              "tools/correct-elevations.py")
 
     diff_default = (DIFFICULTIES.index(repeat_of["difficulty"])
                     if repeat_of and repeat_of["difficulty"] in DIFFICULTIES else None)
@@ -668,7 +663,10 @@ def run_wizard(hikes, gpxs, photos):
     usual = f' (the usual suspects: {", ".join(frequent)})' if frequent else ""
     companions_raw = ask(f'Hiked with — names like "Max M.", comma-separated; Enter if solo{usual}',
                          default="", allow_empty=True)
-    hiked_with = [n.strip() for n in companions_raw.split(",") if n.strip()]
+    # Sorted on the way in so companion lists read alphabetically everywhere,
+    # never in the order they happened to be typed (decided July 2026).
+    hiked_with = sorted({n.strip() for n in companions_raw.split(",") if n.strip()},
+                        key=str.lower)
     for name in hiked_with:
         if not re.match(r"^[A-Z][a-z]+.* [A-Z]\.$", name):
             print(f'    (heads-up: "{name}" doesn\'t match the usual "First L." style — keeping it as typed)')
@@ -709,6 +707,7 @@ def run_wizard(hikes, gpxs, photos):
         "elevation_gain": elevation_gain,
         "summit_trail": summit_trail,
         "summit_elevation": summit_elevation,
+        "peak_name": peak_name,
         "difficulty": difficulty,
         "hike_type": hike_type,
         "hike_size": hike_size,

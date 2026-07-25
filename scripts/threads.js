@@ -415,7 +415,7 @@
         // Context notes that reference the resolved hike
         defs.forEach(d => {
             const h = d.hike;
-            if (d.kicker === 'First Summit') d.note = `Your first true mountain summit at ${h.summit_elevation.toLocaleString()} ft: ${h.trail_name}.`;
+            if (d.kicker === 'First Summit') d.note = `Your first true mountain summit at ${h.summit_elevation.toLocaleString()} ft: ${climbName(h)}.`;
             if (d.kicker === 'Beyond the Border') d.note = `Your first hike outside the United States, in ${h.region}.`;
         });
 

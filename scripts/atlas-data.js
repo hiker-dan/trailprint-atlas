@@ -151,6 +151,44 @@ function isViewpoint(hike) {
     return hike.hike_type === 'Viewpoint';
 }
 
+/* --- Naming a summit -------------------------------------------------------
+ * A peak is often not the trail that reaches it: "Waterman Mountain Loop
+ * Trail" tops out on Mount Waterman. So summit records carry an explicit
+ * `peak_name` (July 2026; the wizard asks for it).
+ *
+ * Some real summits have no named peak at all — Savage Alpine tops out on an
+ * unnamed ridge. Those keep `peak_name: null`, and the rule (decided July
+ * 2026) turns on what the label is DOING:
+ *
+ *   summitLabel() — naming the summit itself, as in the vitals slot. An
+ *       unnamed high point says "High Point", never a trail name dressed up
+ *       to look like a mountain.
+ *   climbName()   — telling one climb from another, as in the True Ascents
+ *       ridge labels. Here the trail name is the useful fallback, because the
+ *       job is identification, not naming.
+ *   peakName()    — the strict answer: a real mountain's name, or null.
+ */
+function peakName(hike) {
+    return (hike && hike.summit_trail && hike.peak_name) || null;
+}
+
+function summitLabel(hike) {
+    if (!hike || !hike.summit_trail) return null;
+    return hike.peak_name || 'High Point';
+}
+
+function climbName(hike) {
+    if (!hike) return null;
+    if (hike.peak_name) return hike.peak_name;
+    // The route qualifiers a mountain never carries in its own name.
+    return (hike.trail_name || '')
+        .replace(/ via .*/i, '')
+        .replace(/:.*/, '')
+        .replace(/\s*(Loop )?Trail$/i, '')
+        .replace(/ Loop$/i, '')
+        .trim() || (hike.trail_name || null);
+}
+
 function getAtlasStats(hikes) {
     const trueHikes = hikes.filter(h => !isViewpoint(h));
     return {

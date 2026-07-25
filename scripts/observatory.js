@@ -274,10 +274,13 @@
             svg.appendChild(svgEl('rect', { x: 0, y: baseY, width: W, height: H - baseY, fill: '#cdbb90' }));
             svg.appendChild(svgEl('line', { x1: 0, x2: W, y1: baseY, y2: baseY, stroke: '#8a7649', 'stroke-width': 1.4 }));
 
-            const shortPeak = nm => nm.replace(/ via .*/i, '').replace(/:.*/, '').replace(/\s*(Loop )?Trail$/i, '').replace(/ Loop$/i, '').replace(/\bMountain\b/i, 'Mtn').trim();
+            // These labels tell climbs apart, so an unnamed high point falls
+            // back to its trail — climbName's job. Abbreviated only to buy
+            // horizontal room on a crowded crestline.
+            const shortPeak = h => climbName(h).replace(/\bMountain\b/i, 'Mtn');
 
             // Name the three highest ridges; everything else reveals on hover.
-            ridgeGroups.slice(0, 3).forEach(r => labels.push({ x: r.px, y: r.py - 10, text: `${shortPeak(r.o.h.trail_name)} · ${r.o.h.summit_elevation.toLocaleString()} ft` }));
+            ridgeGroups.slice(0, 3).forEach(r => labels.push({ x: r.px, y: r.py - 10, text: `${shortPeak(r.o.h)} · ${r.o.h.summit_elevation.toLocaleString()} ft` }));
             // Nudge apart any label pair that would collide
             labels.sort((a, b) => a.x - b.x);
             for (let i = 1; i < labels.length; i++) {
@@ -309,7 +312,9 @@
                 }
                 const h = o.h, times = climbs[h.trail_name] || 1;
                 card.style.setProperty('--accent', yearColor(hikeYear(h)));
-                card.innerHTML = `<div class="asc-card-lead"><div class="asc-card-name">${h.trail_name}</div>
+                // The True Ascents are about mountains, so the card leads with
+                // the peak; the trail that reached it is one click away.
+                card.innerHTML = `<div class="asc-card-lead"><div class="asc-card-name">${climbName(h)}</div>
                     <div class="asc-card-meta">${h.location} · ${formatHikeDate(h.date_completed)}${times > 1 ? ` · climbed ${times}×` : ''}</div></div>
                     <div class="asc-card-stats">
                         ${stat(h.summit_elevation.toLocaleString() + ' ft', 'summit')}
@@ -515,7 +520,8 @@
     const BIOME_COLORS = {
         'Desert': '#c9a566', 'Chaparral': '#a7a058', 'Coastal Chaparral': '#8fb08a',
         'Coastal': '#6fb0ac', 'Riparian Canyon': '#b77d52', 'Riparian Forest': '#3f7a55',
-        'Riparian Meadow': '#8cc06a', 'Mountain Forest': '#2f5c40', 'Urban Edge': '#9c9486'
+        'Riparian Meadow': '#8cc06a', 'Mountain Forest': '#2f5c40', 'Urban Edge': '#9c9486',
+        'Tundra': '#7f9490'
     };
     // Hand-picked specimen per biome: [trail_id, image index]. Chosen for the
     // landscape, not the people — swap freely as better photographs join the Atlas.
@@ -529,7 +535,8 @@
         'Coastal Chaparral': ['tta_103', 0],
         'Coastal': ['tta_68', 3],
         'Riparian Meadow': ['tta_52', 0],
-        'Riparian Forest': ['tta_51', 0]
+        'Riparian Forest': ['tta_51', 0],
+        'Tundra': ['tta_117', 0]
     };
     function buildSpecimens(hikes) {
         const mount = document.getElementById('biomes');

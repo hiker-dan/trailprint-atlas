@@ -23,8 +23,9 @@
     const GREEN = ['#d8e6d0', '#a9cca2', '#79ac80', '#4a7c59', '#2f5c40'];
     const densityColor = h => h >= 50 ? GREEN[4] : h >= 16 ? GREEN[3] : h >= 6 ? GREEN[2] : h >= 2 ? GREEN[1] : GREEN[0];
 
-    const STATE_NAMES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia' };
-    const US_ABBRS = new Set(Object.keys(STATE_NAMES));
+    // State names and the US/abroad test live in atlas-data.js (territoryKey /
+    // territoryName / isUsState) — this panel is not the only place that files
+    // a hike under a place, so the rule must not be re-derived here.
 
     const yearColor = y => ATLAS_CONFIG.COLOR_MAP[String(y)] || ATLAS_CONFIG.DEFAULT_COLOR;
 
@@ -43,11 +44,15 @@
 
     Promise.all([
         fetchHikes(),
-        fetch('assets/blank-us-map.svg').then(r => r.text())
-    ]).then(([hikes, usSvgText]) => {
+        fetch('assets/blank-us-map.svg').then(r => r.text()),
+        // National silhouettes for the countries walked outside the US, built by
+        // tools/build-countries.py. Never fatal: a missing file just means the
+        // country tiles fall back to their pennant.
+        fetch('assets/countries.json').then(r => r.ok ? r.json() : {}).catch(() => ({}))
+    ]).then(([hikes, usSvgText, countryShapes]) => {
         buildProfile(hikes);
         buildEffortField(hikes);
-        buildTerritories(hikes, usSvgText);
+        buildTerritories(hikes, usSvgText, countryShapes);
         buildAscents(hikes);
         buildCadence(hikes);
         buildSpecimens(hikes);
@@ -71,9 +76,16 @@
         const totalElev = hikes.reduce((s, h) => s + (h.elevation_gain || 0), 0);
         const vertMiles = (totalElev / 5280).toFixed(1);
         const summits = new Set(hikes.filter(h => h.summit_trail && h.summit_elevation).map(h => h.trail_name)).size;
-        const states = new Set(hikes.map(h => (h.region || '').split(', ').pop()).filter(Boolean)).size;
+        // States and countries are counted separately: "8 states" used to
+        // include British Columbia, which is neither a state nor eight.
+        const keys = new Set(hikes.map(territoryKey).filter(Boolean));
+        const states = [...keys].filter(isUsState).length;
+        const abroad = keys.size - states;
+        const ground = abroad
+            ? `<b>${states} states</b> and <b>${abroad} countr${abroad === 1 ? 'y' : 'ies'}</b> beyond`
+            : `<b>${states} states</b>`;
         el.innerHTML = `You're a <b>${topBiome.toLowerCase()}</b>-loving, <b>${sizeWord}</b> explorer who has climbed
-            <b>${vertMiles} vertical miles</b>, stood on <b>${summits} summits</b>, and left tracks across <b>${states} states</b>.`;
+            <b>${vertMiles} vertical miles</b>, stood on <b>${summits} summits</b>, and left tracks across ${ground}.`;
     }
 
     // ============ The Effort Field (distance × climb scatter) ============
@@ -340,13 +352,15 @@
         });
     }
 
-    function buildTerritories(hikes, usSvgText) {
+    function buildTerritories(hikes, usSvgText, countryShapes) {
         // --- Per-territory tally ---
         // Viewpoints count toward a territory's claim (you were there) but are
         // tallied apart from hikes — Arizona, for one, is all viewpoints.
         const byTerr = {};
         hikes.forEach(h => {
-            const abbr = (h.region || '').split(', ').pop().trim();
+            // one key per collected place: a US state abbreviation, or a whole
+            // country — so BC and a future Ontario hike share one Canada tile
+            const abbr = territoryKey(h);
             if (!abbr) return;
             if (!byTerr[abbr]) byTerr[abbr] = { abbr, hikes: 0, viewpoints: 0, miles: 0, trails: new Set(), dates: [] };
             if (isViewpoint(h)) {
@@ -371,21 +385,30 @@
         let usStates = 0, countries = 0;
 
         terrs.forEach(t => {
-            const isUS = US_ABBRS.has(t.abbr);
+            const isUS = isUsState(t.abbr);
             if (isUS) usStates++; else countries++;
 
             const tile = document.createElement('a');
-            tile.className = 'terr-tile';
-            // US states deep-link the interactive map straight to that state's hikes.
-            tile.href = isUS ? `map.html?state=${t.abbr}` : 'map.html';
-            tile.title = `${STATE_NAMES[t.abbr] || t.abbr}: ${t.hikes} hikes${t.viewpoints ? `, ${t.viewpoints} viewpoints` : ''}, ${t.trails.size} trails, ${Math.round(t.miles)} mi`;
+            tile.className = 'terr-tile' + (isUS ? '' : ' abroad');
+            // Every tile deep-links the map to its own hikes — a country tile
+            // by name, a state tile by abbreviation.
+            tile.href = isUS ? `map.html?state=${t.abbr}` : `map.html?country=${encodeURIComponent(t.abbr)}`;
+            tile.title = `${territoryName(t.abbr)}: ${t.hikes} hikes${t.viewpoints ? `, ${t.viewpoints} viewpoints` : ''}, ${t.trails.size} trails, ${Math.round(t.miles)} mi`;
 
             const silo = document.createElement('div');
             silo.className = 'terr-silo';
 
+            // A country's silhouette is pre-projected and normalised by
+            // tools/build-countries.py, so it drops straight in — no bbox
+            // measuring, and it never depends on the US map asset.
+            const shape = !isUS && countryShapes && countryShapes[t.abbr];
             // Reuse the real state silhouette from the US map asset
             const srcPaths = usDoc.querySelectorAll('.' + t.abbr.toLowerCase());
-            if (isUS && srcPaths.length) {
+            if (shape) {
+                const tsvg = svgEl('svg', { viewBox: shape.viewBox });
+                tsvg.appendChild(svgEl('path', { d: shape.d, fill: densityColor(t.hikes + t.viewpoints), stroke: '#2f5c40', 'stroke-width': 1.1, 'stroke-linejoin': 'round' }));
+                silo.appendChild(tsvg);
+            } else if (isUS && srcPaths.length) {
                 const d = Array.from(srcPaths).map(p => p.getAttribute('d')).filter(Boolean).join(' ');
                 const measure = svgEl('path', { d });
                 master.appendChild(measure);
@@ -395,8 +418,8 @@
                 tsvg.appendChild(svgEl('path', { d, fill: densityColor(t.hikes + t.viewpoints), stroke: '#2f5c40', 'stroke-width': Math.max(bb.width, bb.height) * 0.012, 'stroke-linejoin': 'round' }));
                 silo.appendChild(tsvg);
             } else {
-                // Fallback (e.g., a future international territory with no silhouette yet):
-                // a simple pennant marker so the tile still reads as a collected place.
+                // Fallback (a country walked before build-countries.py has been
+                // run for it): a pennant so the tile still reads as collected.
                 const tsvg = svgEl('svg', { viewBox: '0 0 24 24' });
                 tsvg.appendChild(svgEl('path', { d: 'M7 22V3l11 3.5L7 10', fill: densityColor(t.hikes + t.viewpoints), stroke: '#2f5c40', 'stroke-width': 1, 'stroke-linejoin': 'round' }));
                 silo.appendChild(tsvg);
@@ -404,7 +427,7 @@
 
             const name = document.createElement('div');
             name.className = 'terr-name';
-            name.textContent = STATE_NAMES[t.abbr] || t.abbr;
+            name.textContent = territoryName(t.abbr);
 
             const count = document.createElement('div');
             count.className = 'terr-count';
@@ -421,7 +444,7 @@
 
         // Header sub-line: the collection, and that it keeps growing
         const parts = [`${usStates} state${usStates === 1 ? '' : 's'}`];
-        if (countries) parts.push(`${countries} countr${countries === 1 ? 'y' : 'ies'}`);
+        if (countries) parts.push(`${countries} countr${countries === 1 ? 'y' : 'ies'} beyond`);
         document.getElementById('terr-count').textContent = `${parts.join(' · ')}, and the map keeps growing`;
     }
 

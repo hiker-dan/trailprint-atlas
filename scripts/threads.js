@@ -378,13 +378,11 @@
     };
 
     // Milestone definitions (priority order → dedupe → chronological), computed from data.
-    const US_STATES = new Set(['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC']);
 
     fetchHikes().then(hikes => {
         const chrono = [...hikes].sort(compareHikesChrono);
         const firstWhere = pred => chrono.find(pred);
         const cumCross = (field, threshold) => { let s = 0; for (const h of chrono) { s += h[field] || 0; if (s >= threshold) return h; } return null; };
-        const stateOf = h => (h.region || '').split(', ').pop();
 
         const defs = [];
         const push = (pri, glyph, kicker, short, hike, note) => {
@@ -398,7 +396,9 @@
         push(2, G.solo, 'First Solo Hike', 'First Solo', firstWhere(h => h.hike_size === 'Solo'), 'Just you and the quiet.');
         push(3, G.summit, 'First Summit', 'First Summit', firstWhere(h => h.summit_trail && h.summit_elevation >= 3000), null);
         push(4, G.night, 'First Night on the Trail', 'First Night', firstWhere(h => h.hike_type === 'Backpacking'), 'The first time you carried everything in and slept out on the trail itself.');
-        push(5, G.border, 'Beyond the Border', 'Beyond Border', firstWhere(h => stateOf(h) && !US_STATES.has(stateOf(h))), null);
+        // "Beyond the Border" asks the country field, not a list of state
+        // abbreviations kept here — atlas-data.js owns that rule for the whole site.
+        push(5, G.border, 'Beyond the Border', 'Beyond Border', firstWhere(h => hikeCountry(h) !== 'United States'), null);
 
         // Recurring milestones — each CATEGORY has one glyph; the specific value
         // lives on the label + hover card, so nothing is told apart by a number alone.

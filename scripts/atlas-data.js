@@ -151,6 +151,53 @@ function isViewpoint(hike) {
     return hike.hike_type === 'Viewpoint';
 }
 
+/* --- Where a hike happened, as the Atlas collects it ------------------------
+ * The US is collected STATE by state; everywhere else is collected as a whole
+ * COUNTRY (decided July 2026). There will always be far fewer hikes abroad,
+ * and a lone province tile beside fifty states reads as an accident rather
+ * than a collection — so British Columbia and (one day) Ontario are both
+ * simply "Canada".
+ *
+ * `country` is an explicit field, not something derived from `region`: "Dublin,
+ * ??" has no state abbreviation to key off, so no suffix rule could survive
+ * the first hike in Europe. Records written before the field existed read as
+ * United States, which is what they were.
+ *
+ *   territoryKey()  — the identity a hike is filed under: "CA", "UT", "Canada"
+ *   territoryName() — what that key is called out loud
+ *   isUsState()     — whether a key is one of the fifty (+ DC)
+ */
+const US_STATE_NAMES = {
+    AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+    CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+    HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+    KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+    MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi',
+    MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire',
+    NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina',
+    ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
+    RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee',
+    TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington',
+    WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia'
+};
+
+function hikeCountry(hike) {
+    return (hike && hike.country) || 'United States';
+}
+
+function isUsState(key) {
+    return Object.prototype.hasOwnProperty.call(US_STATE_NAMES, key);
+}
+
+function territoryKey(hike) {
+    if (hikeCountry(hike) !== 'United States') return hikeCountry(hike);
+    return ((hike && hike.region) || '').split(', ').pop().trim();
+}
+
+function territoryName(key) {
+    return US_STATE_NAMES[key] || key;
+}
+
 /* --- Naming a summit -------------------------------------------------------
  * A peak is often not the trail that reaches it: "Waterman Mountain Loop
  * Trail" tops out on Mount Waterman. So summit records carry an explicit

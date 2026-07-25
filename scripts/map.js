@@ -219,9 +219,13 @@ let legIndexById = {};          // trail_id -> position in the itinerary
 let hikesById = {};             // trail_id -> hike record (the sheet's lookup)
 let fullBounds = null;
 
-// Deep-link support: map.html?state=CA opens zoomed to that state's hikes.
-const FOCUS_STATE = (new URLSearchParams(window.location.search).get('state') || '').trim().toUpperCase();
-let pendingFocusState = FOCUS_STATE;
+// Deep-link support: map.html?state=CA opens zoomed to that state's hikes, and
+// map.html?country=Canada to that whole country's — the two ways the Observatory
+// files a place, so both its tiles have somewhere to land.
+const FOCUS_PARAMS = new URLSearchParams(window.location.search);
+const FOCUS_STATE = (FOCUS_PARAMS.get('state') || '').trim().toUpperCase();
+const FOCUS_COUNTRY = (FOCUS_PARAMS.get('country') || '').trim();
+let pendingFocusState = FOCUS_STATE || FOCUS_COUNTRY;
 /**
  * The whole-Atlas frame. PIXEL padding, not a geographic pad(): the chrome that
  * floats over the map (wordmark + finder + rail above, the deck and the chain
@@ -246,11 +250,13 @@ let pendingSheetBoot = (() => {
     return Boolean(p.get('sheet') || p.get('restore') === 'land');
 })();
 
-function zoomToState(abbr) {
+/** Frame one collected place: a US state abbreviation, or a whole country. */
+function zoomToTerritory(key) {
+    const wanted = key.toUpperCase();
     const pts = [];
     allHikesData.forEach(group => {
-        const st = (group[0].region || '').split(', ').pop().trim().toUpperCase();
-        if (st !== abbr) return;
+        const tk = territoryKey(group[0]);
+        if ((tk || '').toUpperCase() !== wanted) return;
         group.forEach(h => {
             if (typeof h.latitude === 'number' && typeof h.longitude === 'number') pts.push([h.latitude, h.longitude]);
         });
@@ -291,7 +297,7 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
         // the blank ledger) so the deck reads as a preview from first paint. A
         // ?leg/?sheet/?restore boot below overrides it with its own hike.
         if (legs.length) previewPlaque(legs[legs.length - 1].h);
-        if (FOCUS_STATE) zoomToState(FOCUS_STATE);
+        if (FOCUS_STATE || FOCUS_COUNTRY) zoomToTerritory(FOCUS_STATE || FOCUS_COUNTRY);
         pendingFocusState = '';
         // ?leg=N lands instantly on an expedition leg, world rendered to that
         // point — the headless-screenshot hook, same spirit as home.js's ?p=.

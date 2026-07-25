@@ -413,11 +413,40 @@ def validate_date(raw):
         return False, "dates look like 2026-06-28 (YYYY-MM-DD)"
 
 
+# Canadian province/territory abbreviations — the only non-US subdivisions the
+# Atlas has walked so far. Used to INFER the country so the wizard rarely has to
+# ask; anywhere else, it asks. (The Atlas collects abroad by whole country, so
+# this map exists to answer "which country", never to build a tile.)
+CA_PROVINCES = {
+    "BC": "British Columbia", "AB": "Alberta", "SK": "Saskatchewan",
+    "MB": "Manitoba", "ON": "Ontario", "QC": "Quebec", "NB": "New Brunswick",
+    "NS": "Nova Scotia", "PE": "Prince Edward Island",
+    "NL": "Newfoundland and Labrador", "YT": "Yukon",
+    "NT": "Northwest Territories", "NU": "Nunavut",
+}
+US_STATES = {
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL",
+    "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT",
+    "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI",
+    "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
+}
+
+
 def validate_region(raw):
     m = re.match(r"^(.+),\s*([A-Za-z]{2})$", raw)
     if not m:
         return False, 'region looks like "Pacific Palisades, CA" (City, two-letter state)'
     return True, f"{m.group(1).strip()}, {m.group(2).upper()}"
+
+
+def infer_country(region):
+    """The country a region sits in, when the suffix makes it obvious."""
+    suffix = region.split(",")[-1].strip().upper()
+    if suffix in US_STATES:
+        return "United States"
+    if suffix in CA_PROVINCES:
+        return "Canada"
+    return None
 
 
 def validate_number(raw):
@@ -573,6 +602,16 @@ def run_wizard(hikes, gpxs, photos):
         region = ask('Region — nearest town as "City, ST" (like "La Canada Flintridge, CA")',
                      validate=validate_region)
 
+    # The country is a real field, not something derived at read time: a future
+    # "Dublin, ??" has no abbreviation any suffix rule could recognise. Inferred
+    # silently where the suffix already answers it, asked where it doesn't.
+    country = infer_country(region)
+    if country is None:
+        country = ask("Country (the Atlas collects abroad one whole country at a time)",
+                      default=repeat_of.get("country") if repeat_of else "United States")
+    else:
+        print(f"  Country: {country} (from the region)")
+
     geo_default = (GEOGRAPHIES.index(repeat_of["primary_geography"])
                    if repeat_of and repeat_of["primary_geography"] in GEOGRAPHIES
                    else None)
@@ -702,6 +741,7 @@ def run_wizard(hikes, gpxs, photos):
         "date_completed": date_completed,
         "location": location,
         "region": region,
+        "country": country,
         "primary_geography": geography,
         "miles": miles,
         "elevation_gain": elevation_gain,

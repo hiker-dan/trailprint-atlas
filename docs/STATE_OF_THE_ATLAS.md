@@ -11,9 +11,10 @@ in git history.*
 
 ## Where the build actually stands
 
-**The redesign arc is one page from finished.** Home, the interactive map, the hike
-page, Echoes, and Trail Crew all speak the engraved-atlas language. **`trip.html`
-does not** — it is the last page still wearing the old skin (see item 1 below).
+**The redesign arc has three pages left.** Home, the interactive map, the hike page
+and Echoes speak the engraved-atlas language. **`trip.html`, `crew.html` and
+`crew-member.html` do not** — they share one dated visual system between them
+(see live problem 2).
 
 **The data is complete and caught up.** 123 records, 8 Jan 2022 → 18 Jul 2026;
 113 hikes and 10 viewpoints; every `description`, `flora` and `fauna` filled.
@@ -34,7 +35,7 @@ diet (1,916 → 674 tile requests on a fixed session).
 | **2 — Pack Lighter** (perf + mobile) | ✅ Perf done, and then some — the July map diet cut tile traffic ~65%. ⏸ **Mobile still deferred by choice** |
 | **3 — Catch Up the Logbook** (data) | ✅ **Done.** Pipeline shipped; backlog fully entered (123 records through 18 Jul 2026). Runyon became Echoes' Local Loop |
 | **4 — Find Your Voice** (storytelling) | ◐ Trip pages ✅, Local Loop ✅, elevation profiles ✅, fire memorial ✅, loading phrases ✅. **Journal (`notes`, 0/123) and The Overlook statement still empty — deferred by choice** |
-| **5 — New Summits** (expansion) | ◐ Trail Crew ✅, Observatory ✅, hero film + map expedition ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
+| **5 — New Summits** (expansion) | ◐ Trail Crew ✅ *(built, but still in the old skin — see roadmap item 2)*, Observatory ✅, hero film + map expedition ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
 
 ---
 
@@ -75,10 +76,22 @@ is. Verified in the browser:
 - The header sub-line ("7 states · 1 country") survives, but calls a province a
   country.
 
-**2. `trip.html` is the last page in the old visual language.** Navy photo hero
-with white overlay text, floating white stat cards, green underlined headings, a
-default-styled Leaflet map with zoom controls, and the retired timeline strip on
-top. Every other page has moved on; this one is jarring beside them.
+**2. Three pages still wear the old skin: `trip.html`, `crew.html`,
+`crew-member.html`.** Confirmed by rendering all three — they share one dated
+visual system, not three separate problems:
+- an **evergreen slab hero** with white overlay text (`#trip-hero`, `#crew-hero`)
+- **white rounded cards with drop shadows** on a near-white page (`#fdfdfd`)
+- **green sans headings with an underline rule**
+- **default Esri World Topo tiles** with stock zoom controls — bright green maps
+  with none of the Atlas basemap wardrobe or parchment wash
+- and on the trip page, the retired timeline strip still riding on top
+
+The **bones differ in quality, and that matters for how each is treated.** The crew
+pages' structure is genuinely good and stays: the core-crew field cards, the
+register with era bars, and above all the per-companion **region-grouped shared-trail
+maps** on `crew-member.html`, which are one of the site's best ideas. Those need a
+coat of paint, not a rebuild. The trip page needs more than paint — it's a chapter,
+and the map's expedition engine already knows what a chapter is.
 
 **3. Retirement debt from the map rebuild.** The deck's `#timeline-scrub` markup
 still exists and `buildTimelineChrome()`/`syncScrub()` still write to it, though
@@ -95,7 +108,7 @@ built this year is desktop-only; the audience is family on phones.
 
 ---
 
-## Decisions locked (unchanged)
+## Decisions locked
 
 - **Single track, features first.** No parallel work.
 - **Mobile** deferred until the site is near-final.
@@ -104,7 +117,12 @@ built this year is desktop-only; the audience is family on phones.
 - **The journal + The Overlook voice** deferred until the build is further along.
 - **AI descriptions stay** as the field-guide layer beneath Danny's journal words.
 - **Photo privacy gate: cut.**
-- **Canada:** `region` stays "City, PROV"; hikes abroad classify by province/territory.
+- **Territories abroad are whole COUNTRIES, not subdivisions** (decided 24 July 2026,
+  reversing the earlier province plan). The US keeps its state-by-state grid because
+  that's where the miles are; every other country gets **one tile with its own
+  national silhouette** — Canada, Ireland, Italy. There will always be far fewer
+  hikes abroad, and a lone province tile beside 50 states reads as an accident
+  rather than a collection. `region` still records "City, PROV" for the detail.
 
 ---
 
@@ -114,20 +132,33 @@ Sequencing logic: fix what's visibly wrong before adding anything new; finish th
 redesign arc; then build the new rooms; batch the taxonomy change last, over the
 complete set.
 
-### 1. Canada readiness  *(small, and overdue — it's live)*
-- A province name map and a **silhouette source for provinces** matching the US
-  map's style, so BC gets a real tile.
-- Fix the "N states" wording → states *and* provinces/countries, everywhere it appears.
-- Deep-link BC's tile the way state tiles link (`map.html?state=…` equivalent).
-- Teach `new-hike.py` the province convention.
+### 1. Territories abroad  *(small, overdue, and currently wrong on the live site)*
+Canada is the first case; the work is built once for every country after it.
+- **Country becomes a first-class field.** It can't be derived — "Dublin, ??" has no
+  state abbreviation to key off — so it goes in the schema, per the standing rule
+  that new per-hike information starts there.
+- **A silhouette source for countries**, generated locally the way trails.geojson is
+  (a tool, a committed asset, no runtime dependency), so Canada gets a real outline
+  instead of the fallback pennant.
+- Fix the **"N states"** wording everywhere → states *and* countries.
+- Give a country tile a working destination, as state tiles have.
+- Teach `new-hike.py` to ask, and infer the obvious cases.
 - Safe as-is: interactive map, weather almanac (Open-Meteo is global), park badges.
 
-### 2. Trip page redesign + the retirements  *(stage 4 — closes the redesign arc)*
-The last page in the old language, and the natural home for the leftover cleanup:
-retire `timeline-nav.js` and the dead deck scrub, and bring the docs current. The
-proven method applies — concepts → mockups → build — and there's a strong starting
-question already: a trip is a **chapter**, and the map's expedition engine already
-knows what a chapter is.
+### 2. The last re-skin: trip + crew  *(stage 4 — closes the redesign arc)*
+The three remaining old-skin pages, taken together rather than one at a time, because
+they share one visual system: fix it once and all three land in the same language.
+Also the natural home for the leftover cleanup — retire `timeline-nav.js` and the
+dead deck scrub, and bring the docs current.
+
+Two different jobs inside one design pass:
+- **`crew.html` + `crew-member.html` — a coat of paint.** The bones stay, explicitly:
+  core-crew field cards, the register with era bars, and the region-grouped
+  shared-trail maps. What changes is the surface — the slab hero, the white cards,
+  the underlined headings — and the maps trade stock Esri Topo for the Atlas basemap.
+- **`trip.html` — a real redesign.** The proven method applies (concepts → mockups →
+  build), and there's a strong starting question: a trip *is* a chapter, and the
+  expedition engine already knows what a chapter is.
 
 ### 3. Park Badges  *(the trophy case)*
 47 unique `location` values are waiting. Park type derives from `location` via a

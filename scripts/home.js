@@ -64,9 +64,44 @@ const AtlasIntro = {
             new Promise(res => setTimeout(() => res(null), 2500))
         ]);
         const [hikes, trailsById] = await Promise.all([fetchHikes(), fetchTrailGeometries()]);
+        // The outlines are wanted BEFORE the map is framed now (the inset plates
+        // are cut from them), and they were already racing a 2.5s cap alongside
+        // the data fetch — so awaiting here costs nothing the film would notice.
+        const statesGeo = await statesPromise;
 
         const yearOf = {};
         hikes.forEach(h => { yearOf[h.trail_id] = hikeYear(h); });
+
+        // ===== Inset plates: the atlas answer to far-flung country =====
+        // Alaska sits too far north-west to share one frame with the lower 48 —
+        // stretched to hold it, the continental map shrivels into a corner and
+        // the whole film opens off-balance. Real atlases have solved this for a
+        // century: distant land gets its own framed plate at its own scale.
+        // A plate is CHROME, not land — it never rides the camera's zoom, and it
+        // is laid on the sheet only once the camera has come to rest.
+        // Hawaii's plate is RESERVED: cut and labelled but unwalked, so the pair
+        // reads as a deliberate row (and Alaska keeps its spot the day it inks).
+        const PLATE_DEFS = [
+            {
+                key: 'alaska', label: 'Alaska', state: 'Alaska', corner: 'se',
+                holds: (la, lo) => la > 51 && lo < -129,
+                // the Aleutians run another 1,200 miles west; dropping them keeps
+                // the plate compact and the mainland readable, as most plates do
+                keepRing: r => r.some(c => c[0] > -170)
+            },
+            {
+                key: 'hawaii', label: 'Hawaii', state: 'Hawaii', reserved: true, corner: 'sw',
+                holds: (la, lo) => la > 18 && la < 23 && lo > -161 && lo < -154,
+                keepRing: () => true
+            }
+        ];
+        PLATE_DEFS.forEach(pd => { pd.ids = []; });
+        const mainIds = [];
+        Object.keys(trailsById).forEach(id => {
+            const first = trailsById[id] && trailsById[id][0] && trailsById[id][0][0];
+            const pd = first && PLATE_DEFS.find(p => p.holds(first[0], first[1]));
+            if (pd) pd.ids.push(id); else mainIds.push(id);
+        });
 
         // Leaflet is here ONLY to project lat/lng → pixels (no tiles, no layers).
         const map = L.map('hero-map', {
@@ -74,12 +109,17 @@ const AtlasIntro = {
             doubleClickZoom: false, boxZoom: false, keyboard: false, touchZoom: false, zoomSnap: 0
         });
 
-        // Bounds of every trail; the FINAL crop is padded for breathing room
-        // (future coast / Cascades / Canada trips) and so the mid-zoom never
-        // sees past an unbuilt edge.
+        // Bounds of every CONTINENTAL trail — the plate country is deliberately
+        // excluded, which is the whole point: the film frames the lower 48 at
+        // its widest instead of being dragged north-west by Alaska. Padded for
+        // breathing room (future coast / Cascades / Canada trips) and so the
+        // mid-zoom never sees past an unbuilt edge.
         const allBounds = L.latLngBounds([]);
-        Object.values(trailsById).forEach(segs => segs.forEach(seg => seg.forEach(ll => allBounds.extend(ll))));
-        map.fitBounds(allBounds.pad(0.32), { animate: false });
+        mainIds.forEach(id => trailsById[id].forEach(seg => seg.forEach(ll => allBounds.extend(ll))));
+        // 0.18, down from 0.32: that generous margin was breathing room when
+        // Alaska was in the bounds and everything continental sat small in one
+        // corner. On a lower-48 frame it just read as empty ocean.
+        map.fitBounds(allBounds.pad(0.18), { animate: false });
 
         // Full-precision projection (project() is float; latLngToContainerPoint rounds).
         const Z = map.getZoom(), sz = map.getSize(), W = sz.x, H = sz.y;
@@ -102,8 +142,7 @@ const AtlasIntro = {
         // slivers into the corner of the final frame.
         const statesG = document.createElementNS(SVGNS, 'g');
         zoomG.appendChild(statesG);
-        statesPromise.then(statesGeo => {
-            if (!statesGeo) return;
+        if (statesGeo) {
             const ring = r => { let d = ''; r.forEach((c, i) => { const [x, y] = cont([c[1], c[0]]); d += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' '; }); return d + 'Z '; };
             statesGeo.features.filter(f => !['Alaska', 'Hawaii', 'Puerto Rico'].includes(f.properties && f.properties.name)).forEach(f => {
                 const g = f.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
@@ -112,7 +151,7 @@ const AtlasIntro = {
                 path.setAttribute('d', d); path.setAttribute('class', 'state-line');
                 statesG.appendChild(path);
             });
-        });
+        }
 
         // Trails on top. Coordinates keep 3 decimals: the deep opening zoom
         // (~×130) magnifies any quantization — 0.1px rounding would read as
@@ -123,7 +162,7 @@ const AtlasIntro = {
         const trailsG = document.createElementNS(SVGNS, 'g');
         zoomG.appendChild(haloG); zoomG.appendChild(trailsG);
         const items = [];
-        Object.keys(trailsById).forEach(id => {
+        mainIds.forEach(id => {
             let d = '', minx = Infinity, miny = Infinity, maxx = -Infinity, maxy = -Infinity;
             trailsById[id].forEach(seg => seg.forEach((ll, i) => {
                 const [x, y] = cont(ll);
@@ -139,7 +178,9 @@ const AtlasIntro = {
             path.setAttribute('d', d); path.setAttribute('class', 'trail-line');
             path.setAttribute('stroke', color);
             trailsG.appendChild(path);
-            items.push({ p: path, h: halo, cx: (minx + maxx) / 2, cy: (miny + maxy) / 2, bb: [minx, miny, maxx, maxy] });
+            // `parts` = every stroke that draws as one: a continental trail has a
+            // line and its halo twin; a plate trail is just the line.
+            items.push({ p: path, h: halo, parts: [path, halo], cx: (minx + maxx) / 2, cy: (miny + maxy) / 2, bb: [minx, miny, maxx, maxy] });
         });
         document.getElementById('hero-film').insertBefore(svg, document.querySelector('.hero-vig'));
         items.forEach(o => { o.len = o.p.getTotalLength(); });
@@ -159,6 +200,18 @@ const AtlasIntro = {
         const hc = { x: (hxmin + hxmax) / 2, y: (hymin + hymax) / 2 };
         const homeW = Math.max(3, hxmax - hxmin), homeH = Math.max(3, hymax - hymin);
         const S0 = Math.max(2.4, Math.min(Math.min(W / homeW, H / homeH) * 0.62, 170));
+
+        // One holder per bottom corner: the plates are anchored opposite each
+        // other, not huddled in a row — a pair of matching corner mounts reads
+        // as a deliberate sheet layout, and neither can crowd the other.
+        const PLATE_MAX_W = 150, PLATE_MAX_H = 136;
+        const plateHolders = {};
+        ['sw', 'se'].forEach(c => {
+            const el = document.createElement('div');
+            el.className = 'inset-plates ' + c;
+            el.id = 'inset-plates-' + c;
+            plateHolders[c] = el;
+        });
 
         // ---- The terrain underlay ----
         // Static rings of Esri Shaded Relief tiles — pure landform shadow, no
@@ -306,12 +359,112 @@ const AtlasIntro = {
             o.d = Math.hypot(o.cx - hc.x, o.cy - hc.y) + (k - 1) * 7;
             o.revealS = Math.max(1.15, (0.5 * Math.min(W, H)) / Math.max(1, o.d));
         });
+
+        // ---- Cutting the plates ----
+        // Each plate is its own little sheet: its own projection, its own scale,
+        // a neatline and an engraved label. A plate is cut if trails live there —
+        // or if it's RESERVED, in which case the land is drawn and simply left
+        // unwalked. Hawaii's empty plate is why Alaska has a neighbour to sit
+        // beside, and it means Alaska never shifts position the day Hawaii inks.
+        const plateItems = [];
+        PLATE_DEFS.forEach(pd => {
+            if (!pd.ids.length && !pd.reserved) return;
+            const PZ = 8;   // any fixed zoom — the viewBox normalises it away
+            const pr = ll => { const p = map.project(L.latLng(ll[0], ll[1]), PZ); return [p.x, p.y]; };
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            const grow = ([x, y]) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+
+            // The plate frames the WHOLE state, so the silhouette says where you
+            // are at a glance and the trails sit at their true place inside it.
+            // If the outlines never arrived, fall back to framing the trails —
+            // an unlabelled plate beats a missing one.
+            const feat = statesGeo && statesGeo.features.find(f => f.properties && f.properties.name === pd.state);
+            const keptRings = [];
+            if (feat) {
+                const g = feat.geometry, polys = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
+                polys.forEach(poly => poly.forEach(r => { if (pd.keepRing(r)) keptRings.push(r); }));
+            }
+            keptRings.forEach(r => r.forEach(c => grow(pr([c[1], c[0]]))));
+            if (!keptRings.length) pd.ids.forEach(id => trailsById[id].forEach(seg => seg.forEach(ll => grow(pr(ll)))));
+            const pad = Math.max(x1 - x0, y1 - y0) * 0.05;
+            x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+            const pw = Math.max(1e-6, x1 - x0), ph = Math.max(1e-6, y1 - y0);
+            const sc = Math.min(PLATE_MAX_W / pw, PLATE_MAX_H / ph);
+
+            const box = document.createElement('div');
+            box.className = 'inset-plate' + (pd.ids.length ? '' : ' is-unwalked');
+            box.style.width = Math.round(pw * sc) + 'px';
+            box.style.height = Math.round(ph * sc) + 'px';
+            const psvg = document.createElementNS(SVGNS, 'svg');
+            psvg.setAttribute('viewBox', `${x0.toFixed(2)} ${y0.toFixed(2)} ${pw.toFixed(2)} ${ph.toFixed(2)}`);
+            psvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            // stroke widths counter-scale, exactly as --z does on the main film,
+            // so a plate reads with the same line weight whatever its scale
+            psvg.style.setProperty('--ps', sc);
+            if (keptRings.length) {
+                let d = '';
+                keptRings.forEach(r => { r.forEach((c, i) => { const [x, y] = pr([c[1], c[0]]); d += (i === 0 ? 'M' : 'L') + x.toFixed(2) + ',' + y.toFixed(2) + ' '; }); d += 'Z '; });
+                const land = document.createElementNS(SVGNS, 'path');
+                land.setAttribute('d', d); land.setAttribute('class', 'plate-land');
+                psvg.appendChild(land);
+            }
+            pd.ids.forEach(id => {
+                let d = '';
+                trailsById[id].forEach(seg => seg.forEach((ll, i) => { const [x, y] = pr(ll); d += (i === 0 ? 'M' : 'L') + x.toFixed(3) + ',' + y.toFixed(3) + ' '; }));
+                const path = document.createElementNS(SVGNS, 'path');
+                path.setAttribute('d', d); path.setAttribute('class', 'plate-trail');
+                path.setAttribute('stroke', yearColor(yearOf[id] || 2022));
+                psvg.appendChild(path);
+                // Plate trails are NOT part of the film's release order — they
+                // ink after the plate has been laid down (see revealPlates).
+                plateItems.push({ p: path });
+            });
+            const label = document.createElement('div');
+            label.className = 'ip-label';
+            label.textContent = pd.label;
+            box.append(psvg, label);
+            (plateHolders[pd.corner] || plateHolders.se).appendChild(box);
+        });
+        const heroEl = document.getElementById('hero-film'), vigEl = document.querySelector('.hero-vig');
+        Object.values(plateHolders).forEach(el => { if (el.children.length) heroEl.insertBefore(el, vigEl); });
+        plateItems.forEach(o => { o.len = o.p.getTotalLength(); });
+
         items.sort((a, b) => a.d - b.d);   // nearest to home first
+
+        // ---- Laying the plates down ----
+        // The plates belong to the FINISHED sheet, so they wait for the camera:
+        // fading them in over a country still pulling back read as a card
+        // appearing on top of a moving map. Now the film lands, the title rises,
+        // and only then does the plate settle into the corner and take its ink.
+        const primePlates = () => plateItems.forEach(o => {
+            o.p.style.transition = 'none';
+            o.p.style.strokeDasharray = o.len;
+            o.p.style.strokeDashoffset = o.len;
+        });
+        let plateTimer = null;
+        function revealPlates(animated) {
+            clearTimeout(plateTimer);
+            Object.values(plateHolders).forEach(el => {
+                el.classList.toggle('no-anim', !animated);
+                el.classList.add('show');
+            });
+            const ink = () => plateItems.forEach((o, i) => {
+                o.p.style.transition = animated ? `stroke-dashoffset 900ms cubic-bezier(0.33, 0, 0.15, 1) ${i * 120}ms` : 'none';
+                o.p.style.strokeDasharray = animated ? o.len : 'none';
+                o.p.style.strokeDashoffset = '0';
+            });
+            if (animated) plateTimer = setTimeout(ink, 820); else ink();
+        }
+        function hidePlates() {
+            clearTimeout(plateTimer);
+            Object.values(plateHolders).forEach(el => el.classList.remove('show', 'no-anim'));
+            primePlates();
+        }
 
         // Halos prime and draw WITH their trail (same dash animation), so a glow
         // can never appear ahead of the line it belongs to — the group-level
         // fade in setView only governs how visible the drawn glows are.
-        const prime = () => items.forEach(o => [o.p, o.h].forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = o.len; p.style.strokeDashoffset = o.len; }));
+        const prime = () => items.forEach(o => o.parts.forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = o.len; p.style.strokeDashoffset = o.len; }));
         // The map shows itself IMMEDIATELY — primed empty (state lines on
         // parchment), with the terrain fading in beneath it as imagery lands.
         // The film then starts on an already-visible world; if instead the svg
@@ -319,6 +472,7 @@ const AtlasIntro = {
         // while the whole map was still fading in, and would read as appearing
         // already drawn.
         prime();
+        primePlates();
         setView(0);
         svg.classList.add('ready');
         const D = 24000;    // ~24s of drawing, then the title flourish
@@ -332,6 +486,7 @@ const AtlasIntro = {
             scrollHint.classList.remove('show');
             items.forEach(o => o.started = false);
             prime();
+            hidePlates();
             setView(0);
             svg.classList.add('ready');
 
@@ -348,7 +503,7 @@ const AtlasIntro = {
                 // of the finale comes from the camera and the release rate.
                 const draw = o => {
                     const dur = Math.round(2300 - 1550 * zp);
-                    [o.p, o.h].forEach(p => {
+                    o.parts.forEach(p => {
                         p.style.transition = `stroke-dashoffset ${dur}ms cubic-bezier(0.33, 0, 0.15, 1)`;
                         p.style.strokeDashoffset = '0';
                     });
@@ -394,15 +549,18 @@ const AtlasIntro = {
         }
         function finish() {   // natural ending: stragglers draw in as the title lands
             setView(1);
-            items.forEach(o => { if (!o.started) { [o.p, o.h].forEach(p => { p.style.transition = 'stroke-dashoffset 650ms ease-out'; p.style.strokeDashoffset = '0'; }); o.started = true; } });
+            items.forEach(o => { if (!o.started) { o.parts.forEach(p => { p.style.transition = 'stroke-dashoffset 650ms ease-out'; p.style.strokeDashoffset = '0'; }); o.started = true; } });
             land();
+            // the camera has stopped — NOW the plates are laid on the finished sheet
+            setTimeout(() => revealPlates(true), 620);
             setTimeout(() => scrollHint.classList.add('show'), 1000);
         }
         function finishInstantly() {   // skip, or a repeat-visit load: straight to the final frame
             cancelAnimationFrame(raf);
-            items.forEach(o => { [o.p, o.h].forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = 'none'; p.style.strokeDashoffset = '0'; }); o.started = true; });
+            items.forEach(o => { o.parts.forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = 'none'; p.style.strokeDashoffset = '0'; }); o.started = true; });
             svg.classList.add('ready');
             setView(1);
+            revealPlates(false);
             land();
             scrollHint.classList.add('show');
         }
@@ -419,8 +577,9 @@ const AtlasIntro = {
         // with all trails drawn — used to verify framing with screenshots.
         const pParam = new URLSearchParams(location.search).get('p');
         if (pParam !== null) {
-            items.forEach(o => [o.p, o.h].forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = 'none'; p.style.strokeDashoffset = '0'; }));
+            items.forEach(o => o.parts.forEach(p => { p.style.transition = 'none'; p.style.strokeDasharray = 'none'; p.style.strokeDashoffset = '0'; }));
             svg.classList.add('ready');
+            revealPlates(false);
             setView(Math.min(1, Math.max(0, +pParam)));
         } else if (document.documentElement.classList.contains('intro-fast-forward')) {
             finishInstantly();   // repeat visit this session, or reduced motion

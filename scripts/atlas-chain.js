@@ -55,16 +55,29 @@ const AtlasChain = (() => {
         return dx ? a.t + (cx - a.x) / dx * (b.t - a.t) : a.t;
     };
     const timeAtCenter = () => ready ? xToTime(viewport.scrollLeft + viewport.clientWidth / 2) : tLast;
+    // The newest mark the playhead has passed, BY POSITION. Time can't answer
+    // this: same-day outings share a timestamp, so a time-only clock lights the
+    // whole day at once. Position is the only thing that tells siblings apart,
+    // and it's what the eye is reading anyway.
+    const hikeAtCenter = () => {
+        if (!H) return null;
+        const cx = viewport.scrollLeft + viewport.clientWidth / 2;
+        let last = null;
+        for (const h of hikes) { if (h.x <= cx) last = h; else break; }
+        return last;
+    };
     const scrollForTime = t => timeToX(t) - viewport.clientWidth / 2;
 
     // -- min-gap spacing so nothing overlaps; same-day is guaranteed apart -----
     const gapBefore = (prev, h) => {
         if (!prev) return 0;
-        // same-day outings are the hardest to tell apart (one shared date label,
-        // one tight cluster) AND the expedition inks them one at a time — so they
-        // need the MOST room, or the playhead can't visibly travel between them
-        // and the sequential reveal reads as simultaneous.
-        if (prev.date_completed === h.date_completed) return 30;    // same day → widest, so each lights on its own
+        // Same-day outings get NO special width (July 2026). They used to be
+        // forced 30px apart so each could light on its own, but that made two
+        // hikes from one morning sit further apart than hikes a day apart —
+        // backwards on a time-proportional chain. Spacing is now purely a
+        // question of trip membership; the reveal tells them apart by ORDER
+        // (see setReveal), not by distance, and the hit targets shrink to fit
+        // (layout), so every mark stays pickable.
         const a = tripOfHike[prev.trail_id], b = tripOfHike[h.trail_id];
         if (a && a === b) return 13;                                // same trip, new day → tight cluster
         if (a || b) return 18;                                      // trip boundary → clear break
@@ -201,7 +214,18 @@ const AtlasChain = (() => {
             if (m.tick) m.tick.style.left = x + 'px';
             if (m.lbl) m.lbl.style.left = x + 'px';
         });
-        hikes.forEach(h => { h.dotEl.style.left = h.x + 'px'; });
+        // A dot's invisible hit halo shrinks to the room it actually has, so a
+        // tight cluster can't have its neighbours stealing each other's clicks.
+        // (This is what buys back the pickability the old 30px same-day gap
+        // used to provide by brute force.)
+        hikes.forEach((h, i) => {
+            h.dotEl.style.left = h.x + 'px';
+            const room = Math.min(
+                i > 0 ? h.x - hikes[i - 1].x : Infinity,
+                i < H - 1 ? hikes[i + 1].x - h.x : Infinity);
+            const hit = Math.max(2, Math.min(7, (room - 9) / 2));
+            h.dotEl.style.setProperty('--hitx', hit.toFixed(1) + 'px');
+        });
         trips.forEach(tr => {
             const a = tr.hikes[0].x, b = tr.hikes[tr.hikes.length - 1].x, r = 7;
             tr.fillEl.style.left = (a - r) + 'px'; tr.fillEl.style.width = (b - a + 2 * r) + 'px';
@@ -271,7 +295,10 @@ const AtlasChain = (() => {
             { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).toUpperCase();
         scapeFar.style.backgroundPositionX = (-viewport.scrollLeft * 0.12) + 'px';
         scapeNear.style.backgroundPositionX = (-viewport.scrollLeft * 0.30) + 'px';
-        if (!suppressScrub && ready && onScrubCb) onScrubCb(t);
+        // hand the listener the mark itself, not just the moment — that's what
+        // lets same-day siblings ink one at a time as you scroll past them
+        const at = hikeAtCenter();
+        if (!suppressScrub && ready && onScrubCb) onScrubCb(t, at ? at.trail_id : null);
     }
 
     // -- collapse / expand on intent (never dims) ----------------------------

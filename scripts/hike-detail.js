@@ -558,7 +558,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             vitals.push({ v: hike.elevation_gain.toLocaleString(), l: 'Feet climbed' });
         }
         if (hike.summit_trail && hike.summit_elevation) {
-            vitals.push({ v: hike.summit_elevation.toLocaleString(), l: 'Summit (ft)' });
+            // Named for the mountain when there is one — "Mount Waterman" says
+            // more than "Summit", and feet is unambiguous beside Gain (ft). An
+            // unnamed high point says so plainly rather than borrowing the
+            // trail's name and passing it off as a peak.
+            vitals.push({ v: hike.summit_elevation.toLocaleString(), l: summitLabel(hike) });
         }
         if (!(isVp && !hike.miles)) vitals.push({ v: hike.difficulty, l: 'Grade' });
 
@@ -626,16 +630,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (hike.gpx_file) {
             acetate.style.display = '';
             const mapsForThisRender = mapTopo;
-            trackPromise = fetch(`data/trails/${hike.gpx_file}`)
-                .then(res => {
+            trackPromise = Promise.all([
+                fetch(`data/trails/${hike.gpx_file}`).then(res => {
                     if (!res.ok) throw new Error(`GPX fetch failed: ${res.status}`);
                     return res.text();
-                })
-                .then(gpxText => {
+                }),
+                groundProfile(hike.trail_id)
+            ])
+                .then(([gpxText, ground]) => {
                     // The visitor may have jumped to another hike mid-fetch;
                     // that map is gone, so quietly stand down.
                     if (mapsForThisRender !== mapTopo) return null;
-                    return drawRoute(gpxText, hike, ink);
+                    return drawRoute(gpxText, hike, ink, ground);
                 })
                 .catch(err => {
                     console.error('Could not load the GPX track:', err);
@@ -688,7 +694,27 @@ document.addEventListener('DOMContentLoaded', async () => {
      * one parse for the line and waypoints; AtlasShape re-reads the same text
      * for the elevation profile.
      */
-    function drawRoute(gpxText, hike, ink) {
+    /**
+     * This trail's USGS-corrected ground profile from elevations.json, as
+     * AtlasShape wants it. One fetch serves the whole session (and the file is
+     * usually already cached from the homepage's True Ascents). Returns null
+     * when the trail hasn't been corrected yet, so the GPX's own readings stand.
+     */
+    let elevationsPromise = null;
+    function groundProfile(trailId) {
+        if (!elevationsPromise) {
+            elevationsPromise = fetch('data/elevations.json')
+                .then(r => (r.ok ? r.json() : {}))
+                .catch(() => ({}));
+        }
+        return elevationsPromise.then(all => {
+            const profile = all[trailId];
+            if (!Array.isArray(profile) || profile.length < 2) return null;
+            return { profile, high_ft: Math.max(...profile), low_ft: Math.min(...profile) };
+        });
+    }
+
+    function drawRoute(gpxText, hike, ink, ground) {
         const xml = new DOMParser().parseFromString(gpxText, 'application/xml');
         const latlngs = [...xml.querySelectorAll('trkpt')]
             .map(pt => [parseFloat(pt.getAttribute('lat')), parseFloat(pt.getAttribute('lon'))])
@@ -754,7 +780,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         /* ----- the acetate ----- */
-        const track = AtlasShape.parseGpx(gpxText);
+        const track = AtlasShape.parseGpx(gpxText, ground);
         if (!track) {
             $('acetate').style.display = 'none';
             return null;
@@ -902,26 +928,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     // already risen on this very hike.
     // Did the visitor step through from the map? (the sessionStorage handshake
     // map.js wrote, still fresh) — then "back" must restore the land exactly.
-    function cameFromMap() {
-        try {
-            const s = JSON.parse(sessionStorage.getItem('atlasLandState'));
-            return !!(s && s.at && Date.now() - s.at < 6 * 3600 * 1000);
-        } catch (e) { return false; }
+    // Every door to the land NAMES THIS HIKE. It used to send a bare
+    // ?restore=land whenever any fresh handshake existed — but a handshake left
+    // by an earlier map visit is still fresh when you reach a hike page from
+    // Trail Crew or the home page, so "back to the map" faithfully restored
+    // whatever trail you were looking at LAST, not the one on screen.
+    // map.js already resolves this correctly from ?sheet= alone: it replays the
+    // full moment (camera, basemap, timeline position) when the handshake
+    // matches that sheet, and otherwise raises this trail's sheet cold. So the
+    // hike page's only job is to say which hike it is.
+    function landDoorHref(hike) {
+        return `map.html?sheet=${hike.trail_id}`;
     }
     // BACK is the ONE "See on the Land" door (its back-arrow signals the return).
-    // From the map, it carries ?restore=land — camera, timeline moment, basemap,
-    // risen sheet, all put back exactly. Arriving cold (a shared link, the
-    // Logbook), it just opens the map onto this trail's sheet.
     function wireLandDoor(hike) {
-        $('land-door').href = cameFromMap() ? 'map.html?restore=land' : `map.html?sheet=${hike.trail_id}`;
-    }
-    // The nav's "Interactive Map" link and the browser's back button lead to the
-    // same restored land when the visitor came from there.
-    (function wireReturnDoors() {
-        if (!cameFromMap()) return;
+        $('land-door').href = landDoorHref(hike);
+        // The nav's "Interactive Map" link leads to the same place, so leaving
+        // by either route lands on the trail you were actually reading about.
         const navMapLink = document.querySelector('#top-bar-container a[href="map.html"]');
-        if (navMapLink) navMapLink.href = 'map.html?restore=land';
-    })();
+        if (navMapLink) navMapLink.href = landDoorHref(hike);
+    }
 
     /* ===================== boot ===================== */
     window.addEventListener('popstate', (event) => {

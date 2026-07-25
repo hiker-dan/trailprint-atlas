@@ -34,6 +34,15 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
    as ink pressed into the page, crisp to z16 */
 .hillshade-multiply { mix-blend-mode: multiply; }
 
+/* A multiply blend is recomputed for every pixel on every frame, and during a
+   zoom the whole tile pane is being scaled — so the two full-screen blends are
+   at their most expensive exactly when the frame budget is tightest. Drop them
+   for the ~250ms of the animation; the terrain flattens slightly mid-zoom and
+   nobody has ever noticed, because the tiles are scaling anyway. */
+.leaflet-container.is-zooming .hillshade-multiply,
+.leaflet-container.is-zooming .parchment-wash { mix-blend-mode: normal; }
+.leaflet-container.is-zooming .parchment-wash.on { opacity: 0.2; }
+
 /* Style for fading tile layers */
 .fadeable-tile-layer { transition: opacity 0.5s ease-in-out !important; }
 
@@ -201,14 +210,22 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 /* the compact console (July 2026): now the chain carries the timeline, the deck
    is just the ledger wing + a stacked readout/transport wing — roughly half the
    old width, every piece of info kept. */
+/* Long and low, not tall: the console sits over the land, so every pixel of
+   height is map the visitor can't see. Widening it lets the plaque hold a
+   long trail name on two comfortable lines instead of a narrow four, and lets
+   the readout and transport share ONE row rather than stacking. */
 .deck {
     left: 50%; transform: translateX(-50%); bottom: 16px;
-    width: min(580px, calc(100vw - 48px));
-    padding: 11px 16px 12px;
+    width: min(704px, calc(100vw - 48px));
+    padding: 10px 18px;
+    /* ONE height, always. Not just across trail names — across modes too: the
+       resting ledger, a previewed hike and the rolling film all sit in the same
+       box, so the console never grows or shrinks under the visitor. */
+    height: 112px; box-sizing: border-box;
 }
-.deck-grid { display: flex; gap: 14px; align-items: stretch; }
+.deck-grid { display: flex; gap: 18px; align-items: center; height: 100%; }
 .deck-plaque {
-    flex: 0 0 210px; min-width: 0; padding-left: 11px; padding-right: 14px;
+    flex: 0 0 340px; min-width: 0; padding-left: 11px; padding-right: 16px;
     border-left: 4px solid var(--lg, #d8ccae); border-right: 1px solid #eee3cc;
     transition: opacity 0.4s ease, border-color 0.4s ease;
 }
@@ -216,33 +233,47 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .lg-inner { transition: opacity 0.24s ease; }
 .lg-inner.swap { opacity: 0; }
 .lg-kicker { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gravel); margin-bottom: 2px; }
+/* Two lines' worth of room, ALWAYS — occupied or not. This is what stops the
+   deck bobbing as you step between "Mastodon Peak" and "Ferndell to the West
+   Observatory Loop Trail": the box no longer grows to fit the name, the name
+   fits the box. Anything longer than two lines ellipses.
+   The name is CENTRED in that box, so the common one-line case sits in the
+   middle of the space rather than hanging from the top with a gap beneath it. */
 .lg-name {
+    height: 2.24em; display: flex; align-items: center;
     font-family: var(--font-display); font-size: 14px; line-height: 1.12; color: var(--evergreen);
+}
+.lg-name > span {
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.lg-loc { font-size: 10.5px; font-style: italic; color: var(--stone); margin: 2px 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lg-stats { font-size: 11px; color: var(--charcoal); }
-.lg-with { font-size: 10.5px; color: var(--stone); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* the plaque's door — the compact kin of the sheet's .ms-bridge, styled like
-   the hike page's small "See on the Land" door: a brass-framed cream button
-   that inverts to ink on hover */
-.lg-log {
-    display: inline-flex; align-items: center; gap: 6px; margin-top: 6px;
-    padding: 4px 11px; font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em;
-    text-transform: uppercase; color: #24401f; background: #fbf6e6;
-    border: 1px solid #a5854a; border-radius: 5px; text-decoration: none;
-    transition: background-color 0.2s ease, color 0.2s ease;
-}
-.lg-log:hover { background: #24401f; color: #fbf6e6; }
+.lg-loc { font-size: 10.5px; font-style: italic; color: var(--stone); margin: 1px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-stats { font-size: 11px; color: var(--charcoal); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-with { font-size: 10.5px; color: var(--stone); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The facts and the door share one row: there is plenty of empty width beside
+   "7.2 mi · 1,914 ft gain · Hard", and spending it here buys back a whole line
+   of the deck's height while letting the button grow to a proper size. */
+.lg-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 4px; }
+.lg-facts { min-width: 0; }
+/* the plaque's door — the compact Atlas door (base.css). Sized down a touch
+   for its slot: this is the one door whose height sets the whole deck's. */
+.lg-log { flex: 0 0 auto; padding: 5px 11px; gap: 7px; }
+.lg-log .ad-glyph { width: 14px; height: 14px; }
+.lg-log .ad-chev { width: 11px; height: 11px; }
 .deck-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-/* the chapter readout stacks OVER the transport row so the console stays narrow
-   instead of spreading them across a wide bar. Both parts of the readout stack
-   too (month over context), and each truncates rather than growing the deck. */
-.deck-top { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+/* The readout STACKS over the transport. Side by side they made one long thin
+   line against a plaque three times their height, so the right of the console
+   was mostly dead space top and bottom. Stacked, they fill the height the
+   plaque already sets and the whole card gets ~200px narrower — less map
+   covered, for free. The readout truncates rather than widening the deck. */
+.deck-top { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; }
+.deck-top .deck-readout { flex: 0 0 auto; }
+.deck-top .deck-controls { flex: 0 0 auto; }
 .deck-readout { min-width: 0; text-align: left; color: var(--evergreen); line-height: 1.28; overflow: hidden; }
 .deck-readout b { display: block; font-family: var(--font-display); font-size: 14px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .deck-stats { display: block; color: var(--gravel); font-size: 11px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.deck-controls { display: flex; align-items: center; justify-content: flex-start; gap: 7px; flex-wrap: wrap; }
+/* nowrap: a wrapping transport row was a second way the deck changed height.
+   Left-aligned so the buttons hang under the readout's first letter. */
+.deck-controls { display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; }
 .deck-controls button {
     border: 1.5px solid var(--evergreen); background: #fffdf6; color: var(--evergreen);
     font-family: var(--font-body); cursor: pointer; border-radius: 999px;
@@ -254,7 +285,9 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .deck-step { width: 28px; height: 28px; font-size: 14px; line-height: 1; }
 .deck-end { width: 28px; height: 28px; font-size: 11px; border-color: #c0a98a !important; color: var(--gravel) !important; }
 .deck-end:hover { background: #c0392b !important; border-color: #c0392b !important; color: #fff !important; }
-.deck-leg { font-size: 11px; color: var(--gravel); font-style: italic; white-space: nowrap; }
+/* the leg/chapter note yields before the transport does — it may truncate,
+   but it must never shove a button out of the row or overlap one */
+.deck-leg { font-size: 11px; color: var(--gravel); font-style: italic; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
 .deck-track { position: relative; height: 28px; margin-bottom: 13px; }
 .deck-band { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px; opacity: 0.85; }
 .deck-track input {
@@ -322,11 +355,20 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .leaflet-thread-pane { opacity: 0; transition: opacity 0.9s ease; pointer-events: none; }
 #map.threads-on .leaflet-thread-pane { opacity: 1; }
 
-/* --- Trail spotlight --- */
-#map .leaflet-overlay-pane path { transition: stroke-opacity 0.5s ease-in-out, stroke-width 0.5s ease-in-out, stroke 0.6s ease-in-out; }
+/* --- Trail spotlight ---
+   BOTH panes must be listed. The main trail ink lives in the custom
+   `mainTrailPane` (created in map.js so a fresh stroke always sits above its
+   own echoes), which is a sibling of .leaflet-overlay-pane, not a child. For a
+   long time these rules named only the overlay pane, so the trail strokes
+   computed to transition-duration: 0s and every solid->echo change SNAPPED.
+   Echoes that appeared to fade were the handful of layers that happened to sit
+   in the default pane. If a new pane ever holds trail ink, add it here too. */
+#map .leaflet-overlay-pane path,
+#map .leaflet-mainTrail-pane path { transition: stroke-opacity 0.5s ease-in-out, stroke-width 0.5s ease-in-out, stroke 0.6s ease-in-out; }
 /* strokes settling into echo take their time — the halo blooms out from
    under the new ink instead of snapping into place */
-#map .leaflet-overlay-pane path.echo-ink {
+#map .leaflet-overlay-pane path.echo-ink,
+#map .leaflet-mainTrail-pane path.echo-ink {
     transition: stroke-opacity 1.5s ease, stroke-width 1.5s ease, stroke 1.5s ease;
 }
 
@@ -557,25 +599,9 @@ body.sheet-open .atlas-chain { z-index: 2100; height: 13px; }
 .ms-ff { margin: 0 0 12px; font-size: 11.5px; line-height: 1.55; color: #6f6a58; }
 .ms-ff b { color: #24401f; }
 
-/* The bridge to the full hike page — the other face of the hike page's own
-   "Return to the Land" door, so it wears the same coin: cream paper, a brass
-   frame with a brass spine, an icon that steps through, and the two-line
-   display/italic label. (The lt-/brass palette lives in hike.css, which this
-   page doesn't load, so the values are inlined to match exactly.) */
-.ms-bridge {
-    display: flex; align-items: center; gap: 13px;
-    margin-top: 20px; padding: 13px 18px; text-decoration: none;
-    background: #fffdf6;
-    border: 1px solid #a5854a; border-left: 4px solid #a5854a; border-radius: 8px;
-    box-shadow: 0 4px 16px rgba(20, 15, 5, 0.22);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.ms-bridge svg { flex: 0 0 auto; width: 22px; height: 22px; fill: none; stroke: #7a5f36; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.25s ease; }
-.ms-bridge-copy { display: flex; flex-direction: column; gap: 2px; text-align: left; }
-.ms-bridge-main { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.2em; color: #24401f; }
-.ms-bridge-sub { font-size: 11.5px; font-style: italic; color: #6f6a58; }
-.ms-bridge:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(20, 15, 5, 0.3); }
-.ms-bridge:hover svg { transform: translateX(4px); }
+/* The bridge to the full hike page: the wide Atlas door (base.css), which the
+   hike page's "See on the Land" mirrors. Only its spacing belongs here. */
+.ms-bridge { margin-top: 20px; }
 
 /* --- an undeveloped slide on the sheet: same "developing on the light box"
    treatment as the hike page's strip, so a cold Cloudinary cache never
@@ -634,7 +660,9 @@ body.sheet-open .atlas-chain { z-index: 2100; height: 13px; }
 .atlas-chain .ac-track { position: relative; height: 100%; }
 
 .atlas-chain .ac-dot { position: absolute; top: 32px; width: 9px; height: 9px; margin: -4.5px; border-radius: 50%; border: 1.4px solid #f2ead8; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
-.atlas-chain .ac-dot::after { content: ''; position: absolute; inset: -7px; border-radius: 50%; }
+/* the hit halo: generous by default, narrowed by AtlasChain's layout when the
+   marks crowd together, so neighbours never steal each other's clicks */
+.atlas-chain .ac-dot::after { content: ''; position: absolute; inset: -7px; left: calc(-1 * var(--hitx, 7px)); right: calc(-1 * var(--hitx, 7px)); border-radius: 50%; }
 .atlas-chain .ac-dot:hover { transform: scale(1.4); box-shadow: 0 0 9px rgba(242, 234, 216, 0.5); z-index: 3; }
 .atlas-chain .ac-dot.viewpoint { background: #1f2b1d !important; }
 .atlas-chain .ac-dot.future { opacity: 0.3; }

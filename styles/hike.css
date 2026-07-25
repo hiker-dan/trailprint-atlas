@@ -266,28 +266,14 @@ body {
    on the map, where they collided with the corner coordinates */
 .ct-right { flex: 0 0 auto; display: flex; align-items: center; gap: 13px; }
 
-/* THE DOOR OUT: this trail, standing on the land (map.html?sheet=…) */
-.land-door {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 13px;
-    border: 1px solid var(--brass);
-    border-radius: 5px;
-    background: #fbf6e6;
-    color: var(--lt-ink-deep);
-    font-family: var(--font-display);
-    font-size: 8.5px;
-    letter-spacing: 0.18em;
-    line-height: 1.5;
-    text-decoration: none;
-    box-shadow: 0 1px 4px rgba(60,45,20,0.22);
-    transition: background 0.25s, color 0.25s;
-}
-.land-door:hover { background: var(--lt-ink); color: var(--lt-paper); }
-.land-door svg { flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-/* the back-arrow signals "returning"; the map glyph says where to. Both live in
-   the one door now — the separate return chip is retired. */
-.land-door .ld-back { width: 13px; height: 13px; margin-right: -3px; opacity: 0.9; }
-.land-door .ld-map { width: 15px; height: 15px; }
+/* THE DOOR OUT: this trail, standing on the land (map.html?sheet=…).
+   The shared Atlas door (base.css) in its return form — the chevron leads back
+   out, the folded-map glyph names where to. The map's two Field Log doors are
+   the same tool pointing the other way. Only the two-line label is tuned here,
+   so it sits neatly beside the expand button in the title block. */
+.land-door { gap: 7px; padding: 6px 12px; font-size: 8.5px; letter-spacing: 0.18em; line-height: 1.5; }
+.land-door .ad-chev { width: 12px; height: 12px; }
+.land-door .ad-glyph { width: 15px; height: 15px; }
 .full-btn {
     width: 34px;
     height: 34px;

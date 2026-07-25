@@ -78,11 +78,14 @@ updateIconVisibility();
 //                            Now the current tiles simply scale (a clean, brief
 //                            blur) and one crisp sheet loads at the level you
 //                            land on.
-// keepBuffer holds a wide apron of loaded tiles so small pans never reveal the
+// keepBuffer holds an apron of loaded tiles so small pans don't reveal the
 // paper beneath; the z6 underlays mean a zoom never bottoms out on blank page.
+// keepBuffer was 8 and is now 2 (July 2026): every retained tile is a live
+// <img> the browser must transform on each frame of a zoom, so an oversized
+// apron made zooming HEAVIER, not smoother — the opposite of the intent.
 const TILE = (url, opts = {}) => L.tileLayer(url, {
     className: 'fadeable-tile-layer', opacity: 0, attribution: '',
-    updateWhenIdle: false, updateWhenZooming: false, keepBuffer: 8, ...opts
+    updateWhenIdle: false, updateWhenZooming: false, keepBuffer: 2, ...opts
 });
 const VOYAGER_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
 const HILLSHADE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
@@ -105,7 +108,7 @@ const atlasLabelsLayer = TILE(LABELS_URL, { subdomains: 'abcd', maxZoom: 18, cla
 // Satellite keeps Esri's stronger reference labels — they're built to stay
 // readable over imagery, where CARTO's grays would drown.
 const placesLayer = TILE(PLACES_URL, { maxZoom: 17, className: 'fadeable-tile-layer places-layer' });
-const topoLayer = TILE(TOPO_URL, { maxZoom: 17, zIndex: 220, className: 'fadeable-tile-layer basemap-soften' });
+const topoLayer = TILE(TOPO_URL, { maxZoom: 17, maxNativeZoom: 17, zIndex: 220, className: 'fadeable-tile-layer basemap-soften' });
 const imageryLayer = TILE(IMAGERY_URL, { maxZoom: 18, zIndex: 220 });
 
 // The high-altitude backdrop: each basemap has an "underlay" twin pinned to
@@ -117,13 +120,41 @@ const imageryLayer = TILE(IMAGERY_URL, { maxZoom: 18, zIndex: 220 });
 // would double-shade the terrain, and Voyager's low-zoom tint is enough.
 const UNDER = (url, opts = {}) => L.tileLayer(url, {
     className: 'fadeable-tile-layer', opacity: 0, attribution: '',
-    maxNativeZoom: 6, maxZoom: 18, updateWhenIdle: false, keepBuffer: 4, ...opts
+    maxNativeZoom: 6, maxZoom: 18, updateWhenIdle: false, keepBuffer: 2, ...opts
 });
 const atlasBaseUnder = UNDER(VOYAGER_URL, { subdomains: 'abcd', zIndex: 190 });
 const topoUnder = UNDER(TOPO_URL, { zIndex: 191, className: 'fadeable-tile-layer basemap-soften' });
 const imageryUnder = UNDER(IMAGERY_URL, { zIndex: 191 });
 
 const ALL_TILE_LAYERS = [atlasBaseUnder, topoUnder, imageryUnder, atlasBaseLayer, hillshadeLayer, topoLayer, imageryLayer, placesLayer, atlasLabelsLayer];
+
+// Shed the two full-screen multiply blends while the tile pane is being scaled
+// (see map.css). Cheapest frame-rate win on the page, and invisible in motion.
+map.on('zoomstart', () => map.getContainer().classList.add('is-zooming'));
+map.on('zoomend', () => map.getContainer().classList.remove('is-zooming'));
+
+// --- Esri's terrain thins out in the far north -------------------------------
+// Over Denali the hillshade runs out one zoom level earlier than it does in the
+// lower 48, and World Topo runs out two. Past its coverage Esri doesn't 404 —
+// it serves a tile that literally READS "Map data not yet available", which
+// Leaflet then happily scales across the whole screen. (Measured tile by tile,
+// July 2026: hillshade is real to z15 at Denali and z16 elsewhere; topo to z16
+// at Denali and z18 elsewhere.) So the native caps tighten above 60°N, and the
+// sheets simply scale there instead — soft terrain beats a printed apology.
+const FAR_NORTH_LAT = 60;
+const NATIVE_CAPS = {
+    south: { hillshade: 16, topo: 17 },
+    north: { hillshade: 15, topo: 16 }
+};
+function tuneNorthernTiles() {
+    const caps = map.getCenter().lat >= FAR_NORTH_LAT ? NATIVE_CAPS.north : NATIVE_CAPS.south;
+    [[hillshadeLayer, caps.hillshade], [topoLayer, caps.topo]].forEach(([layer, cap]) => {
+        if (layer.options.maxNativeZoom === cap) return;
+        layer.options.maxNativeZoom = cap;
+        if (map.hasLayer(layer)) layer.redraw();
+    });
+}
+map.on('moveend', tuneNorthernTiles);
 
 // the parchment wash that ties the Atlas outfit to the hero film
 const parchmentWash = document.createElement('div');
@@ -191,6 +222,22 @@ let fullBounds = null;
 // Deep-link support: map.html?state=CA opens zoomed to that state's hikes.
 const FOCUS_STATE = (new URLSearchParams(window.location.search).get('state') || '').trim().toUpperCase();
 let pendingFocusState = FOCUS_STATE;
+/**
+ * The whole-Atlas frame. PIXEL padding, not a geographic pad(): the chrome that
+ * floats over the map (wordmark + finder + rail above, the deck and the chain
+ * below) is measured in pixels and doesn't scale with the latitude span. A
+ * geographic pad alone meant that once Alaska stretched the bounds north, the
+ * southern hikes were pushed down behind the deck and simply disappeared from
+ * the default view. The deck's top edge sits ~196 px off the bottom, and that
+ * side is padded past it with a little to spare. The top is padded to 84, not
+ * to the chrome's full 98: the wordmark and the rail sit in the CORNERS,
+ * leaving the middle — where the northern trailheads actually land — clear.
+ * Those 24 px matter, because the span only just fits at z4 and any more tips
+ * the whole Atlas down to z3, which pulls half the globe into frame. Re-check
+ * `clipped: 0` at z4 if these change.
+ */
+const ATLAS_FRAME = { paddingTopLeft: L.point(60, 84), paddingBottomRight: L.point(60, 240) };
+
 // A sheet arrival (?sheet= / ?restore=land) frames its own camera; the boot's
 // whole-Atlas fit must stand down or its animation can land after the trail
 // frame and shove the camera back out to the wide view.
@@ -228,7 +275,7 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
     .then(([data, trailGeometries]) => {
         allHikesData = Object.values(groupByTrail(data));
         allTrailGeometries = trailGeometries;
-        iconNudges = computeIconNudges(allHikesData);
+        iconNudges = computeIconNudges(allHikesData, map.getZoom());
         populateFilters(allHikesData);
         renderMapLayers(allHikesData);
         setupEventListeners();
@@ -294,19 +341,27 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
         // and a sheet boot that found nothing falls back to the whole Atlas
         if (pendingSheetBoot) {
             pendingSheetBoot = false;
-            if (!sheetHikeId && fullBounds) map.fitBounds(fullBounds, { animate: false });
+            if (!sheetHikeId && fullBounds) map.fitBounds(fullBounds, { ...ATLAS_FRAME, animate: false });
         }
     })
     .catch(error => console.error('Error loading map data:', error));
 
 /**
- * Trailheads that share a parking lot would stack their icons exactly on top
- * of each other; fan them apart by a constant pixel offset. (Unchanged from
- * the first-generation map.)
+ * Trailheads too close together on screen would stack their stamps; fan them
+ * apart horizontally.
+ *
+ * "Too close" is a SCREEN question, not a ground one — which a fixed 150 m
+ * radius could never answer. Savage Alpine and Savage River Campground sit
+ * about a kilometre apart: comfortably separate at z14, a single smudge at
+ * z11. So the fan is measured in pixels at the CURRENT zoom and recomputed as
+ * you zoom (see refreshIconNudges). Below ICON_REVEAL_ZOOM there is nothing to
+ * fan — the stamps have folded into their dots, and dots overlapping at
+ * continental scale is honest rather than broken.
  */
-function computeIconNudges(trailGroups) {
-    const NEIGHBOR_RADIUS_M = 150;
+function computeIconNudges(trailGroups, zoom) {
+    const MIN_SEP_PX = 34;      // nearer than this on screen and they collide
     const SPACING_PX = 36;
+    const MAX_SPREAD_PX = 108;  // a dense basin fans, it doesn't become a ruler
     const iconPosition = (group) => {
         const sorted = [...group].sort(compareHikesChronoDesc);
         const rep = sorted[0];
@@ -315,27 +370,59 @@ function computeIconNudges(trailGroups) {
         if (firstLegSegments) return firstLegSegments[0][0];
         return (rep.latitude && rep.longitude) ? [rep.latitude, rep.longitude] : null;
     };
+    const nudges = {};
+    const z = Math.max(zoom, ICON_REVEAL_ZOOM);
     const trailheads = trailGroups
         .map(group => ({ name: group[0].trail_name, latlng: iconPosition(group) }))
-        .filter(trailhead => trailhead.latlng);
-    const nudges = {};
+        .filter(trailhead => trailhead.latlng)
+        .map(t => ({ ...t, p: map.project(L.latLng(t.latlng[0], t.latlng[1]), z) }));
     const clustered = new Set();
     trailheads.forEach((trailhead, i) => {
         if (clustered.has(trailhead.name)) return;
         const cluster = [trailhead, ...trailheads.slice(i + 1).filter(other =>
             !clustered.has(other.name) &&
-            map.distance(trailhead.latlng, other.latlng) < NEIGHBOR_RADIUS_M
+            Math.hypot(other.p.x - trailhead.p.x, other.p.y - trailhead.p.y) < MIN_SEP_PX
         )];
         if (cluster.length > 1) {
             cluster.sort((a, b) => a.name.localeCompare(b.name));
+            const spacing = Math.min(SPACING_PX, MAX_SPREAD_PX / (cluster.length - 1));
             cluster.forEach((entry, index) => {
                 clustered.add(entry.name);
-                nudges[entry.name] = (index - (cluster.length - 1) / 2) * SPACING_PX;
+                nudges[entry.name] = (index - (cluster.length - 1) / 2) * spacing;
             });
         }
     });
     return nudges;
 }
+
+/** Re-fan the stamps for the zoom we're now at, and slide the seats that
+    moved. Cheap: it touches only the transform on each cluster's lead stamp,
+    which the CSS then eases into place. */
+let nudgeTimer = null;
+function refreshIconNudges() {
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => {
+        if (!allHikesData || map.getZoom() < ICON_REVEAL_ZOOM) return;
+        const next = computeIconNudges(allHikesData, map.getZoom());
+        let moved = 0;
+        for (const name in layerReferences) {
+            const ref = layerReferences[name];
+            const val = next[name] || 0;
+            if (ref.nudgeX === val) continue;
+            ref.nudgeX = val;
+            moved++;
+            const lead = ref.markers[0];
+            const v = ref.visits.find(x => x.mode === 'solid') || ref.visits[0];
+            const el = lead && lead.getElement ? lead.getElement() : null;
+            const seat = el && el.querySelector('.stamp-seat');
+            if (seat && v) seat.style.transform =
+                `translate(${(v.vec.dx + val).toFixed(1)}px,${v.vec.dy.toFixed(1)}px)`;
+        }
+        iconNudges = next;
+        if (moved) applySpotlight();   // keep dimming in step with any rebuild
+    }, 180);
+}
+map.on('zoomend', refreshIconNudges);
 
 // --- Trail Spotlight: a focused trail dims every other one ---
 let spotlightTrailName = null;
@@ -372,10 +459,28 @@ function applySpotlight() {
 // The seat offsets away from the trail's own ink and blooms only past
 // ICON_REVEAL_ZOOM; farther out, the dots own the view.
 
-/** Which way is "away from the ink"? Opposite the bisector of the trail's
-    opening and closing bearings out of the trailhead — for an out-and-back
-    that's straight back down the approach, for a loop it's outside the
-    loop's mouth. Returned in screen pixels (y runs south). */
+/** Which way is "away from the ink"?
+ *
+ * The bisector of the trail's opening and closing bearings is the right
+ * INSTINCT — for an out-and-back it points straight back down the approach,
+ * for a loop it steps outside the loop's mouth. But it only reads the first
+ * and last few percent of the route, so on a trail that swings back past its
+ * own trailhead the stamp was landing squarely on ink further along.
+ *
+ * So the bisector is now a starting bid, not the answer: we score candidate
+ * directions all the way around the trailhead against the WHOLE geometry and
+ * take the one with the most clearance, with a thumb on the scale for the
+ * bisector so trails that already sat well don't wander.
+ * Returned in screen pixels (y runs south).
+ */
+const R = 16;                    // how far the seat sits from the dot, in px
+const STAMP_RADII = [16, 21, 27]; // and how far it may reach when crowded
+const STAMP_CANDIDATES = 32;     // directions tested around the trailhead
+// The offset is fixed in pixels, so how much GROUND it covers depends on zoom.
+// z13 is the representative case: stamps appear at z11 and hug the trailhead
+// ever tighter above that, so clearance judged here holds where it matters.
+const STAMP_SCORE_ZOOM = 13;
+
 function stampVector(segs) {
     const pts = segs[0], tail = segs[segs.length - 1];
     const a = pts[0];
@@ -391,8 +496,48 @@ function stampVector(segs) {
     let sx = u1[0] + u2[0], sy = u1[1] + u2[1];
     let m = Math.hypot(sx, sy);
     if (m < 0.35) { sx = -u1[1]; sy = u1[0]; m = 1; } // through-route: step aside instead
-    const R = 16;
-    return { dx: -sx / m * R, dy: sy / m * R };
+    // the instinct, as a screen-space unit vector (y runs south, hence -sy... )
+    const bias = { x: -sx / m, y: sy / m };
+
+    // Every point of the trail in the same local frame, in degrees-of-latitude
+    // units so distances are comparable in both axes.
+    const local = [];
+    segs.forEach(seg => seg.forEach(p => local.push([(p[1] - a[1]) * k, -(p[0] - a[0])])));
+    if (local.length < 2) return { dx: bias.x * R, dy: bias.y * R };
+
+    // px -> local units at the scoring zoom
+    const degPerPx = 360 / (256 * Math.pow(2, STAMP_SCORE_ZOOM));
+    const unitPx = degPerPx;                // one screen px in local units
+    const ignore = R * unitPx * 0.55;       // ink this close to the dot is the trailhead itself
+    const HALF = 13;                        // the seat's half-width, in px
+
+    // A crowded trailhead can leave NO direction clear at the usual distance,
+    // so the arm can extend. Nearest ring that gets the glyph off the ink wins;
+    // if none does, we take the roomiest placement found anywhere.
+    let best = null;
+    for (const rad of STAMP_RADII) {
+        const rLocal = rad * unitPx;
+        let ring = null;
+        for (let i = 0; i < STAMP_CANDIDATES; i++) {
+            const ang = (i / STAMP_CANDIDATES) * Math.PI * 2;
+            const cx = Math.cos(ang), cy = Math.sin(ang);
+            const px = cx * rLocal, py = cy * rLocal;
+            let nearest = Infinity;
+            for (let j = 0; j < local.length; j++) {
+                const d = Math.hypot(local[j][0] - px, local[j][1] - py);
+                if (d > ignore && d < nearest) nearest = d;
+            }
+            // clearance in PX at the scoring zoom, so it compares across radii
+            const clearPx = Math.min(nearest / unitPx, 40);
+            // the bisector only ever breaks ties — never outvotes real clearance
+            const agree = cx * bias.x + cy * bias.y;      // -1..1
+            const score = clearPx + agree * 1.6 - (rad - R) * 0.35;  // prefer sitting close in
+            if (!ring || score > ring.score) ring = { score, cx, cy, rad, clearPx };
+        }
+        if (!best || ring.score > best.score) best = ring;
+        if (ring.clearPx >= HALF + 2) break;   // this ring is clear — no need to reach further
+    }
+    return { dx: best.cx * best.rad, dy: best.cy * best.rad };
 }
 
 function makeStampIcon(hike, vec, gold, isVp) {
@@ -469,7 +614,9 @@ const deepen = hex => {
 };
 
 /** Restyle one visit's stroke: solid ink, echo whisper, or not yet walked.
-    The CSS stroke transition turns solid→echo into the fade Danny asked for. */
+    The fade is pure CSS — see the transition rules in map.css, which MUST name
+    `.leaflet-mainTrail-pane` as well as the overlay pane or these strokes
+    compute to transition-duration: 0s and every echo snaps into place. */
 function styleVisit(v, target) {
     if (v.mode === target) return;
     v.mode = target;
@@ -608,15 +755,19 @@ function renderMapLayers(trailGroupsToRender) {
 
     const shown = Object.keys(layerReferences).length;
     const count = document.getElementById('filter-count');
-    if (count) count.textContent = `Showing ${shown} of ${allHikesData.length} trails`;
+    // "outings", not "trails": this tally mixes real trails with viewpoints,
+    // and calling the whole 100 "trails" contradicted the wordmark's own
+    // "113 hikes · 10 viewpoints · 90 trails" right above it.
+    if (count) count.textContent = `Showing ${shown} of ${allHikesData.length} outings`;
 
     fullBounds = null;
     for (const name in layerReferences) {
         const b = layerReferences[name].bounds;
         fullBounds = fullBounds ? fullBounds.extend(b) : L.latLngBounds(b.getSouthWest(), b.getNorthEast());
     }
-    if (fullBounds) fullBounds = fullBounds.pad(0.1);
-    if (!pendingFocusState && !pendingSheetBoot && fullBounds) map.fitBounds(fullBounds);
+    // no geographic pad(): ATLAS_FRAME's pixel padding IS the breathing room,
+    // and stacking the two pushed the fit over the edge into a zoom level out
+    if (!pendingFocusState && !pendingSheetBoot && fullBounds) map.fitBounds(fullBounds, ATLAS_FRAME);
 }
 
 /** Which trails exist yet, at the moment the map is showing? */
@@ -644,12 +795,14 @@ function applyReveal() {
     const readout = document.getElementById('deck-readout');
     if (!readout || !legs.length) return;
     if (mode === 'expedition' && legIx >= 0 && chapters.length) {
-        // mid-expedition the readout names the chapter (and, at home, the
-        // running location tag — zones change here, never as a camera cut)
+        // Mid-expedition the readout names the chapter — and adds the TRIP name
+        // only. The recreation area used to ride here too, but the plaque a few
+        // inches left already names it; a trip name is the one thing this line
+        // knows that the plaque doesn't.
         const ch = chapters[chapterOfLeg[legIx]];
-        const where = ch.kind === 'home' ? `${ch.name} · ${legs[legIx].h.location}` : ch.name;
+        const where = ch.kind === 'trip' ? ` · ${ch.name}` : '';
         readout.innerHTML = `<b>${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}</b>
-            <span class="deck-stats">Chapter ${ROMAN(chapterOfLeg[legIx] + 1)} · ${where}</span>`;
+            <span class="deck-stats">Chapter ${ROMAN(chapterOfLeg[legIx] + 1)}${where}</span>`;
         return;
     }
     const atEnd = nowT >= t1;
@@ -841,7 +994,7 @@ function buildSheetHtml(sorted, rep) {
     if (!(isVp && !rep.miles)) {
         vitals.push([rep.miles, 'Miles'], [rep.elevation_gain.toLocaleString(), 'Feet climbed']);
     }
-    if (rep.summit_trail && rep.summit_elevation) vitals.push([rep.summit_elevation.toLocaleString(), 'Summit (ft)']);
+    if (rep.summit_trail && rep.summit_elevation) vitals.push([rep.summit_elevation.toLocaleString(), summitLabel(rep)]);
     if (!(isVp && !rep.miles)) vitals.push([rep.difficulty, 'Grade']);
     const withLine = (rep.hiked_with && rep.hiked_with.length)
         ? `With ${rep.hiked_with.join(', ')}` : 'Walked solo';
@@ -878,12 +1031,13 @@ function buildSheetHtml(sorted, rep) {
         ${printsHtml ? `<div class="ms-k">The Slides</div><div class="ms-prints">${printsHtml}</div>` : ''}
         ${rep.description ? `<div class="ms-k">Trail Notes</div><p class="ms-notes">${formatHikeText(rep.description)}</p>` : ''}
         ${ff ? `<p class="ms-ff">${ff}</p>` : ''}
-        <a class="ms-bridge" href="hike.html?id=${rep.trail_id}">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 16 12l-6 6"/><path d="M4 4v16"/></svg>
-            <span class="ms-bridge-copy">
-                <span class="ms-bridge-main">OPEN THE FULL FIELD LOG</span>
-                <span class="ms-bridge-sub">the whole day &mdash; the map, every slide &amp; the almanac</span>
+        <a class="atlas-door is-wide ms-bridge" href="hike.html?id=${rep.trail_id}">
+            ${DOOR_LOG_GLYPH}
+            <span class="ad-copy">
+                <span class="ad-main">Open the Full Field Log</span>
+                <span class="ad-sub">the whole day &mdash; the map, every slide &amp; the almanac</span>
             </span>
+            ${DOOR_CHEV_FWD}
         </a>`;
 }
 
@@ -1194,11 +1348,11 @@ function bootSpine(hikes) {
             const ref = layerReferences[h.trail_name];
             if (ref) raiseSheet(ref, h);
         },
-        onScrub: (t) => {
+        onScrub: (t, trailId) => {
             // the engine owns the clock during cinema; a raised sheet has
             // pinned its own moment — otherwise the centre of the chain IS nowT
             if (mode !== 'free' || playing || sheetHikeId) return;
-            scrubRevealToTime(t);
+            scrubRevealToTime(t, trailId);
         }
     });
     // sync the initial reveal (opens on the present, everything inked)
@@ -1207,10 +1361,13 @@ function bootSpine(hikes) {
 
 /** Scrub the reveal to a moment: ink every leg walked at or before it. Legs
     are time-sorted, so the last one at or before `t` is the newest visible. */
-function scrubRevealToTime(t) {
+function scrubRevealToTime(t, trailId) {
     const tt = Math.max(t0, Math.min(t1, t));
-    let ix = -1;
-    for (let i = 0; i < legs.length; i++) { if (legs[i].t <= tt) ix = i; else break; }
+    // The chain names the mark under its playhead, and that wins: two hikes
+    // from the same morning share a timestamp, so a time-only search would
+    // jump straight to the last of them and ink the whole day at once.
+    let ix = trailId != null && legIndexById[trailId] !== undefined ? legIndexById[trailId] : -1;
+    if (ix < 0) for (let i = 0; i < legs.length; i++) { if (legs[i].t <= tt) ix = i; else break; }
     inkIx = Math.max(0, ix);
     legIx = inkIx;
     nowT = tt;
@@ -1292,11 +1449,13 @@ function endInkFlight() {
 }
 
 // --- Tile warming: pull tiles into the browser's cache BEFORE they're needed
-//     on screen, so an arrival (or the next zoom step) resolves all at once
-//     instead of patchworking in. `new Image().src` fires the request; the CDN
-//     answer sits in cache, and Leaflet's real request moments later is a cache
-//     hit. Two callers lean on this: the blink's landing viewport, and the
-//     predictive neighbour-zoom warmer below. ---
+//     on screen, so an arrival resolves all at once instead of patchworking in.
+//     `new Image().src` fires the request; the CDN answer sits in cache, and
+//     Leaflet's real request moments later is a cache hit.
+//     ONE caller only, and deliberately so: the expedition's blink, which knows
+//     exactly which viewport it is about to cut to. Warming a KNOWN destination
+//     pays for itself; speculatively warming both neighbouring zoom levels on
+//     every rest did not, and was removed (see the note further down). ---
 function warmTilesAt(center, zoom, spread = 1) {
     if (zoom < 0 || !map._getBoundsCenterZoom) return;
     const half = map.getSize().multiplyBy(spread / 2);
@@ -1338,25 +1497,15 @@ function prefetchTiles(bounds, fitOpts) {
     warmTilesAt(target.center, Math.round(target.zoom), 1);
 }
 
-// --- Predictive neighbour-zoom warming: always a step ahead of the wheel -----
-// The crisp-centre-with-a-blurry-halo just after a manual zoom is pure latency —
-// the new level's tiles haven't downloaded yet. So the moment the map comes to
-// REST we quietly warm one level IN and one level OUT for the current view (a
-// touch wider than the screen) into the cache. Whichever way the wheel turns
-// next, the tiles are already there and the step lands sharp instead of
-// resolving in. Debounced so a flurry of wheel steps warms once, at the finish;
-// idle-only so it never competes with the tiles the screen is actively loading.
-let warmTimer = null;
-function warmNeighbourZooms() {
-    clearTimeout(warmTimer);
-    warmTimer = setTimeout(() => {
-        if (playing) return;                 // the tour warms its own next leg
-        const c = map.getCenter(), z = map.getZoom();
-        warmTilesAt(c, z + 1, 1.1);          // the zoom-IN detail, slightly wider
-        warmTilesAt(c, z - 1, 1.1);          // the zoom-OUT surround
-    }, 350);
-}
-map.on('zoomend moveend', warmNeighbourZooms);
+// Predictive neighbour-zoom warming was tried here and REMOVED (July 2026).
+// Every time the map came to rest it speculatively fetched one zoom level in
+// AND one out across every mounted sheet — measured at ~280 requests per zoom
+// step where the screen needs ~90, and at least half of it always thrown away
+// because you only turn the wheel one direction. It bought no smoothness worth
+// the cost: the tiles still had to arrive, and the extra traffic competed with
+// the tiles actually on screen. Don't reintroduce it. The blur during a zoom is
+// the network, and no amount of speculation removes it — see the note at the
+// top of this file.
 
 /** Click a trail (on the map or in the register): spotlight + card + frame. */
 function focusTrail(trailName) {
@@ -1659,12 +1808,42 @@ async function drawJourneyLine(a, b, tk, fromId = null, toId = null) {
 }
 
 // --- performances: the pen draws the trail while the camera holds ---
+
+/** How long the pen should take, from how far it actually travels ON SCREEN.
+ *
+ * Miles is the wrong variable, which is why long trails used to snap past: the
+ * camera frames every shot to fit, so a 12-mile hike can occupy LESS screen
+ * than a tight 5-mile loop of switchbacks. Measured across all 113 legs, screen
+ * length ranged 11 px to 4,445 px while the old miles-based timing gave them
+ * all 1.0-2.4 s — a ~250x spread in how fast the pen appeared to move.
+ *
+ * Time therefore scales with pixels, but sub-linearly (^0.62): a trail four
+ * times longer earns roughly twice the time, so an epic breathes without the
+ * film dragging. Tuned so the median leg (~750 px) lands near 1.5 s, a short
+ * spur still reads as a stroke rather than a blink, and the longest ink in the
+ * Atlas gets about 3 s.
+ */
+const PEN_MIN_MS = 700;      // floor: below this a stroke reads as a pop
+const PEN_MAX_MS = 3200;     // ceiling: past this even a giant starts to drag
+const PEN_K = 13.1;          // ms per px^PEN_EXP
+const PEN_EXP = 0.62;        // diminishing returns, so length never runs away
+function penDuration(latlngs) {
+    let px = 0;
+    let prev = map.latLngToContainerPoint(latlngs[0]);
+    for (let i = 1; i < latlngs.length; i++) {
+        const q = map.latLngToContainerPoint(latlngs[i]);
+        px += Math.hypot(q.x - prev.x, q.y - prev.y);
+        prev = q;
+    }
+    return Math.max(PEN_MIN_MS, Math.min(PEN_MAX_MS, PEN_MIN_MS + PEN_K * Math.pow(px, PEN_EXP)));
+}
+
 async function drawTrailAnim(leg, tk) {
     const s = allTrailGeometries[leg.h.trail_id];
     const col = yearColorOf(leg.h);
     if (!s) { await pulsePoint(leg.head, col, tk); return []; }
     const all = s.flat();
-    const dur = Math.min(2400, 1000 + (leg.h.miles || 1) * 130);
+    const dur = penDuration(all);
     const line = L.polyline([all[0]], { color: col, weight: 5, opacity: 0.85, pane: 'mainTrailPane', renderer: trailRenderer, interactive: false }).addTo(map);
     const pen = L.circleMarker(all[0], { radius: 5, color: '#fffdf6', weight: 1.6, fillColor: col, fillOpacity: 1, pane: 'mainTrailPane', renderer: trailRenderer }).addTo(map);
     const t0ms = performance.now();
@@ -1694,19 +1873,34 @@ async function pulsePoint(ll, col, tk) {
     }
 }
 
+// --- The Atlas doors (styles in base.css) ---
+// The glyph names where you're GOING — a field log for a hike page, a folded
+// map for the land — and the chevron-through-a-doorway points the way. The
+// return door on hike.html mirrors both. Written once here so the map's two
+// doors can never drift apart.
+const DOOR_LOG_GLYPH = '<svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M12 7.2C10.6 6 8.7 5.4 6.2 5.4H3.2v12.2h3c2.5 0 4.4.6 5.8 1.8 1.4-1.2 3.3-1.8 5.8-1.8h3V5.4h-3c-2.5 0-4.4.6-5.8 1.8Z"/>' +
+    '<path d="M12 7.2v12.2"/></svg>';
+const DOOR_CHEV_FWD = '<svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>';
+
 // --- the field plaque: the ledger inside the deck, no photo by decision ---
 function plaqueHtml(h) {
     const d = new Date(h.date_completed);
     const isVp = isViewpoint(h);
     return `
         <div class="lg-kicker">${h.hike_type} &middot; ${MONTH_NAMES[d.getUTCMonth()].slice(0, 3)} ${d.getUTCDate()}, ${d.getUTCFullYear()}</div>
-        <div class="lg-name">${h.trail_name}</div>
+        <div class="lg-name"><span>${h.trail_name}</span></div>
         <div class="lg-loc">${h.location} &bull; ${h.region}</div>
-        ${isVp ? `<div class="lg-stats">A scenic stop along the way. No miles inked.</div>`
-               : `<div class="lg-stats">${h.miles} mi &middot; ${(h.elevation_gain || 0).toLocaleString()} ft gain &middot; ${h.difficulty}</div>`}
-        ${h.hiked_with && h.hiked_with.length ? `<div class="lg-with">With ${h.hiked_with.join(', ')}</div>`
-            : (h.hike_size === 'Solo' ? '<div class="lg-with">Walked solo</div>' : '')}
-        <a class="lg-log" href="hike.html?id=${h.trail_id}">Open the Field Log &rarr;</a>`;
+        <div class="lg-foot">
+            <div class="lg-facts">
+                ${isVp ? `<div class="lg-stats">A scenic stop. No miles inked.</div>`
+                       : `<div class="lg-stats">${h.miles} mi &middot; ${(h.elevation_gain || 0).toLocaleString()} ft gain &middot; ${h.difficulty}</div>`}
+                ${h.hiked_with && h.hiked_with.length ? `<div class="lg-with">With ${h.hiked_with.join(', ')}</div>`
+                    : (h.hike_size === 'Solo' ? '<div class="lg-with">Walked solo</div>' : '')}
+            </div>
+            <a class="atlas-door lg-log" href="hike.html?id=${h.trail_id}">${DOOR_LOG_GLYPH}<span>Open the Field Log</span>${DOOR_CHEV_FWD}</a>
+        </div>`;
 }
 // which hike the plaque is currently showing, so scrubbing doesn't re-render
 // the same card every frame
@@ -1815,7 +2009,10 @@ async function legSequence(prevIx, ix, tk, skipCeremony = false) {
     if (ix + 1 < legs.length && shotOfLeg[ix + 1] !== shotOfLeg[ix]) prefetchShot(shotOfLeg[ix + 1]);
 }
 
-async function playFrom(ix) {
+/** `alreadyFramed`: the caller has already put the first shot on screen behind
+    its own veil, so the opening ceremony would only re-cut ground we're
+    standing on. startExpedition uses this to open on ONE slide instead of two. */
+async function playFrom(ix, alreadyFramed = false) {
     cancelRun(); const tk = expToken;
     tourPaused = false;          // the tour is rolling again — no paused point waits
     dismissResumeHint();
@@ -1828,7 +2025,7 @@ async function playFrom(ix) {
     // looking at)? Wipe back to just-before this leg AND frame its shot behind a
     // single blink, so the veil lifts onto blank land and the trail draws in —
     // never the old "back from the blink already drawn → cut to blank → redraw".
-    let skipFirstCeremony = false;
+    let skipFirstCeremony = alreadyFramed;
     if (inkIx >= ix) {
         await softCut(() => {
             inkIx = ix - 1;
@@ -1869,16 +2066,26 @@ async function startExpedition() {
     holdLegId = null;
     updateDeck();
     const y0 = new Date(t0).getUTCFullYear(), y1 = new Date(t1).getUTCFullYear();
-    await veilIn(`<div class="veil-kicker">The Trailprint Atlas</div>
+    // ONE opening slide, not two. This used to raise "The expedition begins",
+    // drop the veil onto the map wherever it was last left, then immediately
+    // raise a second slide for Chapter I — a stale flash sandwiched between two
+    // interstitials. Now the title and the chapter share a single card, the
+    // first shot is framed BEHIND the veil, and the veil lifts straight onto
+    // blank land at the first trail, where the pen starts drawing.
+    const ch0 = chapters[chapterOfLeg[0]];
+    const outings0 = ch0.legIxs.length > 1 ? ` · ${ch0.legIxs.length} outings` : '';
+    await veilIn(`<div class="veil-kicker">The Trailprint Atlas · ${y0} – ${y1}</div>
         <div class="veil-title">The expedition begins</div>
-        <div class="veil-sub">${y0} – ${y1}, told one trail at a time</div>`, 1700);
+        <div class="veil-sub">Chapter ${ROMAN(chapterOfLeg[0] + 1)} · ${ch0.name} — ${ch0.sub}${outings0}</div>`, 2200);
     if (tk !== expToken) return;
     applyReveal();
     threadGroup.clearLayers();
     threadAt.clear();
+    setShotView(0);
+    await waitTiles(); if (tk !== expToken) return;
     await veilOut();
     if (tk !== expToken) return;
-    playFrom(0);
+    playFrom(0, true);
 }
 
 // Land in free mode on the whole, fully-inked Atlas — the shared destination
@@ -1901,7 +2108,7 @@ function settleWholeAtlas() {
     holdLegId = null;
     applyReveal();
     syncThreads(legs.length - 1);
-    if (fullBounds) map.fitBounds(fullBounds, { animate: false });
+    if (fullBounds) map.fitBounds(fullBounds, { ...ATLAS_FRAME, animate: false });
 }
 
 // The natural end: played through the last leg. The earned ceremony — a held
@@ -2025,12 +2232,18 @@ async function settleStep(ix, resume) {
     holdLegId = null;
     await softCut(() => {
         applyReveal();
-        syncThreads(ix - 1);
+        // Stepping while PAUSED is a shortcut, not a scene in the film: no
+        // chapter slide, no travelling Expedition Line. Land the connecting
+        // line instantly so the ground stays honest, and let only the pen move.
+        syncThreads(resume ? ix - 1 : ix);
         setShotView(ix);
     }, tk);
     if (tk !== expToken) return;
     if (resume) playFrom(ix);
-    else await legSequence(ix - 1, ix, tk);
+    // skipCeremony: the softCut above already framed this shot. Running the
+    // ceremony too would blink a second time and, across a chapter line, raise
+    // an interstitial the visitor was skipping ahead precisely to avoid.
+    else await legSequence(ix - 1, ix, tk, true);
 }
 
 /** Land anywhere in time with the whole world rendered to that point. */

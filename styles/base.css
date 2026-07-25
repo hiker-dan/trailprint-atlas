@@ -111,3 +111,61 @@ nav#top-bar-container a:hover {
 .atlas-footer a:hover {
     text-decoration: underline;
 }
+
+/* =====================================================================
+   THE ATLAS DOORS  (shared — used by map.css and hike.css)
+
+   Three buttons carry the visitor between the two halves of the Atlas:
+   the deck plaque's and the map sheet's doors INTO a hike's Field Log,
+   and the hike page's door back out onto the Land. They are one tool, so
+   they wear one look — a brass frame on cream paper, a glyph naming the
+   DESTINATION, and a chevron-through-a-doorway pointing the way you're
+   going. The return door is the exact mirror: chevron first, glyph last.
+
+   Only their SIZE differs, set by the page that hosts them. The palette
+   is written out rather than var()'d because map.html doesn't load
+   hike.css, where the brass/parchment inks live.
+   ===================================================================== */
+.atlas-door {
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 7px 13px; text-decoration: none;
+    background: #fbf6e6;
+    border: 1px solid #a5854a; border-radius: 5px;
+    color: #24401f;
+    font-family: var(--font-display); font-size: 9.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; line-height: 1.45;
+    box-shadow: 0 1px 4px rgba(60, 45, 20, 0.18);
+    transition: background-color 0.25s ease, color 0.25s ease,
+                transform 0.25s ease, box-shadow 0.25s ease;
+}
+.atlas-door:hover { background: #24401f; color: #fbf6e6; }
+.atlas-door svg {
+    flex: 0 0 auto; fill: none; stroke: currentColor;
+    stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+    transition: transform 0.25s ease;
+}
+.atlas-door .ad-glyph { width: 16px; height: 16px; }
+.atlas-door .ad-chev { width: 13px; height: 13px; opacity: 0.85; }
+/* a forward door steps onward under the hand; the return door steps back */
+.atlas-door:hover .ad-chev { transform: translateX(3px); }
+.atlas-door.is-return:hover .ad-chev { transform: translateX(-3px); }
+
+/* the large variant: the map sheet's full-width door, with a second line */
+.atlas-door.is-wide {
+    display: flex; gap: 13px; padding: 12px 18px;
+    background: #fffdf6; border-left-width: 4px; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(20, 15, 5, 0.22);
+}
+.atlas-door.is-wide .ad-glyph { width: 22px; height: 22px; }
+.atlas-door.is-wide .ad-chev { width: 17px; height: 17px; }
+.atlas-door.is-wide:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(20, 15, 5, 0.3); }
+.ad-copy { display: flex; flex-direction: column; gap: 2px; text-align: left; flex: 1 1 auto; min-width: 0; }
+.ad-main { font-size: 11px; letter-spacing: 0.2em; }
+/* the sub-line is the written voice, not the routed one, and must not invert
+   to a shout — it dims into the ink like the rest of the card */
+.ad-sub {
+    font-family: var(--font-body); font-size: 11.5px; font-style: italic;
+    letter-spacing: 0; text-transform: none; color: #6f6a58;
+    transition: color 0.25s ease;
+}
+.atlas-door.is-wide:hover .ad-sub { color: #cfc7ae; }

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Chapter Sheet (trip page)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ============================================================================
+   CONCEPT 1 — THE CHAPTER SHEET
+   The map's own ceremony, continued onto a page. The expedition names this trip
+   "Chapter XIV"; opening it raises that same card, which then dissolves into a
+   tall engraved sheet. The dashed Expedition Line keeps running down the page
+   as its spine, and every stop is a station planted on it.
+   Stops are LAUNCHERS (Danny, July 2026) — the arc lives here, the prose and
+   the photographs stay the reward for stepping through a door.
+   ========================================================================= */
+:root {
+    --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c;
+    --charcoal:#3d3a30; --parch:#f0e7cf; --parch-deep:#e4d8b8; --brass:#b9a578;
+    --ink:#2b2a24;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; background:#e8dfc6; color:var(--ink);
+    font-family:Georgia,'Times New Roman',serif; }
+a { color:inherit; text-decoration:none; }
+
+/* --- the opening ceremony: the same card the map raises --------------- */
+.veil { position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 45%, rgba(240,231,207,0.99) 0%, rgba(226,212,178,1) 100%);
+    transition:opacity 0.7s ease; }
+.veil.gone { opacity:0; pointer-events:none; }
+.veil-in { text-align:center; color:var(--evergreen); }
+.veil-kicker { font-size:12px; letter-spacing:0.3em; text-transform:uppercase; color:var(--gravel); margin-bottom:14px; }
+.veil-title { font-size:44px; letter-spacing:0.02em; }
+.veil-sub { font-size:14px; font-style:italic; color:var(--stone); margin-top:12px; }
+
+/* --- the sheet -------------------------------------------------------- */
+.sheet { max-width:1180px; margin:0 auto; background:var(--parch); min-height:100vh;
+    box-shadow:0 0 60px rgba(60,50,30,0.18); position:relative;
+    border-left:1px solid rgba(122,104,70,0.3); border-right:1px solid rgba(122,104,70,0.3); }
+
+/* the star photograph: a mounted plate, not a banner — it sits ON the sheet
+   with a paper mat and a caption slug, so a photograph can be the biggest
+   thing here without the page turning into a website hero */
+.plate { position:relative; margin:0; padding:22px 22px 0; }
+.plate-frame { position:relative; border:1px solid var(--brass); padding:8px; background:rgba(255,253,246,0.55);
+    box-shadow:0 3px 18px rgba(60,50,30,0.14); }
+.plate-img { display:block; width:100%; height:380px; object-fit:cover; filter:saturate(0.92) contrast(1.02); }
+.plate-cap { display:flex; justify-content:space-between; align-items:baseline; padding:8px 2px 0;
+    font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gravel); }
+
+/* the title block, engraved into the sheet under the plate */
+.title-block { padding:26px 34px 10px; text-align:center; }
+.tb-kicker { font-size:11.5px; letter-spacing:0.34em; text-transform:uppercase; color:var(--gravel); }
+.tb-name { font-size:46px; margin:10px 0 6px; letter-spacing:0.01em; color:var(--evergreen); }
+.tb-when { font-size:14px; font-style:italic; color:var(--stone); }
+.tb-where { font-size:12px; letter-spacing:0.13em; text-transform:uppercase; color:var(--gravel); margin-top:12px; }
+
+/* the vitals band: the same engraved numerals the hike sheet carries */
+.vitals { display:flex; justify-content:center; gap:0; margin:22px 34px 0;
+    border-top:1px solid rgba(122,104,70,0.35); border-bottom:1px solid rgba(122,104,70,0.35); }
+.vital { flex:1; text-align:center; padding:14px 6px; border-right:1px solid rgba(122,104,70,0.18); }
+.vital:last-child { border-right:0; }
+.vital .n { display:block; font-size:30px; color:var(--evergreen); letter-spacing:0.01em; }
+.vital .l { display:block; font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gravel); margin-top:5px; }
+
+/* --- the spine: the Expedition Line, continued down the page ---------- */
+.run { position:relative; padding:36px 34px 60px; }
+.spine { position:absolute; left:calc(34px + 27px); top:0; bottom:60px; width:0;
+    border-left:2px dashed rgba(47,92,64,0.42); }
+
+.daymark { position:relative; margin:26px 0 14px; padding-left:74px; }
+.daymark .disc { position:absolute; left:16px; top:-2px; width:24px; height:24px; border-radius:50%;
+    background:var(--parch); border:1.5px solid var(--brass); }
+.daymark .lbl { font-size:10.5px; letter-spacing:0.24em; text-transform:uppercase; color:var(--gravel); }
+.daymark .date { font-size:17px; color:var(--charcoal); margin-top:2px; }
+
+/* a station = one stop, planted on the line */
+.stop { position:relative; padding-left:74px; margin:0 0 14px; }
+.stop-pin { position:absolute; left:14px; top:16px; width:28px; height:28px; border-radius:50%;
+    background:var(--evergreen); color:var(--parch); display:flex; align-items:center; justify-content:center;
+    font-size:13px; box-shadow:0 0 0 4px var(--parch); }
+.stop-card { display:flex; align-items:stretch; gap:0; background:rgba(255,253,246,0.6);
+    border:1px solid rgba(122,104,70,0.32); transition:background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; }
+.stop-card:hover { background:#fffdf6; transform:translateX(3px); box-shadow:0 3px 14px rgba(60,50,30,0.13); }
+.stop-thumb { width:132px; flex:0 0 132px; background:var(--parch-deep); overflow:hidden; }
+.stop-thumb img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(0.9); }
+.stop-body { flex:1; padding:14px 16px; display:flex; flex-direction:column; justify-content:center; min-width:0; }
+.stop-name { font-size:21px; color:var(--evergreen); }
+.stop-meta { font-size:12px; letter-spacing:0.11em; text-transform:uppercase; color:var(--gravel); margin-top:6px; }
+.stop-go { flex:0 0 auto; display:flex; align-items:center; padding:0 18px 0 10px; color:var(--brass); }
+.stop-go svg { width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.6; }
+.stop-card:hover .stop-go { color:var(--evergreen); }
+.stop.is-vp .stop-pin { background:var(--parch); color:var(--stone); border:1.5px solid var(--brass); }
+
+/* the map plate, planted on the spine like any other station */
+.mapmark { position:relative; padding-left:74px; margin:8px 0 30px; }
+.mapmark .disc { position:absolute; left:16px; top:16px; width:24px; height:24px; border-radius:50%;
+    background:var(--parch); border:1.5px solid var(--brass); }
+.mapplate { border:1px solid var(--brass); padding:7px; background:rgba(255,253,246,0.55); }
+#map { height:400px; background:#ece3ce; }
+.mapplate .cap { font-size:10.5px; letter-spacing:0.2em; text-transform:uppercase; color:var(--gravel); padding-top:7px; }
+.hillshade-multiply { mix-blend-mode:multiply; }
+.parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply; opacity:0.4; z-index:450; pointer-events:none; }
+
+/* the closing rule */
+.closer { text-align:center; padding:10px 34px 46px; color:var(--gravel);
+    font-size:11px; letter-spacing:0.24em; text-transform:uppercase; }
+.note { max-width:1180px; margin:0 auto; padding:14px 34px 40px; font-size:12.5px; color:var(--stone);
+    font-style:italic; background:#e8dfc6; }
+</style>
+</head>
+<body>
+
+<div class="veil" id="veil"><div class="veil-in">
+    <div class="veil-kicker" id="v-kick">Onward</div>
+    <div class="veil-title" id="v-title">—</div>
+    <div class="veil-sub" id="v-sub">—</div>
+</div></div>
+
+<div class="sheet">
+    <figure class="plate">
+        <div class="plate-frame">
+            <img class="plate-img" id="star" alt="">
+        </div>
+        <figcaption class="plate-cap"><span id="star-where">—</span><span id="star-when">—</span></figcaption>
+    </figure>
+
+    <div class="title-block">
+        <div class="tb-kicker" id="tb-kicker">Chapter —</div>
+        <h1 class="tb-name" id="tb-name">—</h1>
+        <div class="tb-when" id="tb-when">—</div>
+        <div class="tb-where" id="tb-where">—</div>
+    </div>
+
+    <div class="vitals" id="vitals"></div>
+
+    <div class="run" id="run">
+        <div class="spine"></div>
+        <div class="mapmark">
+            <div class="disc"></div>
+            <div class="mapplate">
+                <div id="map"></div>
+                <div class="cap">The ground covered · trailhead to trailhead</div>
+            </div>
+        </div>
+        <div id="stations"></div>
+    </div>
+
+    <div class="closer">End of chapter</div>
+</div>
+
+<div class="note">
+    <b>Concept 1 — The Chapter Sheet.</b> The page opens on the map's own chapter card, which
+    dissolves into the sheet. The dashed Expedition Line runs the whole page as its spine; the
+    journey map and every stop are stations planted on it. Stops are launchers: name, numbers,
+    one photograph, a door. The star plate up top is mounted like a photographic print, not
+    stretched like a web banner.
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const TAG = new URLSearchParams(location.search).get('tag') || 'Alaska Camping Trip - June 2026';
+const CLOUD = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_1400,h_800,c_fill,q_auto,f_auto/${id}`;
+const THUMB = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_300,h_300,c_fill,q_auto,f_auto/${id}`;
+const ROMAN = n => ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI','XXII'][n-1] || n;
+const isVP = h => h.hike_type === 'Viewpoint';
+const utc = s => new Date(s + 'T00:00:00Z');
+const fmt = (s, o) => utc(s).toLocaleDateString('en-US', Object.assign({ timeZone:'UTC' }, o));
+
+Promise.all([
+    fetch('../data/hikes.json').then(r => r.json()),
+    fetch('../data/trails.geojson').then(r => r.json())
+]).then(([hikes, geo]) => {
+    const trip = hikes.filter(h => h.trip_tag === TAG)
+        .sort((a, b) => a.date_completed.localeCompare(b.date_completed) ||
+            (+a.trail_id.split('_')[1]) - (+b.trail_id.split('_')[1]));
+    if (!trip.length) { document.body.innerHTML = '<p style="padding:40px">No trip found for ' + TAG + '</p>'; return; }
+
+    const name = TAG.replace(/\s*-\s*[\w]+ \d{4}$/, '');
+    const when = fmt(trip[0].date_completed, { month:'long', year:'numeric' });
+    const chapterNo = 14;   // the map assigns this; hard-coded for the mockup
+    const walked = trip.filter(h => !isVP(h));
+    const days = [...new Set(walked.map(h => h.date_completed))].length;
+    const miles = walked.reduce((s, h) => s + (h.miles || 0), 0);
+    const gain = walked.reduce((s, h) => s + (h.elevation_gain || 0), 0);
+    const places = [...new Set(trip.map(h => h.location))];
+
+    // --- the star photograph: the most-photographed hike's opening frame.
+    //     (In the real page this would be a picked ID, like SPECIMEN_PICKS.)
+    const starHike = trip.slice().sort((a, b) => (b.images||[]).length - (a.images||[]).length)[0];
+    document.getElementById('star').src = CLOUD((starHike.images || [])[0]);
+    document.getElementById('star-where').textContent = starHike.location;
+    document.getElementById('star-when').textContent = when;
+
+    // --- the ceremony ---
+    document.getElementById('v-kick').textContent = `Onward · Chapter ${ROMAN(chapterNo)}`;
+    document.getElementById('v-title').textContent = name;
+    document.getElementById('v-sub').textContent = when + (walked.length > 1 ? ` · ${trip.length} outings` : '');
+    setTimeout(() => document.getElementById('veil').classList.add('gone'), 1500);
+
+    document.getElementById('tb-kicker').textContent = `A chapter of the Atlas · Chapter ${ROMAN(chapterNo)}`;
+    document.getElementById('tb-name').textContent = name;
+    document.getElementById('tb-when').textContent = when;
+    document.getElementById('tb-where').textContent = places.join(' · ');
+
+    document.getElementById('vitals').innerHTML = [
+        [days, days === 1 ? 'Day out' : 'Days out'],
+        [walked.length, walked.length === 1 ? 'Hike' : 'Hikes'],
+        [trip.length - walked.length, 'Viewpoints'],
+        [miles.toFixed(1), 'Miles'],
+        [gain.toLocaleString(), 'Feet climbed']
+    ].filter(v => v[0] !== 0).map(([n, l]) =>
+        `<div class="vital"><span class="n">${n}</span><span class="l">${l}</span></div>`).join('');
+
+    // --- the stations, grouped by day ---
+    let html = '', lastDate = null, n = 0, dayNo = 0;
+    trip.forEach(h => {
+        if (h.date_completed !== lastDate) {
+            lastDate = h.date_completed; dayNo++;
+            html += `<div class="daymark"><div class="disc"></div>
+                <div class="lbl">Day ${dayNo}</div>
+                <div class="date">${fmt(h.date_completed, { weekday:'long', month:'long', day:'numeric' })}</div></div>`;
+        }
+        n++;
+        const meta = isVP(h) ? `Viewpoint · ${h.location}`
+            : `${h.miles} mi · ${(h.elevation_gain||0).toLocaleString()} ft · ${h.difficulty}`;
+        const img = (h.images || [])[0];
+        html += `<div class="stop ${isVP(h) ? 'is-vp' : ''}">
+            <div class="stop-pin">${n}</div>
+            <a class="stop-card" href="../hike.html?id=${h.trail_id}">
+                <div class="stop-thumb">${img ? `<img src="${THUMB(img)}" alt="">` : ''}</div>
+                <div class="stop-body">
+                    <div class="stop-name">${h.trail_name}</div>
+                    <div class="stop-meta">${meta}</div>
+                </div>
+                <div class="stop-go"><svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg></div>
+            </a></div>`;
+    });
+    document.getElementById('stations').innerHTML = html;
+
+    // --- the journey map, in the Atlas's own dress ---
+    const map = L.map('map', { zoomControl:false, attributionControl:false, scrollWheelZoom:false, dragging:false });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom:16 }).addTo(map);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', { maxZoom:16, opacity:0.55, className:'hillshade-multiply' }).addTo(map);
+    const wash = document.createElement('div'); wash.className = 'parchment';
+    map.getContainer().appendChild(wash);
+
+    // LineString AND MultiLineString both appear in trails.geojson
+    const byId = {};
+    geo.features.forEach(f => { const g = f.geometry;
+        byId[f.properties.trail_id] = (g.type === 'MultiLineString' ? g.coordinates : [g.coordinates])
+            .reduce((a, seg) => a.concat(seg), []); });
+    const pts = [], heads = [];
+    trip.forEach(h => {
+        const c = byId[h.trail_id];
+        if (c) {
+            const ll = c.map(p => [p[1], p[0]]);
+            L.polyline(ll, { color:'#b83d2e', weight:3, opacity:0.95 }).addTo(map);
+            ll.forEach(p => pts.push(p));
+            heads.push(ll[0]);
+        } else if (h.latitude) { pts.push([h.latitude, h.longitude]); heads.push([h.latitude, h.longitude]); }
+    });
+    // the Expedition Line between trailheads — the same dashed thread as the map page
+    if (heads.length > 1) L.polyline(heads, { color:'#2f5c40', weight:1.8, opacity:0.5, dashArray:'7 7' }).addTo(map);
+    heads.forEach((p, i) => L.marker(p, { icon: L.divIcon({ className:'', iconSize:[22,22],
+        html:`<div style="width:22px;height:22px;border-radius:50%;background:#2f5c40;color:#f0e7cf;
+              display:flex;align-items:center;justify-content:center;font:12px Georgia;
+              box-shadow:0 0 0 3px rgba(240,231,207,0.9)">${i+1}</div>` }) }).addTo(map));
+    if (pts.length) map.fitBounds(L.latLngBounds(pts).pad(0.2));
+});
+</script>
+</body>
+</html>

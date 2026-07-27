@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Traverse (trip page, combined concept, rev 2)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- the Atlas's own base: the real fonts (National Park + Alegreya Sans), the
+     palette, and the shared .atlas-door component. The card below is a
+     COMPACTION of the map's sheet, so it should be built from the same parts,
+     not from a lookalike. -->
+<link rel="stylesheet" href="../styles/base.css"/>
+<style>
+/* ============================================================================
+   THE TRAVERSE — the Ribbon and the Route Card, made one thing.
+   (A survey traverse is a connected series of measured legs between fixed
+   points. That is exactly what a trip is, and it is what this page draws.)
+
+   REV 2 — Danny's notes, worked in:
+     1. The preview card is no longer its own invention. It is the map page's
+        field card, compacted: same left year-ink spine, same banner + kind
+        pill, same engraved numerals, same door. One design language.
+     2. Viewpoints are no longer drawn as hikes. They never touch the baseline,
+        they carry no filled ground, and they are LETTERED (A, B, C) where
+        hikes are NUMBERED — a sighting along the way, not a station on it.
+     3. Trail names are gone from the traverse. The card says the name.
+     4. The opening photograph is CURATED (TRIP_STARS), not picked at random.
+     5. The land is fixed. You cannot pan or zoom it — the camera only cuts
+        between stops. Roaming belongs to map.html, and to map.html alone.
+   ========================================================================= */
+:root {
+    --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c;
+    --charcoal:#3d3a30; --parch:#f0e7cf; --parch-deep:#e4d8b8; --brass:#b9a578;
+    --ink:#2b2a24; --year:#b83d2e;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; overflow:hidden; background:#e8dfc6; color:var(--ink);
+    font-family:var(--font-body); }
+a { text-decoration:none; }
+
+/* ---------- the land: fixed. It is scenery, not a vehicle. -------------- */
+#map { position:fixed; inset:0; background:#ece3ce; }
+.leaflet-container { cursor:default; }          /* nothing here invites a drag */
+.hillshade-multiply { mix-blend-mode:multiply; }
+.parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply;
+    opacity:0.42; z-index:450; pointer-events:none; }
+/* the camera CUTS, it never flies — the Atlas rule, kept */
+.veil { position:fixed; inset:0; z-index:700; pointer-events:none; opacity:0; transition:opacity 0.3s ease;
+    background:radial-gradient(ellipse at 50% 45%, rgba(240,231,207,0.96) 0%, rgba(228,214,180,0.98) 100%); }
+.veil.on { opacity:1; }
+
+/* ---------- the frontispiece: the curated photograph, before anything --- */
+.front { position:fixed; inset:0; z-index:2000; overflow:hidden; background:#231f16;
+    transition:opacity 1s ease, transform 1.15s cubic-bezier(0.7,0,0.25,1); }
+.front.lift { opacity:0; transform:translateY(-4%) scale(1.03); pointer-events:none; }
+.front img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.front .scrim { position:absolute; inset:0;
+    background:linear-gradient(0deg, rgba(35,32,22,0.72) 0%, rgba(35,32,22,0.12) 45%, rgba(35,32,22,0.34) 100%); }
+/* THE OPENING FRAME LOADS THE WAY THE ATLAS ALWAYS LOADS A PHOTOGRAPH.
+   A ~1 kB blurred thumbnail lands almost instantly and is held under the
+   developing sheen; the full frame crossfades in over it. The film does not
+   start counting down until that full frame has actually arrived, so the
+   photograph can never be scrolled past before it exists. */
+.front .f-blur { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    filter:blur(28px); transform:scale(1.09); }
+.front .f-full { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    opacity:0; transition:opacity 0.8s ease; }
+.front .f-full.on { opacity:1; }
+.front .f-sheen { position:absolute; inset:0; pointer-events:none; opacity:1;
+    background:linear-gradient(100deg, rgba(255,250,235,0) 34%, rgba(255,250,235,0.17) 50%, rgba(255,250,235,0) 66%);
+    background-size:280% 100%; animation:ms-develop 1.9s ease-in-out infinite;
+    transition:opacity 0.7s ease; }
+.front.ready .f-sheen { opacity:0; animation:none; }
+.front .in { position:absolute; left:0; right:0; bottom:12%; text-align:center; color:#f6f1e2;
+    text-shadow:0 2px 18px rgba(20,18,10,0.6); }
+.f-kick { font-family:var(--font-display); font-size:11px; letter-spacing:0.4em;
+    text-transform:uppercase; opacity:0.82; }
+.f-name { font-family:var(--font-display); font-weight:700; font-size:58px; margin:14px 0 8px;
+    letter-spacing:0.06em; text-transform:uppercase; }
+.f-when { font-size:15px; font-style:italic; opacity:0.9; }
+.f-tot { display:flex; justify-content:center; gap:38px; margin-top:26px; }
+.f-tot div { font-family:var(--font-display); font-size:9px; letter-spacing:0.22em;
+    text-transform:uppercase; opacity:0.78; }
+.f-tot b { display:block; font-size:26px; font-weight:700; letter-spacing:0.02em;
+    margin-bottom:3px; opacity:1; }
+.f-go { position:absolute; left:0; right:0; bottom:36px; text-align:center; color:#f6f1e2;
+    font-family:var(--font-display); font-size:9px; letter-spacing:0.28em; text-transform:uppercase;
+    opacity:0.6; animation:bob 2.4s ease-in-out infinite; }
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(5px)} }
+
+/* ---------- the wordmark: the chapter, engraved into the corner --------- */
+.mark { position:fixed; left:26px; top:22px; z-index:600; }
+.m-kick { font-family:var(--font-display); font-size:8.5px; letter-spacing:0.28em;
+    text-transform:uppercase; color:#9a927c; }
+.m-name { font-family:var(--font-display); font-weight:700; font-size:24px; color:#24401f;
+    margin-top:3px; letter-spacing:0.06em; text-transform:uppercase;
+    text-shadow:0 1px 10px rgba(240,231,207,0.9); }
+.m-when { font-size:11.5px; font-style:italic; color:#6f6a58; margin-top:1px; }
+
+/* ---------- THE SHEET, COMPACTED ----------------------------------------
+   This is the map page's SHEET — the light table's quick glance — shrunk to
+   a standing card. Every part is carried over in the same order and the same
+   register: the light-table paper with a second sheet peeking behind it, the
+   collar (kicker → engraved uppercase title → italic place line → who was
+   with you) closed by its evergreen rule, the vitals band in ruled columns,
+   the slide in its cream mount, and the wide Atlas door at the foot.
+
+   What's dropped, because a preview isn't the sheet: the acetate, the trail
+   notes, the flora/fauna line, the visit stamps, and the LOWER/PLAY actions
+   (there's no film to lower or resume here). Class names are the map's on
+   purpose — the real build should share one stylesheet, not fork it.
+   ---------------------------------------------------------------------- */
+/* the mount carries the z-index so the card itself opens no stacking context —
+   otherwise the sheet peeking behind it (a z-index:-1 pseudo-element, exactly
+   as on the map) paints behind its own paper and vanishes */
+.sheet-mount { position:fixed; left:26px; top:112px; z-index:600; width:330px; }
+.sheet-card {
+    position:relative; width:100%;
+    background:#fffdf6; border:1px solid #d8ccae; border-radius:6px;
+    box-shadow:0 8px 34px rgba(20,15,5,0.28);
+    padding:0 19px 17px; font-family:var(--font-body); }
+/* the sheet beneath, peeking from the stack — the map's own tell */
+.sheet-card::before { content:''; position:absolute; inset:7px -6px 11px auto; width:6px;
+    background:#efe6c9; border:1px solid #d8ccae; border-radius:0 3px 3px 0; z-index:-1; }
+
+.ms-collar { padding:13px 0 8px; margin-bottom:10px; border-bottom:1.5px solid #2f5c40; }
+.ms-kicker { font-family:var(--font-display); font-size:8px; letter-spacing:0.26em;
+    color:#9a927c; margin-bottom:5px; }
+.ms-title { font-family:var(--font-display); font-weight:700; font-size:15.5px;
+    letter-spacing:0.07em; line-height:1.14; text-transform:uppercase; color:#24401f; margin:0;
+    /* two lines reserved and centred in them, so a short name doesn't hang
+       over a gap; three is the ceiling, so the longest name on the Atlas
+       can't push the door off the card */
+    min-height:2.28em; display:grid; align-items:center; }
+.ms-title span { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.ms-sub { font-size:12px; font-style:italic; color:#6f6a58; margin-top:4px; line-height:1.35; }
+.ms-with { font-size:11.5px; color:#6f6a58; margin-top:2px; }
+
+.ms-vitals { display:flex; margin:0 0 11px; padding-bottom:11px; border-bottom:1px solid #d8ccae; }
+.ms-vital { flex:1; text-align:center; padding:0 6px; border-left:1px solid #d8ccae; min-width:0; }
+.ms-vital:first-child { border-left:none; }
+.ms-vital .v { font-family:var(--font-display); font-weight:700; font-size:18px; line-height:1.04;
+    color:#24401f; white-space:nowrap; }
+.ms-vital .l { margin-top:4px; font-family:var(--font-display); font-size:7px; letter-spacing:0.2em;
+    text-transform:uppercase; color:#9a927c; }
+.ms-vital.wide .v { font-size:11px; letter-spacing:0.2em; }
+
+/* the slide, in the sheet's cream mount — and the viewfinder: it always holds
+   the frame from wherever you are standing on the traverse */
+.ms-print { position:relative; background:linear-gradient(#fbf6e6,#f0e7cf);
+    border:1px solid #cdbf9c; border-radius:2px; padding:6px 6px 15px;
+    box-shadow:0 2px 6px rgba(60,45,20,0.28); margin-bottom:13px; }
+.ms-frame { position:relative; aspect-ratio:3/2; overflow:hidden; background:#e6dcc0; }
+.ms-frame img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+    transition:opacity 0.45s ease; }
+.ms-frame img.off { opacity:0; }
+.ms-frame .fb { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity 0.45s ease; }
+.ms-frame .fb.on { opacity:1; }
+.ms-frame .fb svg, .ms-frame .fb .stamp-glyph { width:46px; height:46px; color:#fffdf6; }
+.ms-frame .fb .stamp-halo { display:none; }
+.ms-print .no { position:absolute; bottom:2px; left:8px; font-family:var(--font-display);
+    font-size:7px; letter-spacing:0.2em; color:#9a927c; }
+.ms-print .ct { position:absolute; bottom:2px; right:8px; font-family:var(--font-display);
+    font-size:7px; letter-spacing:0.2em; color:#9a927c; }
+/* the slide "develops" on the light box until Cloudinary delivers — the same
+   treatment as the map sheet's strip and the hike page's slides, lifted from
+   map.css so a cold cache never shows a blank mount */
+.ms-print::after {
+    content:''; position:absolute; inset:6px 6px 15px; pointer-events:none;
+    background:linear-gradient(100deg, #e5dbbe 30%, #f5eeda 50%, #e5dbbe 70%);
+    background-size:280% 100%;
+    animation:ms-develop 1.6s ease-in-out infinite;
+    transition:opacity 0.55s ease; }
+.ms-print.loaded::after { opacity:0; animation:none; }
+@keyframes ms-develop { from { background-position:180% 0; } to { background-position:-80% 0; } }
+@media (prefers-reduced-motion: reduce) {
+    .ms-print::after, .front .f-sheen { animation:none; }
+}
+
+/* the door is base.css's own .atlas-door.is-wide — only its scale is set here */
+.sheet-card .atlas-door.is-wide { padding:10px 13px; gap:10px; width:100%; }
+.sheet-card .atlas-door.is-wide .ad-glyph { width:19px; height:19px; }
+.sheet-card .atlas-door.is-wide .ad-chev { width:14px; height:14px; }
+.sheet-card .ad-main { font-size:9.5px; letter-spacing:0.18em; }
+.sheet-card .ad-sub { font-size:10.5px; }
+
+/* ---------- the traverse: the trip's terrain, and the instrument -------- */
+/* the panel is tall enough to hold a section — unless the trip has no section
+   worth drawing, in which case it collapses to a rule (see .trav.is-level) */
+.trav { position:fixed; left:0; right:0; bottom:0; z-index:650; height:204px;
+    background:linear-gradient(0deg, rgba(240,231,207,0.99) 62%, rgba(240,231,207,0.9) 100%);
+    border-top:1px solid var(--brass); box-shadow:0 -6px 26px rgba(60,50,30,0.13); }
+.t-head { display:flex; justify-content:space-between; align-items:baseline; padding:9px 26px 0; }
+.t-title { font-family:var(--font-display); font-size:9px; letter-spacing:0.28em;
+    text-transform:uppercase; color:#9a927c; }
+.t-stage { position:relative; margin:0 26px; height:166px; }
+/* LEVEL GROUND: a trip that never climbed 100 ft has no section to draw, and a
+   170px plot of nothing is a lie told with empty space. The panel collapses to
+   a survey rule carrying the same stops in the same order. */
+.trav.is-level { height:126px; }
+.trav.is-level .t-stage { height:88px; }
+#trav-svg { position:absolute; inset:0; width:100%; height:100%; overflow:visible; cursor:pointer; }
+.t-st { cursor:pointer; }
+.t-st .hit { fill:transparent; }
+.t-num { font-size:10px; font-family:var(--font-display); font-weight:700; }
+.t-day { font-family:var(--font-display); font-size:8px; letter-spacing:0.2em; fill:#9a927c; }
+.t-mi { font-family:var(--font-display); font-size:8px; letter-spacing:0.14em; fill:#9a927c; }
+.t-ax { font-family:var(--font-display); font-size:8px; letter-spacing:0.1em; fill:#9a927c; }
+.t-caveat { font-size:11px; font-style:italic; fill:#9a927c; }
+
+/* the trailhead marks on the land */
+.pin-wrap { transition:transform 0.2s ease; }
+.pin { width:26px; height:26px; display:flex; align-items:center; justify-content:center;
+    background:#f0e7cf; border:1.6px solid #24401f; color:#24401f;
+    font-family:var(--font-display); font-weight:700; font-size:11px;
+    border-radius:50%; box-shadow:0 1px 5px rgba(60,50,30,0.3);
+    transform:rotate(var(--rot,0deg)) scale(var(--s,1));
+    transition:background 0.18s ease, color 0.18s ease, transform 0.18s ease; }
+.pin.vp { --rot:45deg; border-radius:3px; width:23px; height:23px; border-style:dashed; }
+.pin.vp span { transform:rotate(-45deg); font-size:11px; font-style:italic; }
+
+.hintbar { position:fixed; right:26px; top:22px; z-index:600; text-align:right; }
+.hintbar div { font-family:var(--font-display); font-size:8.5px; letter-spacing:0.2em;
+    text-transform:uppercase; color:#9a927c; }
+.note { position:fixed; right:26px; top:56px; z-index:600; width:330px;
+    background:rgba(255,253,246,0.95); border:1px solid #d8ccae; border-radius:4px;
+    padding:11px 13px; font-size:12px; font-style:italic; color:#6f6a58; line-height:1.5; }
+.note b { font-style:normal; color:#24401f; }
+.note .x { float:right; cursor:pointer; font-style:normal; color:#9a927c; margin-left:8px; }
+.legend { display:inline-flex; gap:15px; align-items:center; margin-left:20px;
+    padding-left:20px; border-left:1px solid #d8ccae; color:#9a927c; }
+.legend i { display:inline-block; width:12px; height:12px; border:1.3px solid #24401f;
+    border-radius:50%; margin-right:6px; vertical-align:-2px; }
+.legend i.v { border-radius:2px; border-style:dashed; transform:rotate(45deg); width:10px; height:10px; }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="veil" id="veil"></div>
+
+<div class="mark">
+    <div class="m-kick">A chapter of the Atlas</div>
+    <div class="m-name" id="m-name">—</div>
+    <div class="m-when" id="m-when">—</div>
+</div>
+
+<!-- THE SHEET, COMPACTED — collar, vitals, slide, door. The slide mount is
+     also the viewfinder: it holds the frame from wherever you're standing. -->
+<div class="sheet-mount"><div class="sheet-card" id="card">
+    <div class="ms-collar">
+        <div class="ms-kicker" id="ms-kicker">—</div>
+        <h2 class="ms-title" id="ms-title">—</h2>
+        <div class="ms-sub" id="ms-sub">—</div>
+        <div class="ms-with" id="ms-with">—</div>
+    </div>
+    <div class="ms-vitals" id="ms-vitals"></div>
+    <div class="ms-print">
+        <div class="ms-frame">
+            <img id="pic-a" alt=""><img id="pic-b" class="off" alt="">
+            <div class="fb" id="pic-fb"></div>
+        </div>
+        <div class="no" id="ms-no">01</div>
+        <div class="ct" id="ms-ct"></div>
+    </div>
+    <a class="atlas-door is-wide" id="door" href="#">
+        <svg class="ad-glyph" id="door-glyph" viewBox="0 0 24 24" aria-hidden="true"></svg>
+        <span class="ad-copy">
+            <span class="ad-main" id="door-main">—</span>
+            <span class="ad-sub" id="door-sub">—</span>
+        </span>
+        <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+    </a>
+</div></div>
+
+<div class="hintbar"><div>Walk the traverse &darr;</div></div>
+<div class="note" id="note"><span class="x" id="note-x">&#10005;</span>
+<b>The Traverse (rev 3).</b> The trip's whole terrain in one line — every hike's real profile
+stitched end to end, the ground covered between them ramped and dashed. Hover to preview, click a
+station to cut the camera, click the empty ground to pull back. <b>The map is fixed</b> — it only
+cuts between stops; roaming lives on the interactive map. <i>(Mockup note — close it and watch the
+map re-frame itself around the space it frees.)</i>
+</div>
+
+<div class="trav">
+    <div class="t-head">
+        <!-- the key lives WITH the marks it explains, which also keeps the
+             map's top-right corner clear for the land -->
+        <div class="t-title">The Traverse · the ground, end to end
+            <span class="legend"><span><i></i>Hike, numbered</span><span><i class="v"></i>Viewpoint, lettered</span></span>
+        </div>
+        <div class="t-title" id="t-range"></div>
+    </div>
+    <div class="t-stage"><svg id="trav-svg"></svg></div>
+</div>
+
+<div class="front" id="front">
+    <img class="f-blur" id="front-blur" alt="" aria-hidden="true">
+    <img class="f-full" id="front-img" alt="">
+    <div class="f-sheen"></div>
+    <div class="scrim"></div>
+    <div class="in">
+        <div class="f-kick">A chapter of the Atlas</div>
+        <div class="f-name" id="f-name">—</div>
+        <div class="f-when" id="f-when">—</div>
+        <div class="f-tot" id="f-tot"></div>
+    </div>
+    <div class="f-go">The land is below</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="../scripts/config.js"></script>
+<script>
+const TAG = new URLSearchParams(location.search).get('tag') || 'Alaska Camping Trip - June 2026';
+
+/* --------------------------------------------------------------------------
+   THE CURATED OPENING FRAME.  trip_tag → Cloudinary public ID.
+   One trip, one chosen photograph — the picture that IS the trip. Anything
+   not listed falls back to the most-photographed stop's first frame, which is
+   only ever a placeholder until Danny picks. (In the real build this lives
+   beside the data, the way SPECIMEN_PICKS does in observatory.js.)
+   -------------------------------------------------------------------------- */
+const TRIP_STARS = {
+    // 'Alaska Camping Trip - June 2026' : 'tta_117-savage-alpine-trail-04',
+    // 'Utah Solo Trip - June 2025'      : 'tta_86-angels-landing-02',
+};
+
+const BIG  = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_1900,h_1100,c_fill,q_auto,f_auto/${id}`;
+const MED  = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_760,h_480,c_fill,q_auto,f_auto/${id}`;
+// ~1 kB. Lands in one packet, so the frontispiece is never an empty rectangle.
+const TINY = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_48,h_28,c_fill,e_blur:900,q_20,f_auto/${id}`;
+const isVP = h => h.hike_type === 'Viewpoint';
+const utc = s => new Date(s + 'T00:00:00Z');
+const fmt = (s, o) => utc(s).toLocaleDateString('en-US', Object.assign({ timeZone:'UTC' }, o));
+const hav = (a, b) => { const R=6371, t=x=>x*Math.PI/180;
+    const dLat=t(b[0]-a[0]), dLon=t(b[1]-a[1]);
+    const x=Math.sin(dLat/2)**2 + Math.cos(t(a[0]))*Math.cos(t(b[0]))*Math.sin(dLon/2)**2;
+    return 2*R*Math.asin(Math.sqrt(x)); };
+const SVGNS = 'http://www.w3.org/2000/svg';
+const el = (n, a) => { const e = document.createElementNS(SVGNS, n);
+    for (const k in a) e.setAttribute(k, a[k]); return e; };
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/* the real build reads this through territoryName() in atlas-data.js */
+const STATES = { AK:'Alaska', AZ:'Arizona', CA:'California', PA:'Pennsylvania',
+                 UT:'Utah', VT:'Vermont', BC:'British Columbia' };
+
+/* The Atlas's own two door glyphs, lifted verbatim: the open field log
+   (map.js DOOR_LOG_GLYPH) and the folded map (hike.html's land-door). */
+const GLYPH_LOG = '<path d="M12 7.2C10.6 6 8.7 5.4 6.2 5.4H3.2v12.2h3c2.5 0 4.4.6 5.8 1.8 ' +
+    '1.4-1.2 3.3-1.8 5.8-1.8h3V5.4h-3c-2.5 0-4.4.6-5.8 1.8Z"/><path d="M12 7.2v12.2"/>';
+const GLYPH_MAP = '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/>';
+
+/* ---- the land: FIXED. Every handle that could move it is off. ---------- */
+const map = L.map('map', {
+    zoomControl:false, attributionControl:false, zoomSnap:0,
+    dragging:false, scrollWheelZoom:false, doubleClickZoom:false,
+    touchZoom:false, boxZoom:false, keyboard:false, tap:false
+});
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png',
+    { maxZoom:16, keepBuffer:2 }).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:16, opacity:0.55, keepBuffer:2, className:'hillshade-multiply' }).addTo(map);
+const wash = document.createElement('div'); wash.className = 'parchment';
+map.getContainer().appendChild(wash);
+map.setView([39, -98], 4);   // a view, any view, before the first vector lands
+const veil = document.getElementById('veil');
+
+/** The camera never flies. It cuts, behind the veil.
+ *  The padding is in PIXELS, per side, and it is what keeps the ink clear of
+ *  the chrome: the left pad clears the sheet for its whole height, the bottom
+ *  pad clears the traverse panel, the top pad clears the wordmark. Because
+ *  fitBounds then fills whatever is left, the zoom is decided by the trail
+ *  itself — a trip whose stops are a mile apart frames tight, and one whose
+ *  stops are 200 miles apart frames wide, with no fixed cap doing the deciding.
+ */
+let cutTimer = null, afterCut = null;
+
+/** The padding is MEASURED, not guessed.
+ *  Hardcoded numbers went stale every time a panel changed size — and they
+ *  can't know that the traverse collapses on a level trip, or that a long
+ *  trip name makes the wordmark wider than the sheet. Each piece of chrome is
+ *  cleared on its CHEAPER axis: the sheet is tall and narrow so it costs less
+ *  to clear sideways; the wordmark and anything in the top corners are short
+ *  and wide, so they cost less to clear downwards. */
+function chromePads() {
+    // NB: never test offsetParent here — every panel on this page is
+    // position:fixed, and a fixed element reports offsetParent as null, so
+    // that check silently reported "no chrome" and collapsed every pad to 26px
+    const box = sel => { const e = document.querySelector(sel);
+        if (!e || getComputedStyle(e).display === 'none') return null;
+        const r = e.getBoundingClientRect();
+        return (r.width && r.height) ? r : null; };
+    const GAP = 24;
+    let left = 26, top = 26, right = 26, bottom = 26;
+    const sheet = box('.sheet-mount');
+    if (sheet) left = Math.max(left, sheet.right + GAP);
+    ['.mark', '.note', '.hintbar'].forEach(s => {
+        const r = box(s); if (r) top = Math.max(top, r.bottom + GAP);
+    });
+    const trav = box('.trav');
+    if (trav) bottom = Math.max(bottom, window.innerHeight - trav.top + GAP);
+    return { topLeft: L.point(left, top), bottomRight: L.point(right, bottom) };
+}
+
+let lastBounds = null, lastMax = null;
+/** re-frame in place, with no veil — for when the CHROME changed, not the view */
+function reframe() {
+    if (!lastBounds) return;
+    const pad = chromePads();
+    map.fitBounds(lastBounds, { paddingTopLeft: pad.topLeft,
+        paddingBottomRight: pad.bottomRight, maxZoom: lastMax || 16, animate:false });
+    if (afterCut) afterCut();
+}
+function cutTo(bounds, maxZoom) {
+    lastBounds = bounds; lastMax = maxZoom || 16;
+    clearTimeout(cutTimer);
+    veil.classList.add('on');
+    cutTimer = setTimeout(() => {
+        const pad = chromePads();
+        map.fitBounds(bounds, {
+            paddingTopLeft: pad.topLeft, paddingBottomRight: pad.bottomRight,
+            maxZoom: maxZoom || 16, animate:false });
+        if (afterCut) afterCut();
+        setTimeout(() => veil.classList.remove('on'), 230);
+    }, 300);
+}
+
+Promise.all([
+    fetch('../data/hikes.json').then(r => r.json()),
+    fetch('../data/trails.geojson').then(r => r.json()),
+    fetch('../data/elevations.json').then(r => r.json())
+]).then(([hikes, geo, elev]) => {
+    const trip = hikes.filter(h => h.trip_tag === TAG)
+        .sort((a, b) => a.date_completed.localeCompare(b.date_completed) ||
+            (+a.trail_id.split('_')[1]) - (+b.trail_id.split('_')[1]));
+    if (!trip.length) { document.body.innerHTML = '<p style="padding:40px">No trip found for ' + TAG + '</p>'; return; }
+
+    const year = utc(trip[0].date_completed).getUTCFullYear();
+    const YEAR_INK = (window.ATLAS_CONFIG && ATLAS_CONFIG.COLOR_MAP[String(year)]) || '#b83d2e';
+    document.documentElement.style.setProperty('--year', YEAR_INK);
+
+    const name  = TAG.replace(/\s*-\s*[\w]+ \d{4}$/, '');
+    const walked = trip.filter(h => !isVP(h));
+    const views  = trip.filter(isVP);
+    /* A viewpoint doesn't add miles, but it absolutely adds a DAY — the day
+       you drove the Denali road and stopped at Stony Hill was a day out.
+       (Miles and feet still count walked ground only.) */
+    const days  = [...new Set(trip.map(h => h.date_completed))].length;
+    /* under 100 ft climbed across the whole trip, there is no section to draw */
+    const LEVEL = walked.reduce((s, h) => s + (h.elevation_gain || 0), 0) < 100;
+    const miles = walked.reduce((s, h) => s + (h.miles || 0), 0);
+    const gain  = walked.reduce((s, h) => s + (h.elevation_gain || 0), 0);
+    const oneDay = trip[0].date_completed === trip[trip.length-1].date_completed;
+    const span = oneDay
+        ? fmt(trip[0].date_completed, { month:'long', day:'numeric', year:'numeric' })
+        : fmt(trip[0].date_completed, { month:'long', day:'numeric' }) + ' – ' +
+          fmt(trip[trip.length-1].date_completed, { month:'long', day:'numeric', year:'numeric' });
+
+    /* hikes are NUMBERED, viewpoints are LETTERED — two sequences, one story */
+    const mark = {};
+    let nH = 0, nV = 0;
+    trip.forEach(h => { mark[h.trail_id] = isVP(h)
+        ? String.fromCharCode(65 + nV++) : String(++nH); });
+
+    /* ---- the curated opening frame ------------------------------------- */
+    const starHike = trip.slice().sort((a, b) => (b.images||[]).length - (a.images||[]).length)[0];
+    const STAR = TRIP_STARS[TAG] || (starHike.images || [])[0] || null;
+    document.getElementById('f-name').textContent = name;
+    document.getElementById('f-when').textContent = span;
+    document.getElementById('f-tot').innerHTML = [
+        [days, days === 1 ? 'Day out' : 'Days out'],
+        [walked.length, walked.length === 1 ? 'Hike' : 'Hikes'],
+        [views.length, views.length === 1 ? 'Viewpoint' : 'Viewpoints'],
+        [miles.toFixed(1), 'Miles'], [gain.toLocaleString(), 'Feet climbed']
+    ].filter(v => v[0] !== 0 && v[0] !== '0.0').map(([n,l]) => `<div><b>${n}</b>${l}</div>`).join('');
+
+    document.getElementById('m-name').textContent = name;
+    document.getElementById('m-when').textContent = span;
+
+    /* THE OPENING FRAME — held until it exists.
+       The old version showed the title for a flat 2.6 s whether or not the
+       photograph had arrived, so on a cold Cloudinary cache the film lifted
+       off a black rectangle and the picture landed after it was gone. Now: the
+       blurred thumbnail paints immediately, the full frame crossfades in when
+       it lands, and only THEN does the dwell begin. A 7 s cap means a dead or
+       very slow image can never trap the page. */
+    const front = document.getElementById('front');
+    const fFull = document.getElementById('front-img');
+    const fBlur = document.getElementById('front-blur');
+    let lifted = false, armed = false;
+    const lift = () => { if (!lifted) { lifted = true; front.classList.add('lift'); } };
+    const arm = () => { if (!armed) { armed = true; setTimeout(lift, 2200); } };
+    if (STAR) {
+        fBlur.src = TINY(STAR);
+        const full = blurUpPreload(BIG(STAR));
+        const landed = () => {
+            fFull.src = BIG(STAR); fFull.classList.add('on');
+            front.classList.add('ready');
+            arm();
+            // with the big frame home, warm the stops' own slides so walking
+            // the traverse never waits on the network
+            trip.forEach(h => (h.images || []).slice(0, 1).forEach(id => blurUpPreload(MED(id))));
+        };
+        if (full.complete && full.naturalWidth) landed();
+        else {
+            full.addEventListener('load', landed, { once:true });
+            full.addEventListener('error', () => { front.classList.add('ready'); arm(); }, { once:true });
+        }
+        setTimeout(arm, 7000);
+    } else { front.classList.add('ready'); arm(); }
+    front.addEventListener('click', lift);
+    window.addEventListener('wheel', lift, { once:true, passive:true });
+
+    /* ---- the trails on the land ---------------------------------------- */
+    // trails.geojson holds BOTH LineString and MultiLineString — 14 of 113
+    // tracks arrive in more than one piece (a paused recording, a spur).
+    // Reading every geometry as a LIST of segments is the only safe way.
+    const byId = {};
+    geo.features.forEach(f => {
+        const g = f.geometry;
+        byId[f.properties.trail_id] = g.type === 'MultiLineString' ? g.coordinates : [g.coordinates];
+    });
+    const byTrail = {}; trip.forEach(h => (byTrail[h.trail_id] = h));
+    const allPts = [], heads = [], bounds = {}, lines = {}, home = {};
+    trip.forEach(h => {
+        const parts = byId[h.trail_id];
+        const here = (typeof h.latitude === 'number') ? [h.latitude, h.longitude] : null;
+        if (parts && parts.length) {
+            const lls = parts.map(seg => seg.map(p => [p[1], p[0]])).filter(ll => ll.length);
+            // the class names the trail, so a stop's own ink can be found by
+            // anything that needs it (the framing check, above all)
+            lines[h.trail_id] = lls.map(ll => L.polyline(ll,
+                { color:YEAR_INK, weight:3.2, opacity:0.9,
+                  className:`ink ink-${h.trail_id}` }).addTo(map));
+            // the ink is pickable too — with the map fixed, it is a control
+            lines[h.trail_id].forEach(pl => {
+                pl.on('mouseover', () => preview(h));
+                pl.on('mouseout',  () => preview(null));
+                pl.on('click',     () => select(h));
+            });
+            const flat = lls.flat();
+            flat.forEach(p => allPts.push(p));
+            heads.push(lls[0][0]);
+            // a light breathing margin only — the pixel padding above is what
+            // actually keeps the trail clear of the chrome, and padding twice
+            // was pushing every frame further out than it needed to be
+            bounds[h.trail_id] = L.latLngBounds(flat).pad(0.12);
+        } else if (here) {
+            allPts.push(here); heads.push(here);
+            bounds[h.trail_id] = L.latLngBounds([here, here]).pad(0.02);
+        } else {
+            // no track and no coordinates: still take a slot, so `heads` can
+            // never fall out of step with `trip` and mislabel every mark after
+            heads.push(heads[heads.length - 1] || [0, 0]);
+        }
+        home[h.trail_id] = heads[heads.length - 1];
+    });
+    if (heads.length > 1) L.polyline(heads,
+        { color:'#2f5c40', weight:2, opacity:0.5, dashArray:'7 7' }).addTo(map);
+
+    /* the trailhead marks: circles for hikes, dashed diamonds for viewpoints */
+    trip.forEach(h => {
+        const v = isVP(h);
+        L.marker(home[h.trail_id], { icon: L.divIcon({ className:'', iconSize:[26,26],
+            html:`<div class="pin-wrap" data-id="${h.trail_id}"><div class="pin${v ? ' vp' : ''}">` +
+                 (v ? `<span>${mark[h.trail_id]}</span>` : mark[h.trail_id]) + `</div></div>` }) })
+            .addTo(map)
+            .on('mouseover', () => preview(h)).on('mouseout', () => preview(null))
+            .on('click', () => select(h));
+    });
+    const whole = L.latLngBounds(allPts.length ? allPts : heads);
+
+    /* Marks that land on top of each other get fanned apart IN SCREEN PIXELS,
+       recomputed whenever the camera rests. Nudging them in degrees (the old
+       way) moved them different distances at every zoom and could shove one
+       clean out of the framed bounds and under the wordmark. */
+    function refreshPins() {
+        const placed = [];
+        trip.forEach(h => {
+            const p = map.latLngToContainerPoint(home[h.trail_id]);
+            let dx = 0, dy = 0, q = p, tries = 0;
+            while (placed.some(pp => pp.distanceTo(q) < 30) && tries < 12) {
+                const a = tries * (Math.PI / 3) + 0.6, r = 25 + Math.floor(tries / 6) * 15;
+                dx = Math.cos(a) * r; dy = Math.sin(a) * r;
+                q = p.add([dx, dy]); tries++;
+            }
+            placed.push(q);
+            const w = document.querySelector(`.pin-wrap[data-id="${h.trail_id}"]`);
+            if (w) w.style.transform = `translate(${dx.toFixed(0)}px, ${dy.toFixed(0)}px)`;
+        });
+    }
+    afterCut = refreshPins;
+
+    /* ---- the card, as viewfinder --------------------------------------- */
+    const picA = document.getElementById('pic-a'), picB = document.getElementById('pic-b');
+    const picFB = document.getElementById('pic-fb');
+    const printEl = document.querySelector('.ms-print');
+    let flip = true;
+    function showPic(src, fallbackType, ink) {
+        if (!src) {                       // no photograph: the type's own stamp
+            picA.classList.add('off'); picB.classList.add('off');
+            picFB.style.background = ink;
+            picFB.innerHTML = (window.atlasStampSvg ? atlasStampSvg(fallbackType) : '');
+            picFB.classList.add('on');
+            printEl.classList.add('loaded');   // nothing is developing; hold no sheen
+            return;
+        }
+        picFB.classList.remove('on');
+        const show = flip ? picB : picA, hide = flip ? picA : picB;
+        if (show.src === src && !show.classList.contains('off')) return;
+        // a warm frame lands with no sheen at all; a cold one develops
+        const warm = blurUpPreload(src);
+        const done = () => { show.classList.remove('off'); hide.classList.add('off');
+                             flip = !flip; printEl.classList.add('loaded'); };
+        if (warm.complete && warm.naturalWidth) { show.src = src; done(); return; }
+        printEl.classList.remove('loaded');
+        show.onload = done;
+        show.src = src;
+    }
+
+    const doorEl = document.getElementById('door'), doorGl = document.getElementById('door-glyph');
+    const doorMain = document.getElementById('door-main'), doorSub = document.getElementById('door-sub');
+    const kickEl = document.getElementById('ms-kicker'), titleEl = document.getElementById('ms-title');
+    const subEl = document.getElementById('ms-sub'), withEl = document.getElementById('ms-with');
+    const vitalsEl = document.getElementById('ms-vitals');
+    const noEl = document.getElementById('ms-no'), ctEl = document.getElementById('ms-ct');
+    const vital = (v, l, wide) =>
+        `<div class="ms-vital${wide ? ' wide' : ''}"><div class="v">${v}</div>${l ? `<div class="l">${l}</div>` : ''}</div>`;
+
+    /* the trip's crew — the one fact the ledger and the wordmark don't carry.
+       Named in full up to three; past that the card says how many, because the
+       Joshua Tree birthday trip had six and the line ran off the card. */
+    const crewAll = [...new Set(trip.flatMap(h => h.hiked_with || []))].sort();
+    const crew = crewAll.length > 3
+        ? crewAll.slice(0, 2).join(', ') + ` and ${crewAll.length - 2} others`
+        : crewAll.join(', ');
+    /* the place the trip actually centred on, which the trip's NAME often
+       doesn't say ("Alaska Camping Trip" was really four days at Denali) */
+    const locCount = {};
+    trip.forEach(h => (locCount[h.location] = (locCount[h.location] || 0) + 1));
+    const locs = Object.keys(locCount).sort((a, b) => locCount[b] - locCount[a]);
+    const terr = [...new Set(trip.map(h => (h.country && h.country !== 'United States')
+        ? h.country : (STATES[(h.region || '').split(', ').pop()] || (h.region || '').split(', ').pop())))]
+        .filter(Boolean).join(' · ');
+
+    function readout(h) {
+        /* AT REST — the sheet describes the whole chapter. The vitals band
+           carries the trip's numbers, which is why the traverse's header no
+           longer repeats them: one home for a figure, and it's this one. */
+        if (!h) {
+            showPic(STAR ? MED(STAR) : null, trip[0].hike_type, YEAR_INK);
+            kickEl.textContent = `THE TRAILPRINT ATLAS · CHAPTER · ${String(year)}`;
+            titleEl.innerHTML = `<span>${locs[0] || name}</span>`;
+            subEl.textContent = (locs.length > 1
+                ? `and ${plural(locs.length - 1, 'other place', 'other places')} — ` : '') +
+                terr + ' · ' + span;
+            withEl.textContent = crew ? `With ${crew}` : 'Walked solo, start to finish';
+            vitalsEl.innerHTML = vital(days, days === 1 ? 'Day out' : 'Days out') +
+                vital(miles.toFixed(1), 'Miles') + vital(gain.toLocaleString(), 'Feet climbed');
+            noEl.textContent = 'THE OPENING FRAME';
+            ctEl.textContent = '';
+            doorGl.innerHTML = GLYPH_MAP;
+            doorMain.textContent = 'Trace this chapter on the land';
+            doorSub.textContent = 'the interactive map, opened on this trip';
+            doorEl.href = `../map.html?trip=${encodeURIComponent(TAG)}`;
+            return;
+        }
+        /* ON A STOP — the sheet's own collar → vitals → slide → door, in order */
+        const imgs = h.images || [];
+        showPic(imgs.length ? MED(imgs[0]) : null, h.hike_type, YEAR_INK);
+        const vp = isVP(h);
+        kickEl.textContent =
+            `SHEET NO. ${h.trail_id.replace('tta_', '')} · ${h.hike_type.toUpperCase()}`;
+        titleEl.innerHTML = `<span>${h.trail_name}</span>`;
+        subEl.textContent = `${h.location} — ${h.region} · ${vp ? 'Visited' : 'Hiked'} ` +
+            fmt(h.date_completed, { month:'long', day:'numeric', year:'numeric' });
+        withEl.textContent = (h.hiked_with && h.hiked_with.length)
+            ? `With ${h.hiked_with.join(', ')}` : 'Walked solo';
+        // the sheet's own rule: a viewpoint with no miles gets one wide cell
+        // instead of a band of zeroes, and a real summit earns a third column
+        if (vp && !h.miles) {
+            vitalsEl.innerHTML = vital('A SCENIC VIEWPOINT', '', true);
+        } else {
+            let v = vital(h.miles, 'Miles') + vital((h.elevation_gain || 0).toLocaleString(), 'Feet climbed');
+            if (h.summit_trail && h.summit_elevation)
+                v += vital(h.summit_elevation.toLocaleString(), h.peak_name || 'High point');
+            vitalsEl.innerHTML = v + vital(h.difficulty, 'Grade');
+        }
+        noEl.textContent = imgs.length ? '01' : 'NO FRAME FILED';
+        ctEl.textContent = imgs.length > 1 ? `${imgs.length} SLIDES` : '';
+        doorGl.innerHTML = GLYPH_LOG;
+        doorMain.textContent = 'Open the field log';
+        doorSub.textContent = 'the whole day — the map, every slide & the almanac';
+        doorEl.href = `../hike.html?id=${h.trail_id}`;
+    }
+
+    /* ---- THE TRAVERSE ---------------------------------------------------
+       One continuous line across the window: each hike's profile occupies a
+       width proportional to its miles, the ground covered between stops runs
+       ramped and dashed, and every width is normalised so the WHOLE trip fits
+       on screen. No sideways scrolling — seeing all of it at once is the
+       entire point. Names are gone: the card says the name. */
+    const svg = document.getElementById('trav-svg');
+    const rangeEl = document.getElementById('t-range');
+    const segs = [];
+    trip.forEach((h, i) => {
+        // A gap belongs wherever ground was COVERED, not wherever the date
+        // changed: Joshua Tree's five stops all fall on one day and still sit
+        // miles and 2,000 vertical feet apart. Anything past a mile gets a run.
+        if (i > 0) {
+            const km = hav([trip[i-1].latitude, trip[i-1].longitude], [h.latitude, h.longitude]);
+            if (km > 1.6) segs.push({ travel:true, mi: Math.round(km * 0.621), w: km > 40 ? 46 : 34 });
+        }
+        const prof = elev[h.trail_id];
+        segs.push({ h, prof, ix:i, vp:isVP(h),
+            w: prof ? Math.max(74, Math.min(280, (h.miles || 1) * 26)) : (isVP(h) ? 38 : 52) });
+    });
+
+    let selected = null, hovered = null;
+    const stops = [];          // the live station nodes, so lighting one is a repaint
+    const AXIS_W = 58;         // the left gutter that carries the vertical scale
+    function drawTraverse() {
+        const W = svg.clientWidth || svg.parentNode.clientWidth;
+        const H = svg.clientHeight || (LEVEL ? 88 : 166);
+        const raw = segs.reduce((s, g) => s + g.w, 0);
+        const gutter = LEVEL ? 0 : AXIS_W;
+        const k = (W - gutter) / raw;
+        const base = H - 42, top = 14;
+        const vals = segs.filter(g => g.prof).flatMap(g => g.prof);
+        // the floor is the trip's OWN lowest ground, not sea level — seeding the
+        // minimum at 0 put Joshua Tree's 4,100 ft plateau at the top of the plot
+        // and filled everything beneath it
+        const hi = vals.length ? Math.max(...vals) : 1;
+        const lo = vals.length ? Math.min(...vals) : 0;
+        // The axis never spans less than 900 ft. Without a floor, a trip that
+        // climbs 394 ft across five desert loops drew like an alpine range —
+        // the shape was honest, the impression was a lie.
+        const spanFt = Math.max(hi - lo, 900);
+        const y = LEVEL ? (() => base) : (ft => base - (ft - lo) / spanFt * (base - top));
+        rangeEl.textContent = LEVEL
+            ? `Level ground · ${gain.toLocaleString()} ft climbed all trip`
+            : `Vertical section · cut at ${Math.round(lo).toLocaleString()} ft`;
+
+        svg.innerHTML = '';
+        let x = gutter;
+        segs.forEach(g => { g.x0 = x; g.px = g.w * k; x += g.px; });
+
+        /* ---- THE VERTICAL SCALE ------------------------------------------
+           The single thing this chart was getting wrong: the floor of the plot
+           is the trip's OWN lowest ground, but drawn as a bare line under a
+           filled block it read as sea level. Mount Lowe's gap between days sat
+           on 4,427 ft and looked like zero. Three cues fix it, and they only
+           make sense together: a labelled scale down the left, a fill that
+           FADES OUT before it reaches the floor instead of sitting solidly on
+           it, and a hatched cut band beneath the datum — the cross-section
+           convention for "the ground continues below this line."           */
+        if (!LEVEL && vals.length) {
+            const defs = el('defs', {});
+            const hatch = el('pattern', { id:'cut', width:7, height:7,
+                patternUnits:'userSpaceOnUse', patternTransform:'rotate(45)' });
+            hatch.appendChild(el('line', { x1:0, y1:0, x2:0, y2:7,
+                stroke:'#7a6846', 'stroke-opacity':0.42, 'stroke-width':1 }));
+            defs.appendChild(hatch);
+            const grad = el('linearGradient', { id:'terra', x1:0, y1:0, x2:0, y2:1 });
+            grad.appendChild(el('stop', { offset:'0%',  'stop-color':'#4a7c59', 'stop-opacity':0.40 }));
+            grad.appendChild(el('stop', { offset:'70%', 'stop-color':'#4a7c59', 'stop-opacity':0.17 }));
+            grad.appendChild(el('stop', { offset:'100%','stop-color':'#4a7c59', 'stop-opacity':0.02 }));
+            defs.appendChild(grad);
+            svg.appendChild(defs);
+
+            // gridlines at the trip's true low, midpoint and high
+            // the unit rides on the TOP tick — a separate "FEET" caption sat on
+            // it whenever the high point reached the ceiling, which is most trips
+            const mid = (lo + hi) / 2;
+            [[lo, true], [mid, false], [hi, false]].forEach(([ft, isDatum], i) => {
+                if (!isDatum && Math.abs(ft - lo) < 40) return;      // too close to read
+                const yy = y(ft);
+                svg.appendChild(el('line', { x1:gutter, y1:yy, x2:W, y2:yy,
+                    stroke:'#7a6846', 'stroke-opacity': isDatum ? 0.5 : 0.16,
+                    'stroke-dasharray': isDatum ? '' : '2 5' }));
+                const t = el('text', { x:gutter - 9, y:yy + 3, 'text-anchor':'end', class:'t-ax' });
+                t.textContent = Math.round(ft).toLocaleString() + (i === 2 ? ' FT' : '');
+                svg.appendChild(t);
+            });
+            // the cut: the earth keeps going below the datum, we simply stop drawing it
+            svg.appendChild(el('rect', { x:gutter, y:base + 1, width:W - gutter, height:9,
+                fill:'url(#cut)' }));
+        }
+
+        // Terrain first, then the ground between it. A gap RAMPS from where the
+        // last trail left off to where the next begins — driving from sea level
+        // to 2,700 ft is elevation gained, and drawing it flat left a vertical
+        // wall at every trailhead. A viewpoint has no track of its own, so it
+        // simply rides that ramp — which is exactly what it did in life.
+        const endY = g => y(g.prof[g.prof.length - 1]);
+        const startY = g => y(g.prof[0]);
+        segs.forEach(g => {
+            if (!g.prof) return;
+            g.pts = g.prof.map((ft, i2) => [g.x0 + (i2 / (g.prof.length - 1)) * g.px, y(ft)]);
+        });
+        for (let i2 = 0; i2 < segs.length;) {
+            if (segs[i2].prof) { i2++; continue; }
+            let j = i2; while (j < segs.length && !segs[j].prof) j++;
+            const rx0 = segs[i2].x0, rx1 = segs[j-1].x0 + segs[j-1].px;
+            let a = null, b = null;
+            for (let q = i2 - 1; q >= 0; q--) if (segs[q].prof) { a = endY(segs[q]); break; }
+            for (let q = j; q < segs.length; q++) if (segs[q].prof) { b = startY(segs[q]); break; }
+            const yA = a !== null ? a : (b !== null ? b : base);
+            const yB = b !== null ? b : (a !== null ? a : base);
+            const at = xx => yA + (yB - yA) * ((xx - rx0) / Math.max(1, rx1 - rx0));
+            for (let q = i2; q < j; q++) segs[q].pts = [[segs[q].x0, at(segs[q].x0)],
+                                                       [segs[q].x0 + segs[q].px, at(segs[q].x0 + segs[q].px)]];
+            i2 = j;
+        }
+        let d = '';
+        segs.forEach((g, i2) => g.pts.forEach((pt, q) =>
+            (d += (i2 === 0 && q === 0 ? 'M' : 'L') + pt[0].toFixed(1) + ',' + pt[1].toFixed(1) + ' ')));
+
+        // The terrain: only GROUND HE WALKED is filled. The ramps between are
+        // real elevation too, but they were driven — so they stay a line, and
+        // the filled blocks read at a glance as "these are the hikes".
+        if (!LEVEL) segs.forEach(g => {
+            if (!g.prof) return;
+            let dd = '';
+            g.pts.forEach((pt, q) => (dd += (q ? 'L' : 'M') + pt[0].toFixed(1) + ',' + pt[1].toFixed(1) + ' '));
+            svg.appendChild(el('path', {
+                d: dd + `L${(g.x0 + g.px).toFixed(1)},${base} L${g.x0.toFixed(1)},${base} Z`,
+                fill:'url(#terra)' }));
+        });
+        svg.appendChild(el('path', { d, fill:'none', stroke:'var(--evergreen)', 'stroke-opacity':'0.55',
+            'stroke-width':'1.8', 'stroke-linejoin':'round' }));
+        svg.appendChild(el('line', { x1:gutter, y1:base, x2:W, y2:base,
+            stroke:'#7a6846', 'stroke-opacity':'0.55' }));
+
+        /* LEVEL GROUND: say plainly what this rule is and is not. A straight
+           line must never be read as "no climbing happened" — it means the
+           climbing was too small to draw honestly at any useful scale. */
+        if (LEVEL) {
+            const c = el('text', { x:W, y:top + 4, 'text-anchor':'end', class:'t-caveat' });
+            c.textContent = `Under 100 ft climbed all trip — drawn to sequence, not to height.`;
+            svg.appendChild(c);
+        }
+
+        // The lit stop's own stretch, in the year's ink. Built ONCE and hidden;
+        // lighting it is a display toggle, never a rebuild. (Redrawing the
+        // whole SVG on hover destroyed the very node the cursor was sitting on,
+        // which re-fired its own mouseenter — an endless redraw that also ate
+        // every click before it could land.)
+        segs.forEach(g => {
+            if (!g.prof || !g.h) return;
+            let dd = '';
+            g.prof.forEach((ft, i2) => { dd += (i2 ? 'L' : 'M') +
+                (g.x0 + (i2 / (g.prof.length - 1)) * g.px).toFixed(1) + ',' + y(ft).toFixed(1) + ' '; });
+            g.litFill = el('path', { d: dd + `L${(g.x0+g.px).toFixed(1)},${base} L${g.x0.toFixed(1)},${base} Z`,
+                fill:'var(--year)', 'fill-opacity': LEVEL ? '0' : '0.2', display:'none' });
+            g.litLine = el('path', { d: dd, fill:'none', stroke:'var(--year)',
+                'stroke-width': LEVEL ? '3.4' : '2.4', 'stroke-linejoin':'round', display:'none' });
+            svg.appendChild(g.litFill); svg.appendChild(g.litLine);
+        });
+
+        // travel runs: dashed, labelled with the miles actually covered
+        segs.forEach(g => {
+            if (!g.travel) return;
+            svg.appendChild(el('line', { x1:g.pts[0][0] + 2, y1:g.pts[0][1], x2:g.pts[1][0] - 2, y2:g.pts[1][1],
+                stroke:'var(--evergreen)', 'stroke-opacity':'0.6', 'stroke-width':'1.8', 'stroke-dasharray':'5 5' }));
+            const t = el('text', { x:g.x0 + g.px/2, y:base + 14, 'text-anchor':'middle', class:'t-mi' });
+            t.textContent = g.mi > 0 ? g.mi + ' mi' : 'onward';
+            svg.appendChild(t);
+        });
+
+        // The day bands, under the run. A VIEWPOINT COUNTS: the day you drove
+        // the park road and stopped at an overlook was a day out, even though
+        // it added no miles. (Miles and feet still count walked ground only.)
+        let dayStart = null, dayNo = 0, lastStop = null;
+        segs.forEach(g => {
+            if (g.travel) return;
+            if (!dayStart || g.h.date_completed !== dayStart.date) {
+                if (dayStart) flushDay(dayStart, lastStop);
+                dayStart = { date:g.h.date_completed, x0:g.x0, no:++dayNo };
+            }
+            lastStop = g;
+        });
+        if (dayStart) flushDay(dayStart, lastStop);
+        function flushDay(ds, last) {
+            const x1 = last.x0 + last.px;
+            svg.appendChild(el('line', { x1:ds.x0, y1:base + 24, x2:x1, y2:base + 24,
+                stroke:'#7a6846', 'stroke-opacity':'0.35' }));
+            const t = el('text', { x:(ds.x0 + x1) / 2, y:base + 36, 'text-anchor':'middle', class:'t-day' });
+            t.textContent = `DAY ${ds.no} · ${fmt(ds.date, { month:'short', day:'numeric' }).toUpperCase()}`;
+            svg.appendChild(t);
+        }
+
+        // ---- the marks -------------------------------------------------
+        // A HIKE is a station: it stands ON the baseline, numbered, with a
+        // leader up to its own terrain. A VIEWPOINT never touches the
+        // baseline — it is a dashed diamond floating on the travelled ramp,
+        // lettered, because it is a sighting made along the way rather than
+        // ground the Atlas counts as walked.
+        stops.length = 0;
+        segs.forEach(g => {
+            if (g.travel) return;
+            const cx = g.x0 + g.px / 2;
+            const grp = el('g', { class:'t-st' });
+            const s = { g, id:g.h.trail_id, vp:g.vp };
+
+            if (g.vp) {
+                const cy = (g.pts[0][1] + g.pts[1][1]) / 2 - 13;
+                s.cy = cy;
+                s.shape = el('path', { d: diamond(cx, cy, 8.5), fill:'var(--parch)',
+                    stroke:'#7a6846', 'stroke-width':1.3, 'stroke-dasharray':'2.6 2.2' });
+                s.cx = cx;
+                s.txt = el('text', { x:cx, y:cy + 3.4, 'text-anchor':'middle', class:'t-num',
+                    'font-style':'italic', fill:'var(--stone)' });
+                grp.appendChild(s.shape);
+            } else {
+                const cy = g.prof ? y(g.prof[Math.floor(g.prof.length/2)])
+                                  : (g.pts[0][1] + g.pts[1][1]) / 2;
+                s.leader = el('line', { x1:cx, y1:cy, x2:cx, y2:base,
+                    stroke:'#7a6846', 'stroke-opacity':0.3, 'stroke-dasharray':'3 3' });
+                s.shape = el('circle', { cx, cy: base, r: 8, fill:'var(--parch)',
+                    stroke:'#7a6846', 'stroke-width':1.4 });
+                s.txt = el('text', { x:cx, y:base + 3.6, 'text-anchor':'middle', class:'t-num',
+                    fill:'var(--stone)' });
+                grp.appendChild(s.leader); grp.appendChild(s.shape);
+            }
+            s.txt.textContent = mark[g.h.trail_id];
+            grp.appendChild(s.txt);
+
+            grp.appendChild(el('rect', { x:g.x0, y:0, width:g.px, height:base + 18, class:'hit' }));
+            grp.addEventListener('mouseenter', () => preview(g.h));
+            grp.addEventListener('mouseleave', () => preview(null));
+            grp.addEventListener('click', ev => { ev.stopPropagation(); select(g.h); });
+            svg.appendChild(grp);
+            stops.push(s);
+        });
+        paintLit();
+    }
+    const diamond = (cx, cy, r) => `M${cx},${cy-r} L${cx+r},${cy} L${cx},${cy+r} L${cx-r},${cy} Z`;
+
+    /** The only thing hover and selection touch: which stop is lit. No rebuild. */
+    function paintLit() {
+        const on = hovered || selected;
+        segs.forEach(g => {
+            if (!g.litFill) return;
+            const lit = g.h && g.h.trail_id === on;
+            g.litFill.setAttribute('display', lit ? '' : 'none');
+            g.litLine.setAttribute('display', lit ? '' : 'none');
+        });
+        stops.forEach(s => {
+            const lit = s.id === on;
+            s.txt.setAttribute('fill', lit ? '#fff' : 'var(--stone)');
+            if (s.vp) {
+                s.shape.setAttribute('d', diamond(s.cx, s.cy, lit ? 10 : 8.5));
+                s.shape.setAttribute('fill', lit ? 'var(--year)' : 'var(--parch)');
+                s.shape.setAttribute('stroke', lit ? 'var(--year)' : '#7a6846');
+            } else {
+                s.shape.setAttribute('r', lit ? 10 : 8);
+                s.shape.setAttribute('fill', lit ? 'var(--year)' : 'var(--parch)');
+                s.shape.setAttribute('stroke', lit ? 'var(--year)' : '#7a6846');
+                s.leader.setAttribute('stroke', lit ? 'var(--year)' : '#7a6846');
+                s.leader.setAttribute('stroke-opacity', lit ? 0.85 : 0.3);
+            }
+        });
+    }
+
+    function highlight() {
+        const on = hovered || selected;
+        Object.keys(lines).forEach(id => lines[id].forEach(pl => pl.setStyle({
+            opacity: !on ? 0.9 : (id === on ? 1 : 0.28),
+            weight: id === on ? 4 : 3.2 })));
+        document.querySelectorAll('.pin-wrap').forEach(w => {
+            const me = w.dataset.id === on, p = w.firstElementChild;
+            p.style.background = me ? YEAR_INK : '#f0e7cf';
+            p.style.color = me ? '#fff' : 'var(--evergreen)';
+            p.style.borderColor = me ? YEAR_INK : 'var(--evergreen)';
+            p.style.setProperty('--s', me ? 1.18 : 1);
+        });
+    }
+    /** hovering changes what you SEE; it never moves the camera */
+    function preview(h) {
+        hovered = h ? h.trail_id : null;
+        readout(h || (selected ? byTrail[selected] : null));
+        highlight(); paintLit();
+    }
+    /** clicking changes where you STAND — the one thing that cuts the camera */
+    function select(h) {
+        selected = h ? h.trail_id : null;
+        hovered = null;
+        readout(h); highlight(); paintLit();
+        // no arbitrary cap: a viewpoint is a single point so it needs one (or
+        // it would zoom to the pavement), but a trail and the whole expedition
+        // are both framed by their own extent
+        cutTo(h ? bounds[h.trail_id] : whole, h ? (isVP(h) ? 14 : 16) : 15);
+    }
+
+    // clicking the empty ground pulls back to the whole expedition
+    svg.addEventListener('click', () => select(null));
+    map.on('click', () => select(null));
+    // and the arrows walk it, exactly as the map's transport does
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { select(null); return; }
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const i = selected ? trip.findIndex(h => h.trail_id === selected) : -1;
+        select(trip[Math.max(0, Math.min(trip.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))]);
+    });
+
+    // a level trip's panel collapses — chromePads() measures it, so the camera
+    // reclaims the freed space by itself
+    if (LEVEL) document.querySelector('.trav').classList.add('is-level');
+
+    readout(null);
+    drawTraverse();
+    // closing the mockup note frees real estate: take it
+    document.getElementById('note-x').addEventListener('click', () => {
+        document.getElementById('note').style.display = 'none';
+        reframe();
+    });
+    window.addEventListener('resize', () => {
+        map.invalidateSize(); drawTraverse(); reframe(); refreshPins();
+    });
+    setTimeout(() => { map.invalidateSize(); cutTo(whole, 15); }, 80);
+});
+</script>
+</body>
+</html>

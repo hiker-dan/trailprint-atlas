@@ -4,28 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trip - The Trailprint Atlas</title>
-    <meta name="description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
+    <meta name="description" content="A chapter of the Trailprint Atlas — one trip's whole terrain in a single line, on the land it was walked.">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="The Trailprint Atlas">
-    <meta property="og:title" content="A Trip — The Trailprint Atlas">
-    <meta property="og:description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
+    <meta property="og:title" content="A Chapter — The Trailprint Atlas">
+    <meta property="og:description" content="A chapter of the Trailprint Atlas — one trip's whole terrain in a single line, on the land it was walked.">
     <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/trip.html">
-    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
+    <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_119-mile-43-east-fork-river-tundra-off-trail-11">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="A Trip — The Trailprint Atlas">
-    <meta name="twitter:description" content="A chapter of the Trailprint Atlas — a multi-day trip's combined map, day-by-day itinerary, and photos.">
-    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
+    <meta name="twitter:title" content="A Chapter — The Trailprint Atlas">
+    <meta name="twitter:description" content="A chapter of the Trailprint Atlas — one trip's whole terrain in a single line, on the land it was walked.">
+    <meta name="twitter:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_119-mile-43-east-fork-river-tundra-off-trail-11">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
      crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
-    <link rel="stylesheet" href="styles/timeline-nav.css"/>
     <link rel="stylesheet" href="styles/trip.css"/>
 </head>
 <body>
@@ -33,48 +32,95 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- The shared timeline navigation strip (logic in scripts/timeline-nav.js) -->
-    <div id="sticky-header-wrapper">
-        <div id="timeline-nav-container">
-            <div id="timeline-mountainscape"></div>
-            <div id="timeline-viewport">
-                <div id="timeline-track">
-                    <!-- Dots and trip capsules injected by AtlasTimeline -->
+    <!-- THE TRAVERSE — a trip page built like the map page: the land IS the
+         page, and every instrument floats on it. The camera here never roams;
+         it only cuts between the trip's stops. Roaming belongs to map.html. -->
+    <div class="trip-shell">
+        <div id="trip-map"></div>
+        <div class="trip-veil" id="trip-veil"></div>
+
+        <!-- the chapter, engraved into the corner -->
+        <div class="trip-mark">
+            <div class="tm-kicker">A Chapter of the Atlas</div>
+            <div class="tm-name" id="tm-name">&mdash;</div>
+            <div class="tm-when" id="tm-when">&mdash;</div>
+        </div>
+
+        <!-- THE SHEET, COMPACTED: the map page's quick glance, shrunk to a
+             standing card. Collar, vitals, slide, door — same parts, same
+             order. The slide is also the viewfinder: it always holds the
+             frame from wherever you are standing on the traverse. -->
+        <div class="sheet-mount">
+            <div class="sheet-card" id="trip-card">
+                <div class="ms-collar">
+                    <div class="ms-kicker" id="ts-kicker">&mdash;</div>
+                    <h2 class="ms-title" id="ts-title">&mdash;</h2>
+                    <div class="ms-sub" id="ts-sub">&mdash;</div>
+                    <div class="ms-with" id="ts-with">&mdash;</div>
                 </div>
-            </div>
-            <div id="timeline-date-display">
-                <span id="timeline-floating-month"></span>
-                <span id="timeline-floating-year"></span>
+                <div class="ms-vitals" id="ts-vitals"></div>
+                <div class="ms-print" id="ts-print">
+                    <div class="ms-frame">
+                        <img id="ts-pic-a" alt="">
+                        <img id="ts-pic-b" class="off" alt="">
+                        <div class="fb" id="ts-pic-fb"></div>
+                    </div>
+                    <div class="no" id="ts-no">01</div>
+                    <div class="ct" id="ts-ct"></div>
+                </div>
+                <a class="atlas-door is-wide" id="ts-door" href="map.html">
+                    <svg class="ad-glyph" id="ts-door-glyph" viewBox="0 0 24 24" aria-hidden="true"></svg>
+                    <span class="ad-copy">
+                        <span class="ad-main" id="ts-door-main">&mdash;</span>
+                        <span class="ad-sub" id="ts-door-sub">&mdash;</span>
+                    </span>
+                    <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+                </a>
             </div>
         </div>
-    </div>
 
-    <!-- Timeline companions: both fixed-position, outside the main flow -->
-    <div id="timeline-global-tooltip"></div>
-    <div id="timeline-trip-card"></div>
+        <div class="trip-hint" id="trip-hint">Walk the traverse &darr;</div>
 
-    <!-- Trip hero: the chapter heading -->
-    <div id="trip-hero">
-        <p id="trip-eyebrow">A Chapter of the Atlas</p>
-        <h1 id="trip-title">Loading...</h1>
-        <p id="trip-dates"></p>
-        <p id="trip-regions"></p>
-    </div>
-
-    <div class="trip-container">
-        <!-- The trip's headline numbers -->
-        <div id="trip-stats" class="trip-stats"></div>
-
-        <!-- The combined journey map (next build step) -->
-        <div class="info-section">
-            <h3>The Journey Map</h3>
-            <div id="trip-map"></div>
+        <!-- THE TRAVERSE: the trip's whole terrain in one line. Every hike's
+             real elevation profile stitched end to end, the ground covered
+             between them ramped and dashed, normalised so the whole trip is
+             visible at once. It is the itinerary and the instrument. -->
+        <div class="trav" id="trav">
+            <div class="t-head">
+                <div class="t-title">The Traverse &middot; the ground, end to end
+                    <span class="t-legend"><span><i></i>Hike, numbered</span><span><i class="v"></i>Viewpoint, lettered</span></span>
+                </div>
+                <div class="t-title" id="t-range"></div>
+            </div>
+            <div class="t-stage"><svg id="trav-svg"></svg></div>
         </div>
 
-        <!-- The day-by-day itinerary (build step after the map) -->
-        <div class="info-section">
-            <h3>Day by Day</h3>
-            <div id="trip-days"></div>
+        <!-- the frontispiece: the trip's chosen photograph, before anything
+             else. It lifts like the map's veil once the frame has landed. -->
+        <div class="frontis" id="frontis">
+            <img class="f-blur" id="f-blur" alt="" aria-hidden="true">
+            <img class="f-full" id="f-full" alt="">
+            <div class="f-sheen"></div>
+            <div class="f-scrim"></div>
+            <div class="f-in">
+                <div class="f-kick">A Chapter of the Atlas</div>
+                <h1 class="f-name" id="f-name">&mdash;</h1>
+                <div class="f-when" id="f-when">&mdash;</div>
+                <div class="f-tot" id="f-tot"></div>
+            </div>
+            <div class="f-go">The land is below</div>
+        </div>
+
+        <!-- friendly dead end for a missing or unknown tag -->
+        <div class="trip-lost" id="trip-lost" hidden>
+            <div class="tl-kick">Off the Trail</div>
+            <h1 class="tl-title" id="tl-title">Chapter Not Found</h1>
+            <p class="tl-msg" id="tl-msg"></p>
+            <a class="atlas-door" href="map.html">
+                <svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+                <span>Back to the Land</span>
+                <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+            </a>
         </div>
     </div>
 
@@ -84,11 +130,9 @@
     <script src="scripts/config.js"></script>
     <script src="scripts/atlas-data.js"></script>
     <script src="scripts/trail-renderer.js"></script>
-    <!-- The shared timeline navigation strip -->
-    <script src="scripts/timeline-nav.js"></script>
     <!-- This page's script -->
     <script src="scripts/trip.js"></script>
-    <!-- Shared script to update the 'Logbook' nav link -->
+    <!-- Shared script: active-page highlight (+ the credits slideshow) -->
     <script src="scripts/nav-updater.js"></script>
 </body>
 </html>

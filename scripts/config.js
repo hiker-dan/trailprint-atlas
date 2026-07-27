@@ -107,8 +107,57 @@ const ATLAS_CONFIG = {
         'summer', 'summer', 'summer',             // Jun, Jul, Aug
         'autumn', 'autumn', 'autumn',             // Sep, Oct, Nov
         'winter'                                  // Dec
-    ]
+    ],
+
+    /* --- THE OPENING FRAMES: one chosen photograph per trip ---------------
+       trip_tag → Cloudinary public ID. A trip page opens full-bleed on this
+       picture, so it is HAND-PICKED, never derived (Danny, July 2026) — a
+       guessed frame put a selfie or a car park on the grandest surface in the
+       Atlas. A trip with no entry falls back to the most-photographed stop's
+       first frame, which is a placeholder, not a choice.
+       Read it through tripStar(); pick new ones with mockups/trip-star-picker.html. */
+    TRIP_STARS: {
+        'Alaska Camping Trip - June 2026':               'tta_119-mile-43-east-fork-river-tundra-off-trail-11',
+        'Canada Solo Trip - May 2026':                   'tta_112-ascent-trail-little-burn-big-burn-and-heart-burn-04',
+        'Spruce Grove Backpacking Trip - May 2026':      'tta_107-spruce-grove-campground-trail-03',
+        'Channel Islands Day Trip - April 2026':         'tta_106-monta-on-ridge-loop-09',
+        'Joshua Tree Thanksgiving Trip - Nov 2025':      'tta_99-cap-rock-02',
+        'Cooper Canyon Backpacking Trip - Aug 2025':     'tta_91-cooper-canyon-via-cloudburst-summit-01',
+        'Utah Solo Trip - June 2025':                    'tta_86-zion-canyon-overlook-trail-01',
+        'Joshua Tree Day Trip - Feb 2025':               'tta_72-mastodon-peak-01',
+        'Big Sur Backpacking Trip - Oct 24':             'tta_66-pine-falls-via-pine-ridge-trail-01',
+        'Summer 2024 California Camping Trip - Aug 24':  'tta_57-general-sherman-tree-trail-02',
+        'Summer 2024 East Coast Trip - Jul 2024':        'tta_51-dalley-loop-trail-01',
+        'Pacific Crest Trail Backpacking Trip - May 2024':'tta_48-pacific-crest-trail-02',
+        'Lost Palms Oasis Backpacking Trip - Apr 2024':  'tta_44-lost-palms-oasis-trail-02',
+        'South Fork Camping Trip - Mar 2024':            'tta_42-manzanita-trail-04',
+        'Mount Lowe Backpacking Trip - Dec 2023':        'tta_37-mount-lowe-peak-02',
+        'Joshua Tree Thanksgiving Trip - Nov 2023':      'tta_32-cholla-cactus-garden-01',
+        'San Diego Film Fest Trip - Oct 2023':           'tta_29-father-junipero-serra-loop-01',
+        'Black Rock Camping Trip - May 2023':            'tta_21-warren-peak-01',
+        'Joshua Tree Day Trip - Nov 2022':               'tta_15-hidden-valley-02',
+        'Joshua Tree Birthday Trip - Jun 2022':          'tta_08-keys-view-02',
+        'NY to LA Road Trip - Jan 2022':                 'tta_01-grandeur-point-01'
+    }
 };
+
+/**
+ * The chosen opening frame for a trip, or the best available stand-in.
+ * `tripHikes` is optional; without it an unlisted trip simply has no frame.
+ */
+function tripStar(tag, tripHikes) {
+    const picked = ATLAS_CONFIG.TRIP_STARS[tag];
+    if (picked) return picked;
+    if (!tripHikes || !tripHikes.length) return null;
+    const richest = [...tripHikes].sort((a, b) => (b.images || []).length - (a.images || []).length)[0];
+    return (richest && richest.images && richest.images[0]) || null;
+}
+
+/** The display name of a trip: its tag without the trailing " - Mon YYYY". */
+function tripName(tag) {
+    const at = (tag || '').lastIndexOf(' - ');
+    return at > 0 ? tag.slice(0, at) : (tag || '');
+}
 
 /**
  * Renders one hike-type stamp as an inline SVG string: the glyph drawn twice,

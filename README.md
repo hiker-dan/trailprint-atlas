@@ -15,7 +15,7 @@ along, what the weather did that day, and — increasingly — what it felt like
   and the seasonal rhythm of a year on the trail.
 - **Interactive Map** — every GPX track rendered together; filter by year, type,
   difficulty, and company. Repeat hikes leave "ghost trail" halos.
-- **Logbook** — a detail page for each hike: the route, photos, trail notes, and a
+- **Logbook** — a detail page for each hike, reached through the map (or a trip chapter): the route, photos, trail notes, and a
   historical almanac (that day's actual sunrise, sunset, and weather).
 - **Achievements** — personal records: longest hike, biggest climb, highest summit.
 - **The Overlook** — credits and, soon, the story of why this exists.

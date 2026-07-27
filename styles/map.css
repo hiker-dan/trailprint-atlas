@@ -271,6 +271,10 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 .deck-readout { min-width: 0; text-align: left; color: var(--evergreen); line-height: 1.28; overflow: hidden; }
 .deck-readout b { display: block; font-family: var(--font-display); font-size: 14px; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .deck-stats { display: block; color: var(--gravel); font-size: 11px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the chapter name in the readout is a door to the trip's own page — marked
+   with a dotted rule so it invites the click without shouting over the ledger */
+a.deck-chapter { color: #4a7c59; text-decoration: none; border-bottom: 1px dotted #a5854a; transition: color 0.18s ease, border-color 0.18s ease; }
+a.deck-chapter:hover { color: #24401f; border-bottom-color: #24401f; }
 /* nowrap: a wrapping transport row was a second way the deck changed height.
    Left-aligned so the buttons hang under the readout's first letter. */
 .deck-controls { display: flex; align-items: center; justify-content: flex-start; gap: 6px; flex-wrap: nowrap; }
@@ -602,6 +606,16 @@ body.sheet-open .atlas-chain { z-index: 2100; height: 13px; }
 /* The bridge to the full hike page: the wide Atlas door (base.css), which the
    hike page's "See on the Land" mirrors. Only its spacing belongs here. */
 .ms-bridge { margin-top: 20px; }
+/* The chapter door, under it: the compact Atlas door, full width. The field
+   log is the reason you opened this sheet; the trip it belonged to is the
+   wider frame around that day, so it reads as the quieter of the two. */
+/* display:flex alone makes it block-level, so it fills the sheet exactly like
+   .ms-bridge above it. NB no width:100% — this codebase has no global
+   border-box, so a width plus padding would push it 30px past its neighbour. */
+.ms-chapter { margin-top: 9px; display: flex; gap: 11px; padding: 9px 14px; }
+.ms-chapter .ad-glyph { width: 19px; height: 19px; }
+.ms-chapter .ad-main { font-size: 9.5px; letter-spacing: 0.18em; }
+.ms-chapter .ad-sub { font-size: 11px; }
 
 /* --- an undeveloped slide on the sheet: same "developing on the light box"
    treatment as the hike page's strip, so a cold Cloudinary cache never

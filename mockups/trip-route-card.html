@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup — The Route Card (trip page)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+/* ============================================================================
+   CONCEPT 5 — THE ROUTE CARD
+   Map-first: the trip's land IS the page, exactly as map.html insists. A docked
+   card on the left carries the star photograph, the totals, and the itinerary;
+   walking the itinerary DRIVES the land — the same relationship the light
+   table's acetate has to its trail, but for a whole week.
+   The camera never flies (Atlas rule): every move is a cut behind a soft veil.
+   Stops are LAUNCHERS (Danny, July 2026) — each row is a door into its log.
+   ========================================================================= */
+:root {
+    --evergreen:#2f5c40; --trail-green:#4a7c59; --stone:#6f6a58; --gravel:#9a927c;
+    --charcoal:#3d3a30; --parch:#f0e7cf; --parch-deep:#e4d8b8; --brass:#b9a578; --ink:#2b2a24;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; height:100%; overflow:hidden; background:#e8dfc6; color:var(--ink);
+    font-family:Georgia,'Times New Roman',serif; }
+a { color:inherit; text-decoration:none; }
+#map { position:fixed; inset:0; background:#ece3ce; }
+.hillshade-multiply { mix-blend-mode:multiply; }
+.parchment { position:absolute; inset:0; background:#d9c8a0; mix-blend-mode:multiply; opacity:0.42; z-index:450; pointer-events:none; }
+.veil { position:fixed; inset:0; z-index:800; pointer-events:none; opacity:0; transition:opacity 0.34s ease;
+    background:radial-gradient(ellipse at 50% 45%, rgba(240,231,207,0.97) 0%, rgba(228,214,180,0.99) 100%); }
+.veil.on { opacity:1; }
+
+/* --- the card: the whole console, docked at the left edge --------------- */
+.card { position:fixed; left:22px; top:22px; bottom:22px; width:420px; z-index:900;
+    background:rgba(244,237,219,0.97); border:1px solid var(--brass);
+    box-shadow:0 8px 34px rgba(60,50,30,0.24); display:flex; flex-direction:column; overflow:hidden; }
+
+/* the star photograph, mounted at the head of the card */
+.star { position:relative; flex:0 0 auto; height:186px; overflow:hidden; border-bottom:1px solid var(--brass); }
+.star img { width:100%; height:100%; object-fit:cover; display:block; filter:saturate(0.88); }
+.star .grad { position:absolute; inset:0; background:linear-gradient(0deg, rgba(240,231,207,0.95) 0%, rgba(240,231,207,0.1) 55%); }
+.star .cap { position:absolute; left:16px; right:16px; bottom:10px; }
+.s-kick { font-size:10px; letter-spacing:0.3em; text-transform:uppercase; color:var(--stone); }
+.s-name { font-size:27px; color:var(--evergreen); line-height:1.15; margin-top:3px; }
+.s-when { font-size:12px; font-style:italic; color:var(--stone); margin-top:2px; }
+
+/* the totals band */
+.tot { flex:0 0 auto; display:flex; border-bottom:1px solid rgba(122,104,70,0.3); }
+.tot div { flex:1; text-align:center; padding:11px 3px; border-right:1px solid rgba(122,104,70,0.16); }
+.tot div:last-child { border-right:0; }
+.tot b { display:block; font-size:19px; font-weight:normal; color:var(--evergreen); }
+.tot span { display:block; font-size:9px; letter-spacing:0.16em; text-transform:uppercase; color:var(--gravel); margin-top:3px; }
+
+/* the itinerary: the thing you walk */
+.itin { flex:1; overflow-y:auto; padding:6px 0 12px; }
+.itin::-webkit-scrollbar { width:8px; }
+.itin::-webkit-scrollbar-track { background:transparent; }
+.itin::-webkit-scrollbar-thumb { background:var(--brass); border-radius:4px; }
+.day { padding:14px 18px 6px; font-size:10px; letter-spacing:0.24em; text-transform:uppercase; color:var(--gravel); }
+.day b { color:var(--charcoal); font-weight:normal; letter-spacing:0.06em; text-transform:none; font-size:13px; margin-left:8px; }
+.row { display:flex; align-items:center; gap:12px; padding:9px 18px; cursor:pointer;
+    border-left:3px solid transparent; transition:background 0.16s ease, border-color 0.16s ease; }
+.row:hover { background:rgba(255,253,246,0.75); }
+.row.on { background:#fffdf6; border-left-color:var(--evergreen); }
+.r-no { flex:0 0 24px; height:24px; border-radius:50%; background:var(--parch-deep); color:var(--stone);
+    display:flex; align-items:center; justify-content:center; font-size:11.5px; }
+.row.on .r-no { background:var(--evergreen); color:var(--parch); }
+.r-body { flex:1; min-width:0; }
+.r-name { font-size:15px; color:var(--evergreen); line-height:1.2; }
+.r-meta { font-size:10.5px; letter-spacing:0.09em; text-transform:uppercase; color:var(--gravel); margin-top:3px; }
+.r-go { flex:0 0 auto; color:var(--brass); opacity:0; transition:opacity 0.16s ease; }
+.row:hover .r-go, .row.on .r-go { opacity:1; }
+.r-go svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; display:block; }
+
+/* the foot: the door out to the whole land */
+.foot { flex:0 0 auto; border-top:1px solid rgba(122,104,70,0.3); padding:10px 18px;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:10.5px; letter-spacing:0.18em; text-transform:uppercase; color:var(--gravel); }
+.foot a { color:var(--evergreen); }
+
+/* the field slip: what the land says about the stop you're standing on */
+.slip { position:fixed; right:22px; bottom:22px; z-index:900; width:330px;
+    background:rgba(244,237,219,0.97); border:1px solid var(--brass);
+    box-shadow:0 8px 26px rgba(60,50,30,0.2); padding:14px 16px;
+    opacity:0; transform:translateY(8px); transition:opacity 0.3s ease, transform 0.3s ease; }
+.slip.on { opacity:1; transform:none; }
+.sl-kick { font-size:9.5px; letter-spacing:0.26em; text-transform:uppercase; color:var(--gravel); }
+.sl-name { font-size:19px; color:var(--evergreen); margin:5px 0 7px; line-height:1.2; }
+.sl-stats { display:flex; gap:16px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--stone); }
+.sl-strip { display:flex; gap:5px; margin-top:11px; }
+.sl-strip img { width:calc((100% - 10px)/3); height:56px; object-fit:cover; border:1px solid rgba(122,104,70,0.3); }
+.note { position:fixed; left:462px; top:22px; z-index:900; max-width:430px;
+    background:rgba(232,223,198,0.94); border:1px solid var(--brass); padding:10px 14px;
+    font-size:12px; font-style:italic; color:var(--stone); }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div class="veil" id="veil"></div>
+
+<div class="card">
+    <div class="star">
+        <img id="star" alt="">
+        <div class="grad"></div>
+        <div class="cap">
+            <div class="s-kick">A chapter of the Atlas</div>
+            <div class="s-name" id="s-name">—</div>
+            <div class="s-when" id="s-when">—</div>
+        </div>
+    </div>
+    <div class="tot" id="tot"></div>
+    <div class="itin" id="itin"></div>
+    <div class="foot">
+        <span id="foot-where">—</span>
+        <a href="../map.html">See it on the land &rarr;</a>
+    </div>
+</div>
+
+<div class="slip" id="slip">
+    <div class="sl-kick" id="sl-kick">—</div>
+    <div class="sl-name" id="sl-name">—</div>
+    <div class="sl-stats" id="sl-stats"></div>
+    <div class="sl-strip" id="sl-strip"></div>
+</div>
+
+<div class="note"><b>Concept 5 — The Route Card.</b> The land is the page. Hovering or clicking an
+itinerary row cuts the camera to that stop behind a soft veil (never a flight — the Atlas rule) and
+raises a field slip. "Whole trip" at the top of the itinerary returns to the full expedition view.
+Every row is a door into its field log.</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const TAG = new URLSearchParams(location.search).get('tag') || 'Alaska Camping Trip - June 2026';
+const CLOUD = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_900,h_500,c_fill,q_auto,f_auto/${id}`;
+const TH = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_240,h_160,c_fill,q_auto,f_auto/${id}`;
+const isVP = h => h.hike_type === 'Viewpoint';
+const utc = s => new Date(s + 'T00:00:00Z');
+const fmt = (s, o) => utc(s).toLocaleDateString('en-US', Object.assign({ timeZone:'UTC' }, o));
+
+const map = L.map('map', { zoomControl:false, attributionControl:false, zoomSnap:0 });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { maxZoom:16, keepBuffer:2 }).addTo(map);
+L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', { maxZoom:16, opacity:0.55, keepBuffer:2, className:'hillshade-multiply' }).addTo(map);
+const wash = document.createElement('div'); wash.className = 'parchment';
+map.getContainer().appendChild(wash);
+const veil = document.getElementById('veil');
+const slip = document.getElementById('slip');
+
+/** The Atlas rule: the camera never flies. It cuts behind the veil. */
+function cutTo(bounds, maxZoom) {
+    veil.classList.add('on');
+    setTimeout(() => {
+        map.fitBounds(bounds, { paddingTopLeft:L.point(470, 40), paddingBottomRight:L.point(60, 60),
+            maxZoom: maxZoom || 15, animate:false });
+        setTimeout(() => veil.classList.remove('on'), 260);
+    }, 340);
+}
+
+Promise.all([
+    fetch('../data/hikes.json').then(r => r.json()),
+    fetch('../data/trails.geojson').then(r => r.json())
+]).then(([hikes, geo]) => {
+    const trip = hikes.filter(h => h.trip_tag === TAG)
+        .sort((a, b) => a.date_completed.localeCompare(b.date_completed) ||
+            (+a.trail_id.split('_')[1]) - (+b.trail_id.split('_')[1]));
+    if (!trip.length) return;
+
+    const name = TAG.replace(/\s*-\s*[\w]+ \d{4}$/, '');
+    const walked = trip.filter(h => !isVP(h));
+    const days = [...new Set(walked.map(h => h.date_completed))].length;
+    const miles = walked.reduce((s, h) => s + (h.miles || 0), 0);
+    const gain = walked.reduce((s, h) => s + (h.elevation_gain || 0), 0);
+
+    const starHike = trip.slice().sort((a, b) => (b.images||[]).length - (a.images||[]).length)[0];
+    document.getElementById('star').src = CLOUD((starHike.images || [])[0]);
+    document.getElementById('s-name').textContent = name;
+    document.getElementById('s-when').textContent =
+        fmt(trip[0].date_completed, { month:'long', day:'numeric' }) + ' – ' +
+        fmt(trip[trip.length-1].date_completed, { month:'long', day:'numeric', year:'numeric' });
+    document.getElementById('foot-where').textContent = [...new Set(trip.map(h => h.region))].join(' · ');
+    document.getElementById('tot').innerHTML = [
+        [days, 'Days'], [walked.length, 'Hikes'], [trip.length - walked.length, 'Views'],
+        [miles.toFixed(1), 'Miles'], [gain.toLocaleString(), 'Ft']
+    ].filter(v => v[0] !== 0).map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+
+    // --- the land ---
+    // LineString AND MultiLineString both appear in trails.geojson
+    const byId = {};
+    geo.features.forEach(f => { const g = f.geometry;
+        byId[f.properties.trail_id] = (g.type === 'MultiLineString' ? g.coordinates : [g.coordinates])
+            .reduce((a, seg) => a.concat(seg), []); });
+    const all = [], heads = [], bounds = {};
+    trip.forEach(h => {
+        const c = byId[h.trail_id];
+        if (c) {
+            const ll = c.map(p => [p[1], p[0]]);
+            L.polyline(ll, { color:'#b83d2e', weight:3.2, opacity:0.95 }).addTo(map);
+            ll.forEach(p => all.push(p));
+            heads.push(ll[0]);
+            bounds[h.trail_id] = L.latLngBounds(ll).pad(0.35);
+        } else if (h.latitude) {
+            const p = [h.latitude, h.longitude];
+            all.push(p); heads.push(p);
+            bounds[h.trail_id] = L.latLngBounds([p, p]).pad(0.02);
+        }
+    });
+    if (heads.length > 1) L.polyline(heads, { color:'#2f5c40', weight:2, opacity:0.55, dashArray:'7 7' }).addTo(map);
+    const pins = {};
+    heads.forEach((p, i) => {
+        const h = trip[i];
+        pins[h.trail_id] = L.marker(p, { icon:L.divIcon({ className:'', iconSize:[26,26],
+            html:`<div id="pin-${h.trail_id}" style="width:26px;height:26px;border-radius:50%;
+                  background:#f0e7cf;border:1.6px solid #2f5c40;color:#2f5c40;display:flex;
+                  align-items:center;justify-content:center;font:12px Georgia;
+                  box-shadow:0 1px 5px rgba(60,50,30,0.3)">${i+1}</div>` }) }).addTo(map);
+    });
+    const whole = L.latLngBounds(all);
+    cutTo(whole, 11);
+
+    // --- the itinerary ---
+    let html = `<div class="row on" data-all="1"><div class="r-no">&#9679;</div>
+        <div class="r-body"><div class="r-name">The whole expedition</div>
+        <div class="r-meta">${trip.length} outings · ${days} days</div></div></div>`;
+    let lastDate = null, dayNo = 0, n = 0;
+    trip.forEach(h => {
+        if (h.date_completed !== lastDate) {
+            lastDate = h.date_completed; dayNo++;
+            html += `<div class="day">Day ${dayNo}<b>${fmt(h.date_completed, { weekday:'long', month:'long', day:'numeric' })}</b></div>`;
+        }
+        n++;
+        const meta = isVP(h) ? 'Viewpoint · ' + h.location
+            : `${h.miles} mi · ${(h.elevation_gain||0).toLocaleString()} ft · ${h.difficulty}`;
+        html += `<div class="row" data-id="${h.trail_id}">
+            <div class="r-no">${n}</div>
+            <div class="r-body"><div class="r-name">${h.trail_name}</div><div class="r-meta">${meta}</div></div>
+            <a class="r-go" href="../hike.html?id=${h.trail_id}" title="Open the field log">
+                <svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg></a></div>`;
+    });
+    const itin = document.getElementById('itin');
+    itin.innerHTML = html;
+
+    const byTrail = {}; trip.forEach(h => (byTrail[h.trail_id] = h));
+    itin.querySelectorAll('.row').forEach(row => {
+        row.addEventListener('click', ev => {
+            if (ev.target.closest('.r-go')) return;    // the door wins
+            itin.querySelectorAll('.row').forEach(r => r.classList.remove('on'));
+            row.classList.add('on');
+            const id = row.dataset.id;
+            if (!id) { cutTo(whole, 11); slip.classList.remove('on'); return; }
+            const h = byTrail[id];
+            cutTo(bounds[id], isVP(h) ? 13 : 15);
+            document.getElementById('sl-kick').textContent = fmt(h.date_completed, { weekday:'long', month:'long', day:'numeric' });
+            document.getElementById('sl-name').textContent = h.trail_name;
+            document.getElementById('sl-stats').innerHTML = isVP(h)
+                ? `<span>Viewpoint</span><span>${h.location}</span>`
+                : `<span>${h.miles} mi</span><span>${(h.elevation_gain||0).toLocaleString()} ft</span><span>${h.difficulty}</span>`;
+            document.getElementById('sl-strip').innerHTML = (h.images || []).slice(0, 3)
+                .map(i => `<img src="${TH(i)}" alt="">`).join('');
+            slip.classList.add('on');
+        });
+    });
+});
+</script>
+</body>
+</html>

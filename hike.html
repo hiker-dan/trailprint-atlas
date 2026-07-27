@@ -70,6 +70,17 @@
                             <div class="c-trip" id="c-trip"></div>
                         </div>
                         <div class="ct-right">
+                            <!-- THE CHAPTER DOOR: out to the whole trip this day
+                                 belonged to. Hidden by hike-detail.js on a
+                                 standalone outing, which belongs to no chapter.
+                                 The glyph is a surveyed section line with its
+                                 stations — a picture of the trip page's own
+                                 instrument, so the door shows what's behind it. -->
+                            <a class="atlas-door is-return chapter-door" id="chapter-door" href="#" hidden>
+                                <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 6l-6 6 6 6"/><path d="M20 4v16"/></svg>
+                                <span>Back to<br>the Chapter</span>
+                                <svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 15.5l4.5-6 4 4.5 4.5-8 7 9.5"/><path d="M2 19h20"/><circle cx="6.5" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/></svg>
+                            </a>
                             <!-- the inverse of the map's two Field Log doors:
                                  same frame, same tool, mirrored — the chevron
                                  leads back out and the glyph names the land -->
@@ -190,7 +201,7 @@
     <script src="scripts/shape-of-day.js"></script>
     <!-- The light table -->
     <script src="scripts/hike-detail.js"></script>
-    <!-- Shared script to update the 'Logbook' nav link -->
+    <!-- Shared script: active-page highlight (+ the credits slideshow) -->
     <script src="scripts/nav-updater.js"></script>
 </body>
 </html>

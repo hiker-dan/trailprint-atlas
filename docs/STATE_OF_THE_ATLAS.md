@@ -47,7 +47,8 @@ diet (1,916 → 674 tile requests on a fixed session).
   is live on the map, the deck's old year-banded scrub is retired, and the
   explicitly-deferred bug ("returning from a hike page resets the animation to the
   end") is fixed: `restoreLandState` restores `inkIx` and parks the chain on it.
-  **Only stage 4 remains** — the trip page, the retirements, the docs.
+  **Stage 4's trip page is now done too** (The Traverse — see the roadmap below);
+  only the crew re-skin is left of the redesign arc.
 - **The backlog (old item 5).** Finished ahead of its slot in the order.
 - **Elevation ground truth** (unplanned). `tools/correct-elevations.py` asks USGS
   3DEP what the ground really is; `summit_elevation` is derived, never typed;
@@ -84,7 +85,8 @@ visual system, not three separate problems:
 - **green sans headings with an underline rule**
 - **default Esri World Topo tiles** with stock zoom controls — bright green maps
   with none of the Atlas basemap wardrobe or parchment wash
-- and on the trip page, the retired timeline strip still riding on top
+- ~~and on the trip page, the retired timeline strip still riding on top~~
+  *(fixed July 2026 — the trip page was rebuilt as The Traverse and the strip is gone)*
 
 The **bones differ in quality, and that matters for how each is treated.** The crew
 pages' structure is genuinely good and stays: the core-crew field cards, the
@@ -129,8 +131,8 @@ built this year is desktop-only; the audience is family on phones.
 ## The roadmap from here — one track, in order
 
 Sequencing logic: fix what's visibly wrong before adding anything new; finish the
-redesign arc; then build the new rooms; batch the taxonomy change last, over the
-complete set.
+redesign arc; then build the new rooms; batch the taxonomy change over the complete
+set; and sweep the whole build last, when there's nothing left to make untidy.
 
 ### 1. Territories abroad  *(small, overdue, and currently wrong on the live site)*
 Canada is the first case; the work is built once for every country after it.
@@ -145,20 +147,34 @@ Canada is the first case; the work is built once for every country after it.
 - Teach `new-hike.py` to ask, and infer the obvious cases.
 - Safe as-is: interactive map, weather almanac (Open-Meteo is global), park badges.
 
-### 2. The last re-skin: trip + crew  *(stage 4 — closes the redesign arc)*
-The three remaining old-skin pages, taken together rather than one at a time, because
-they share one visual system: fix it once and all three land in the same language.
-Also the natural home for the leftover cleanup — retire `timeline-nav.js` and the
-dead deck scrub, and bring the docs current.
+### 2. The last re-skin: trip ✅ + crew  *(stage 4 — closes the redesign arc)*
 
-Two different jobs inside one design pass:
-- **`crew.html` + `crew-member.html` — a coat of paint.** The bones stay, explicitly:
-  core-crew field cards, the register with era bars, and the region-grouped
-  shared-trail maps. What changes is the surface — the slab hero, the white cards,
-  the underlined headings — and the maps trade stock Esri Topo for the Atlas basemap.
-- **`trip.html` — a real redesign.** The proven method applies (concepts → mockups →
-  build), and there's a strong starting question: a trip *is* a chapter, and the
-  expedition engine already knows what a chapter is.
+**`trip.html` is done — THE TRAVERSE shipped July 2026.** Five concepts → three
+mockups → a combined fourth (Journey Ribbon + Route Card) → three rounds of
+refinement → build. It answers the starting question directly: a trip *is* a
+chapter, so the page is built like map.html — the land is the page, the camera
+cuts and never flies — with one rule the map doesn't have: **it never roams.**
+Every hike's real profile is stitched end to end into one normalised line;
+hikes are numbered stations, viewpoints are lettered sightings that never touch
+the baseline; the datum carries a labelled scale and a hatched cut so it can't
+read as sea level; trips under 100 ft of climbing collapse to a survey rule that
+says so in words. The preview card is map.css's own sheet, compacted. Opening
+photographs are curated (`ATLAS_CONFIG.TRIP_STARS`, all 21 picked), held on
+screen until they actually load, and the whole door architecture between land,
+chapter and day is now written down in CLAUDE.md. Verified across all 21 trips
+and 73 stop framings, plus a 17-page regression sweep.
+
+Two retirements fell out of it:
+- **`timeline-nav.js` + `styles/timeline-nav.css` are now loaded by no page.**
+  hike.html dropped the strip in the Continuous Expedition rebuild; trip.html was
+  the last holdout. Kept for now, deleted in stage 6 unless it finds a new home.
+- The old trip page's journey map, stop clustering and itinerary are gone with it.
+
+**Still open: `crew.html` + `crew-member.html` — a coat of paint.** The bones stay,
+explicitly: core-crew field cards, the register with era bars, and the
+region-grouped shared-trail maps. What changes is the surface — the slab hero, the
+white cards, the underlined headings — and the maps trade stock Esri Topo for the
+Atlas basemap. The Traverse's sheet-compacted-to-a-card is the pattern to reuse.
 
 ### 3. Park Badges  *(the trophy case)*
 47 unique `location` values are waiting. Park type derives from `location` via a
@@ -174,6 +190,27 @@ evolved. Bones first, data later.
 ### 5. Geography deep-dive + reclassification
 Over the complete set: is 10 the right taxonomy? Resolve the thin tail, reclassify
 in one batch.
+
+### 6. The sweep — consolidation + future-proofing  *(last, and deliberately so)*
+Two passes over the finished build, **changing nothing a visitor can see**:
+
+- **Consolidation.** Four rebuilds in one year leave sediment: retired components
+  still loaded, rules re-derived in three places, CSS for elements that no longer
+  exist, dead parameters. This audit already turned up three copies of a US-state
+  list and a hidden deck scrub still being written to every frame — that's the
+  shape of what a full sweep would find. Every removal verified against the
+  rendered page, since "no visual change" is the whole contract.
+- **Future-proofing.** Ask what breaks as the Atlas grows, and fix it while it's
+  cheap. Known candidates: the map holds every trail's geometry in memory and
+  draws every stamp (fine at 123 outings — at 500?); `hikes.json` is fetched whole
+  by every page; the hero film builds one SVG path per trail at load; the chain
+  lays out every dot on a single track; Cloudinary's free tier has a ceiling; the
+  year palette is generated but the timeline's fixed spine is not infinite. The
+  deliverable is a written list of thresholds — *this breaks around here, and this
+  is the fix* — not speculative rewriting.
+
+It goes last on purpose: consolidating before the redesigns are done would mean
+tidying code that's about to be replaced.
 
 ---
 

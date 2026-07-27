@@ -1,296 +1,269 @@
 /* =====================================================================
-   The Trailprint Atlas — Trip page styles
-   One chapter of the Atlas: hero, headline numbers, journey map,
-   day-by-day itinerary. Shares the palette + fonts from base.css.
+   The Trailprint Atlas — a Trip: THE TRAVERSE (rebuilt July 2026)
+
+   A survey traverse is a connected series of measured legs between fixed
+   points. That is exactly what a trip is, and it is what this page draws.
+
+   The page is built like map.html on purpose — the land IS the page, the
+   instruments float on it, the camera CUTS behind a veil and never flies.
+   Two rules separate it from the map:
+     · the camera never roams. It only cuts between the trip's own stops;
+       panning and zooming the whole Atlas belongs to map.html.
+     · everything a stop says is said on ONE card — the map page's sheet,
+       compacted — so the design language carries straight across.
    ===================================================================== */
 
-body {
-    margin: 0;
-    font-family: var(--font-body);
-    background-color: #fdfdfd;
-    color: var(--charcoal);
+body { margin: 0; font-family: var(--font-body); overflow: hidden; }
+
+.trip-shell { position: fixed; top: 40px; left: 0; right: 0; bottom: 0; }
+/* z-index 0 gives the map its own stacking context, which CONTAINS Leaflet's
+   internal layers — its control container sits at z-index 1000 and would
+   otherwise paint the attribution straight over the traverse panel */
+#trip-map { position: absolute; inset: 0; z-index: 0; background: #ece3ce; }
+/* nothing on this page invites a drag — the land is scenery, not a vehicle */
+#trip-map, #trip-map .leaflet-container { cursor: default; }
+.leaflet-container { font-family: var(--font-body); }
+
+/* the hillshade sheet multiplies onto the paper base, as on the map page */
+.hillshade-multiply { mix-blend-mode: multiply; }
+/* 250 puts the wash above the tile pane (200) and below the trail ink (400),
+   so the paper warms the terrain but never dulls the trailprints — the same
+   order map.css uses */
+.parchment-wash {
+    position: absolute; inset: 0; z-index: 250; pointer-events: none;
+    background: #d9c8a0; mix-blend-mode: multiply; opacity: 0.42;
+}
+.leaflet-control-attribution { background: rgba(255, 253, 246, 0.75) !important; font-size: 9.5px !important; }
+
+/* the camera cuts, it never flies — the Atlas rule, kept */
+.trip-veil {
+    position: absolute; inset: 0; z-index: 700; pointer-events: none; opacity: 0;
+    transition: opacity 0.3s ease;
+    background: radial-gradient(ellipse at 50% 45%, rgba(240, 231, 207, 0.96) 0%, rgba(228, 214, 180, 0.98) 100%);
+}
+.trip-veil.on { opacity: 1; }
+
+/* --- the chapter, engraved into the corner ------------------------- */
+.trip-mark { position: absolute; left: 26px; top: 22px; z-index: 600; max-width: 44%; }
+.tm-kicker { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.28em; text-transform: uppercase; color: #9a927c; }
+.tm-name {
+    font-family: var(--font-display); font-weight: 700; font-size: 24px; color: #24401f;
+    margin-top: 3px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.1;
+    text-shadow: 0 1px 10px rgba(240, 231, 207, 0.9);
+}
+.tm-when { font-size: 11.5px; font-style: italic; color: #6f6a58; margin-top: 2px; }
+
+/* =====================================================================
+   THE SHEET, COMPACTED
+   Every rule below is map.css's .ms-sheet, shrunk to a standing card:
+   the light-table paper with a second sheet peeking from the stack, the
+   collar closed by its evergreen rule, the ruled vitals band, the slide
+   in its cream mount, and base.css's own .atlas-door at the foot. Class
+   names are the map's deliberately — one language, not a fork.
+   ===================================================================== */
+/* the mount carries the z-index so the card opens no stacking context of
+   its own; otherwise the sheet peeking behind it (a z-index:-1 pseudo,
+   exactly as on the map) paints behind its own paper and vanishes */
+.sheet-mount { position: absolute; left: 26px; top: 112px; z-index: 600; width: 330px; }
+.sheet-card {
+    position: relative; width: 100%;
+    background: #fffdf6; border: 1px solid #d8ccae; border-radius: 6px;
+    box-shadow: 0 8px 34px rgba(20, 15, 5, 0.28);
+    padding: 0 19px 17px;
+}
+.sheet-card::before {
+    content: ''; position: absolute; inset: 7px -6px 11px auto; width: 6px;
+    background: #efe6c9; border: 1px solid #d8ccae; border-radius: 0 3px 3px 0; z-index: -1;
 }
 
-/* --- Trip hero: the chapter heading --- */
-#trip-hero {
-    background-color: var(--evergreen);
-    /* The living cover: trip.js layers a random trip photo (behind a dark
-       gradient) over this base color on every visit. */
-    background-size: cover;
-    background-position: center;
-    color: #fff;
-    text-align: center;
-    /* Extra bottom padding: the stat cards overlap this edge from below */
-    padding: 60px 24px 95px;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+.ms-collar { padding: 13px 0 8px; margin-bottom: 10px; border-bottom: 1.5px solid #2f5c40; }
+.ms-kicker { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.26em; color: #9a927c; margin-bottom: 5px; }
+.ms-title {
+    font-family: var(--font-display); font-weight: 700; font-size: 15.5px;
+    letter-spacing: 0.07em; line-height: 1.14; text-transform: uppercase; color: #24401f; margin: 0;
+    /* two lines are RESERVED and the text centred in them, so a short name
+       doesn't hang from the top over a gap — the deck's .lg-name trick */
+    min-height: 2.28em; display: grid; align-items: center;
 }
-#trip-eyebrow {
-    margin: 0 0 10px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    opacity: 0.75;
+/* three lines is the ceiling, so the Atlas's longest trail name can't push
+   the door off the card */
+.ms-title span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.ms-sub { font-size: 12px; font-style: italic; color: #6f6a58; margin-top: 4px; line-height: 1.35; }
+.ms-with { font-size: 11.5px; color: #6f6a58; margin-top: 2px; }
+
+.ms-vitals { display: flex; margin: 0 0 11px; padding-bottom: 11px; border-bottom: 1px solid #d8ccae; }
+.ms-vital { flex: 1; text-align: center; padding: 0 6px; border-left: 1px solid #d8ccae; min-width: 0; }
+.ms-vital:first-child { border-left: none; }
+.ms-vital .v { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.04; color: #24401f; white-space: nowrap; }
+.ms-vital .l { margin-top: 4px; font-family: var(--font-display); font-size: 7px; letter-spacing: 0.2em; text-transform: uppercase; color: #9a927c; }
+.ms-vital.wide .v { font-size: 11px; letter-spacing: 0.2em; }
+
+.ms-print {
+    position: relative; background: linear-gradient(#fbf6e6, #f0e7cf);
+    border: 1px solid #cdbf9c; border-radius: 2px; padding: 6px 6px 15px;
+    box-shadow: 0 2px 6px rgba(60, 45, 20, 0.28); margin-bottom: 13px;
 }
-#trip-hero h1 {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 3.5em;
-    line-height: 1.1;
-    margin: 0 0 12px;
+.ms-frame { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #e6dcc0; }
+.ms-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.45s ease; }
+.ms-frame img.off { opacity: 0; }
+.ms-frame .fb { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.45s ease; }
+.ms-frame .fb.on { opacity: 1; }
+.ms-frame .fb .stamp-glyph { width: 46px; height: 46px; color: #fffdf6; }
+.ms-frame .fb .stamp-halo { display: none; }
+.ms-print .no, .ms-print .ct {
+    position: absolute; bottom: 2px; font-family: var(--font-display);
+    font-size: 7px; letter-spacing: 0.2em; color: #9a927c;
 }
-#trip-dates {
-    margin: 0 0 6px;
-    font-size: 18px;
-    opacity: 0.95;
+.ms-print .no { left: 8px; }
+.ms-print .ct { right: 8px; }
+/* the slide "develops" on the light box until Cloudinary delivers — the
+   same treatment as the map sheet's strip and the hike page's slides */
+.ms-print::after {
+    content: ''; position: absolute; inset: 6px 6px 15px; pointer-events: none;
+    background: linear-gradient(100deg, #e5dbbe 30%, #f5eeda 50%, #e5dbbe 70%);
+    background-size: 280% 100%;
+    animation: trip-develop 1.6s ease-in-out infinite;
+    transition: opacity 0.55s ease;
 }
-#trip-regions {
-    margin: 0;
-    font-size: 14px;
-    font-style: italic;
-    opacity: 0.8;
+.ms-print.loaded::after { opacity: 0; animation: none; }
+@keyframes trip-develop {
+    from { background-position: 180% 0; }
+    to   { background-position: -80% 0; }
 }
 
-/* --- Page layout --- */
-.trip-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 30px 20px 60px;
+/* the door is base.css's own .atlas-door.is-wide — only its scale is set here.
+   NB no width:100%: display:flex already makes it fill the card, and this
+   codebase has no global border-box, so a width plus padding would overflow. */
+.sheet-card .atlas-door.is-wide { padding: 10px 13px; gap: 10px; }
+.sheet-card .atlas-door.is-wide .ad-glyph { width: 19px; height: 19px; }
+.sheet-card .atlas-door.is-wide .ad-chev { width: 14px; height: 14px; }
+.sheet-card .ad-main { font-size: 9.5px; letter-spacing: 0.18em; }
+.sheet-card .ad-sub { font-size: 10.5px; }
+
+/* =====================================================================
+   THE TRAVERSE
+   ===================================================================== */
+.trip-hint {
+    position: absolute; right: 26px; top: 22px; z-index: 600;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #9a927c;
 }
 
-/* --- Headline numbers --- */
-.trip-stats {
-    display: flex;
-    justify-content: center;
-    gap: 18px;
-    flex-wrap: wrap;
-    margin: -75px auto 35px; /* the stat cards overlap the hero's bottom edge */
-    position: relative;
+.trav {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 650; height: 204px;
+    background: linear-gradient(0deg, rgba(240, 231, 207, 0.99) 62%, rgba(240, 231, 207, 0.9) 100%);
+    border-top: 1px solid #b9a578; box-shadow: 0 -6px 26px rgba(60, 50, 30, 0.13);
 }
-.trip-stat {
-    background-color: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
-    padding: 18px 30px;
-    text-align: center;
-    min-width: 110px;
+.t-head { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 9px 26px 0; }
+.t-title {
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.28em;
+    text-transform: uppercase; color: #9a927c; white-space: nowrap;
 }
-.trip-stat .num {
-    display: block;
-    font-family: var(--font-display);
-    font-size: 34px;
-    font-weight: 700;
-    line-height: 1.1;
-    color: var(--trail-green);
+/* the key lives WITH the marks it explains, which also keeps the map's
+   top-right corner clear for the land */
+.t-legend { display: inline-flex; gap: 15px; align-items: center; margin-left: 20px; padding-left: 20px; border-left: 1px solid #d8ccae; }
+.t-legend i { display: inline-block; width: 12px; height: 12px; border: 1.3px solid #24401f; border-radius: 50%; margin-right: 6px; vertical-align: -2px; }
+.t-legend i.v { border-radius: 2px; border-style: dashed; transform: rotate(45deg); width: 10px; height: 10px; }
+
+.t-stage { position: relative; margin: 0 26px; height: 166px; }
+/* LEVEL GROUND: a trip that never climbed 100 ft has no section to draw,
+   and 170px of empty plot is a lie told with white space. The panel
+   collapses to a survey rule carrying the same stops in the same order. */
+.trav.is-level { height: 126px; }
+.trav.is-level .t-stage { height: 88px; }
+
+#trav-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; cursor: pointer; }
+.t-st { cursor: pointer; }
+.t-st .hit { fill: transparent; }
+.t-num { font-family: var(--font-display); font-weight: 700; font-size: 10px; }
+.t-day { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.2em; fill: #9a927c; }
+.t-mi { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.14em; fill: #9a927c; }
+.t-ax { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.1em; fill: #9a927c; }
+.t-caveat { font-size: 11px; font-style: italic; fill: #9a927c; }
+
+/* the trailhead marks: circles for hikes, dashed diamonds for viewpoints */
+.pin-wrap { transition: transform 0.2s ease; }
+.pin {
+    width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+    background: #f0e7cf; border: 1.6px solid #24401f; color: #24401f;
+    font-family: var(--font-display); font-weight: 700; font-size: 11px;
+    border-radius: 50%; box-shadow: 0 1px 5px rgba(60, 50, 30, 0.3);
+    transform: rotate(var(--rot, 0deg)) scale(var(--s, 1));
+    transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
 }
-.trip-stat .cap {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--gravel);
+.pin.vp { --rot: 45deg; border-radius: 3px; width: 23px; height: 23px; border-style: dashed; }
+.pin.vp span { transform: rotate(-45deg); font-size: 11px; font-style: italic; }
+
+/* =====================================================================
+   THE FRONTISPIECE — the trip's chosen photograph, before anything else
+   ===================================================================== */
+.frontis {
+    position: absolute; inset: 0; z-index: 2000; overflow: hidden; background: #231f16;
+    transition: opacity 1s ease, transform 1.15s cubic-bezier(0.7, 0, 0.25, 1);
+}
+.frontis.lift { opacity: 0; transform: translateY(-4%) scale(1.03); pointer-events: none; }
+/* A ~1 kB blurred thumbnail lands almost instantly and is held under the
+   developing sheen; the full frame crossfades in over it. The dwell does
+   not begin until the full frame has actually arrived, so the photograph
+   can never be lifted past before it exists. */
+.frontis .f-blur { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(28px); transform: scale(1.09); }
+.frontis .f-full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.8s ease; }
+.frontis .f-full.on { opacity: 1; }
+.frontis .f-sheen {
+    position: absolute; inset: 0; pointer-events: none; opacity: 1;
+    background: linear-gradient(100deg, rgba(255, 250, 235, 0) 34%, rgba(255, 250, 235, 0.17) 50%, rgba(255, 250, 235, 0) 66%);
+    background-size: 280% 100%;
+    animation: trip-develop 1.9s ease-in-out infinite;
+    transition: opacity 0.7s ease;
+}
+.frontis.ready .f-sheen { opacity: 0; animation: none; }
+.frontis .f-scrim {
+    position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(35, 32, 22, 0.72) 0%, rgba(35, 32, 22, 0.12) 45%, rgba(35, 32, 22, 0.34) 100%);
+}
+.f-in { position: absolute; left: 0; right: 0; bottom: 12%; text-align: center; color: #f6f1e2; text-shadow: 0 2px 18px rgba(20, 18, 10, 0.6); padding: 0 24px; }
+.f-kick { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.4em; text-transform: uppercase; opacity: 0.82; }
+.f-name {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 4.4vw, 58px);
+    margin: 14px 0 8px; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.05;
+}
+.f-when { font-size: 15px; font-style: italic; opacity: 0.9; }
+.f-tot { display: flex; justify-content: center; flex-wrap: wrap; gap: 38px; margin-top: 26px; }
+.f-tot div { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.78; }
+.f-tot b { display: block; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 3px; opacity: 1; }
+.f-go {
+    position: absolute; left: 0; right: 0; bottom: 36px; text-align: center; color: #f6f1e2;
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.28em; text-transform: uppercase;
+    opacity: 0.6; animation: trip-bob 2.4s ease-in-out infinite;
+}
+@keyframes trip-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(5px); } }
+
+/* SHORT SCREENS (a 1280x800 or 1440x900 laptop). The card is ~490px tall and
+   the traverse owns the bottom 204px, so on an 800px window the two collided.
+   Nothing is dropped — the sheet gives back the one piece of itself that can
+   spare it, the slide's height, and tightens its rules. Measured: 490 -> 428,
+   which clears the traverse at 800px with room to spare. */
+@media (max-height: 880px) {
+    .sheet-mount { top: 96px; }
+    .ms-frame { aspect-ratio: 16 / 9; }
+    .ms-collar { padding: 10px 0 7px; margin-bottom: 8px; }
+    .ms-vitals { margin-bottom: 8px; padding-bottom: 8px; }
+    .ms-print { margin-bottom: 10px; }
+    .sheet-card { padding-bottom: 14px; }
 }
 
-/* --- Shared section shell (mirrors the hike page's info sections) --- */
-.info-section {
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-}
-.info-section h3 {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 1.6em;
-    color: var(--trail-green);
-    border-bottom: 3px solid #e0e8e2;
-    padding-bottom: 8px;
-    margin-top: 0;
-    margin-bottom: 25px;
-    display: inline-block;
+@media (prefers-reduced-motion: reduce) {
+    .ms-print::after, .frontis .f-sheen, .f-go { animation: none; }
+    .frontis, .trip-veil, .pin, .pin-wrap { transition: none; }
 }
 
-/* Temporary note style while sections await their build steps */
-.section-placeholder {
-    font-style: italic;
-    color: var(--gravel);
+/* --- the friendly dead end ----------------------------------------- */
+.trip-lost {
+    position: absolute; inset: 0; z-index: 2200; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; text-align: center;
+    background: #f0e7cf; padding: 24px;
 }
-
-/* --- The Journey Map --- */
-#trip-map {
-    height: 480px;
-    border-radius: 8px;
-}
-/* Leaflet pins its own Helvetica; the Atlas voice takes over inside the map */
-.leaflet-container {
-    font-family: var(--font-body);
-}
-/* Numbered stop markers — the numbers match the itinerary below */
-.trip-leg-marker {
-    background-color: var(--evergreen);
-    color: #fff;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 13px;
-    /* opacity: the hover fade; margin-left: the de-overlap fan sliding */
-    transition: opacity 0.2s ease, margin-left 0.25s ease;
-}
-.trip-leg-marker:hover {
-    background-color: var(--trail-green);
-    box-shadow: 0 0 0 3px rgba(74, 124, 89, 0.35), 0 0 5px rgba(0, 0, 0, 0.5);
-}
-/* While one stop is hovered, its siblings step back */
-.trip-leg-marker.stop-dimmed {
-    opacity: 0.25;
-}
-/* Stops folded into a cluster bubble step out of view entirely */
-.trip-leg-marker.stop-hidden {
-    display: none;
-}
-/* Cluster bubbles: N stacked stops, zoomed out. Click dives in. */
-.trip-cluster-marker {
-    background-color: var(--trail-green);
-    color: #fff;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-body);
-    font-weight: 700;
-    font-size: 15px;
-    cursor: pointer;
-}
-
-/* --- Day by Day itinerary --- */
-.trip-day {
-    margin-bottom: 34px;
-}
-.trip-day:last-child {
-    margin-bottom: 0;
-}
-.trip-day-header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    border-bottom: 1px solid var(--mist);
-    padding-bottom: 8px;
-    margin-bottom: 18px;
-}
-.trip-day-chip {
-    background-color: var(--trail-green);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    padding: 3px 10px;
-    border-radius: 12px;
-    white-space: nowrap;
-}
-.trip-day-date {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 20px;
-    color: var(--evergreen);
-}
-.trip-stop {
-    display: flex;
-    gap: 16px;
-    padding: 14px 0 18px;
-}
-.trip-stop + .trip-stop {
-    border-top: 1px dashed var(--mist);
-}
-/* The badge matches the journey map's stop markers, tying list to map */
-.trip-stop-badge {
-    flex-shrink: 0;
-    width: 30px;
-    height: 30px;
-    background-color: var(--evergreen);
-    color: #fff;
-    border: 2px solid #fff;
-    border-radius: 50%;
-    box-shadow: 0 0 4px rgba(0, 0, 0, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 14px;
-}
-.trip-stop-body {
-    flex: 1;
-    min-width: 0;
-}
-.trip-stop-name {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 22px;
-    color: var(--evergreen);
-    text-decoration: none;
-    line-height: 1.2;
-}
-.trip-stop-name:hover {
-    color: var(--trail-green);
-}
-.trip-stop-meta {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--gravel);
-    margin: 3px 0 10px;
-}
-.trip-stop-desc {
-    font-size: 16px;
-    line-height: 1.6;
-    color: var(--charcoal);
-    margin: 0 0 12px;
-}
-.trip-stop-photos {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-.trip-stop-photos img {
-    height: 110px;
-    width: auto;
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-.trip-stop-log {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--trail-green);
-    text-decoration: none;
-}
-.trip-stop-log:hover {
-    text-decoration: underline;
-}
-/* Small field-card popups for each stop */
-.trip-leg-popup .leg-title {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 17px;
-    color: var(--evergreen);
-}
-.trip-leg-popup .leg-date {
-    font-size: 12px;
-    color: var(--stone);
-    margin-bottom: 6px;
-}
-.trip-leg-popup a {
-    color: var(--trail-green);
-    font-weight: 700;
-    text-decoration: none;
-}
-.trip-leg-popup a:hover {
-    text-decoration: underline;
-}
+.trip-lost[hidden] { display: none; }
+.tl-kick { font-family: var(--font-display); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: #9a927c; }
+.tl-title { font-family: var(--font-display); font-weight: 700; font-size: 34px; letter-spacing: 0.05em; text-transform: uppercase; color: #24401f; margin: 0; }
+.tl-msg { font-size: 14px; font-style: italic; color: #6f6a58; margin: 0 0 8px; max-width: 34em; }

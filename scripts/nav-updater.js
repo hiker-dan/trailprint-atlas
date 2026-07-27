@@ -1,31 +1,15 @@
 /**
  * This is a shared script used across all pages of the site.
- * Its primary purposes are:
- * 1. To find the most recently completed hike and dynamically update the 'Latest Hike' link.
- * 2. To highlight the current page in the navigation bar.
- * 3. To power the hero image slideshow on the credits page.
+ * Its purposes are:
+ * 1. To highlight the current page in the navigation bar.
+ * 2. To power the hero image slideshow on the credits page.
+ *
+ * It used to also point a "Logbook" nav link at the newest hike. That link was
+ * removed in July 2026 — a hike is reached through the land, not by jumping
+ * straight to whichever one happens to be most recent — so the lookup went
+ * with it, and this script no longer needs the hike data at all.
  */
 document.addEventListener('DOMContentLoaded', () => {
-
-    // --- Update "Latest Hike" Link ---
-    const latestHikeLink = document.getElementById('latest-hike-link');
-    if (latestHikeLink) {
-        fetchHikes()
-            .then(hikes => {
-                if (hikes.length === 0) {
-                    latestHikeLink.style.display = 'none';
-                    return;
-                }
-                const mostRecentHike = [...hikes].sort(compareHikesChronoDesc)[0];
-                if (mostRecentHike && mostRecentHike.trail_id) {
-                    latestHikeLink.href = `hike.html?id=${mostRecentHike.trail_id}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error updating latest hike link:', error);
-                if (latestHikeLink) latestHikeLink.style.display = 'none';
-            });
-    }
 
     // --- Active Navigation Link Highlighting ---
     const navLinks = document.querySelectorAll('nav a');

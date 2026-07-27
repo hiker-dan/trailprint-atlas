@@ -225,6 +225,9 @@ let fullBounds = null;
 const FOCUS_PARAMS = new URLSearchParams(window.location.search);
 const FOCUS_STATE = (FOCUS_PARAMS.get('state') || '').trim().toUpperCase();
 const FOCUS_COUNTRY = (FOCUS_PARAMS.get('country') || '').trim();
+// ?trip=<trip_tag> is the way back in from a trip page: the map opens ON that
+// chapter, paused, with its ink already laid and the deck naming it.
+const FOCUS_TRIP = (FOCUS_PARAMS.get('trip') || '').trim();
 let pendingFocusState = FOCUS_STATE || FOCUS_COUNTRY;
 /**
  * The whole-Atlas frame. PIXEL padding, not a geographic pad(): the chrome that
@@ -242,12 +245,13 @@ let pendingFocusState = FOCUS_STATE || FOCUS_COUNTRY;
  */
 const ATLAS_FRAME = { paddingTopLeft: L.point(60, 84), paddingBottomRight: L.point(60, 240) };
 
-// A sheet arrival (?sheet= / ?restore=land) frames its own camera; the boot's
-// whole-Atlas fit must stand down or its animation can land after the trail
-// frame and shove the camera back out to the wide view.
+// A sheet arrival (?sheet= / ?restore=land) or a chapter arrival (?trip=)
+// frames its own camera; the boot's whole-Atlas fit must stand down or its
+// animation can land after the trail frame and shove the camera back out to
+// the wide view.
 let pendingSheetBoot = (() => {
     const p = new URLSearchParams(window.location.search);
-    return Boolean(p.get('sheet') || p.get('restore') === 'land');
+    return Boolean(p.get('sheet') || p.get('restore') === 'land' || p.get('trip'));
 })();
 
 /** Frame one collected place: a US state abbreviation, or a whole country. */
@@ -266,6 +270,45 @@ function zoomToTerritory(key) {
     const span = Math.max(b.getNorth() - b.getSouth(), b.getEast() - b.getWest());
     if (span < 0.05) map.setView(b.getCenter(), 11, { animate: false });
     else map.fitBounds(b.pad(0.2), { maxZoom: 12, animate: false });
+}
+
+/**
+ * The way back in from a trip page (?trip=<trip_tag>).
+ *
+ * A trip on the trip page and a chapter on this map are the same thing, so
+ * arriving here should land you IN that chapter rather than dropping you at
+ * the whole Atlas to find it again. It parks on the chapter's last leg — so
+ * every trail of the trip is already inked — and frames the whole chapter
+ * rather than one shot, because you arrived from a page that showed all of it.
+ * Paused, always: this is a place to stand, not a film to start.
+ *
+ * Returns false if nothing is filed under the tag, so the caller can fall back
+ * to the ordinary whole-Atlas view.
+ */
+function focusTripChapter(tag) {
+    const ixs = [];
+    legs.forEach((l, i) => { if (l.h.trip_tag === tag) ixs.push(i); });
+    if (!ixs.length) return false;
+    const landOn = ixs[ixs.length - 1];
+    mode = 'expedition';
+    legIx = landOn;
+    inkIx = landOn;
+    nowT = legs[landOn].t;
+    applyReveal();
+    syncThreads(landOn);
+    setPlaque(legs[landOn].h);
+    syncScrub();
+    updateDeck();
+    const pts = [];
+    ixs.forEach(i => {
+        const segs = allTrailGeometries[legs[i].h.trail_id];
+        if (segs && segs.length) segs.forEach(seg => seg.forEach(p => pts.push(p)));
+        else if (legs[i].head) pts.push(legs[i].head);
+    });
+    if (pts.length) {
+        map.fitBounds(L.latLngBounds(pts), { ...ATLAS_FRAME, maxZoom: 13, animate: false });
+    }
+    return true;
 }
 
 // --- Filter state ---
@@ -299,6 +342,9 @@ Promise.all([fetchHikes(), fetchTrailGeometries()])
         if (legs.length) previewPlaque(legs[legs.length - 1].h);
         if (FOCUS_STATE || FOCUS_COUNTRY) zoomToTerritory(FOCUS_STATE || FOCUS_COUNTRY);
         pendingFocusState = '';
+        // ?trip= lands in the chapter itself. If the tag is unknown, the flag
+        // stands down so the ordinary whole-Atlas fit still happens below.
+        if (FOCUS_TRIP && legs.length && focusTripChapter(FOCUS_TRIP)) pendingSheetBoot = false;
         // ?leg=N lands instantly on an expedition leg, world rendered to that
         // point — the headless-screenshot hook, same spirit as home.js's ?p=.
         // Add &cinema=1 to freeze the cinema presentation for screenshots.
@@ -806,7 +852,21 @@ function applyReveal() {
         // inches left already names it; a trip name is the one thing this line
         // knows that the plaque doesn't.
         const ch = chapters[chapterOfLeg[legIx]];
-        const where = ch.kind === 'trip' ? ` · ${ch.name}` : '';
+        /* The trip's name is also its door — every tagged trip has a page of
+           its own, and without this the only way to reach it is to open a
+           hike's sheet first.
+           Two phrasings, because a chapter and a trip are NOT the same thing
+           here: distance decides chapters, so a local overnight (Mount Lowe,
+           South Fork) is filed under the home stretch even though it is a real
+           trip. Naming it "Chapter XIV · Mount Lowe" would misreport the
+           chapter, so a trip inside a home stretch reads "part of" instead. */
+        const legTag = legs[legIx].h.trip_tag;
+        const chapterLink = (tag, label) =>
+            `<a class="deck-chapter" href="trip.html?tag=${encodeURIComponent(tag)}"` +
+            ` title="Open this chapter — the whole trip, end to end">${label}</a>`;
+        const where = ch.kind === 'trip' ? ` · ${chapterLink(ch.key, ch.name)}`
+            : legTag ? ` · part of ${chapterLink(legTag, tripName(legTag))}`
+            : '';
         readout.innerHTML = `<b>${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}</b>
             <span class="deck-stats">Chapter ${ROMAN(chapterOfLeg[legIx] + 1)}${where}</span>`;
         return;
@@ -1042,6 +1102,26 @@ function buildSheetHtml(sorted, rep) {
             <span class="ad-copy">
                 <span class="ad-main">Open the Full Field Log</span>
                 <span class="ad-sub">the whole day &mdash; the map, every slide &amp; the almanac</span>
+            </span>
+            ${DOOR_CHEV_FWD}
+        </a>
+        ${chapterDoorHtml(rep)}`;
+}
+
+/**
+ * The chapter door: from one day out to the whole trip it belonged to.
+ * Deliberately the COMPACT door, not the wide one — the field log is what you
+ * came to this sheet for, and the chapter is the wider frame around it. Absent
+ * on a standalone outing, which belongs to no chapter.
+ */
+function chapterDoorHtml(h) {
+    if (!h.trip_tag) return '';
+    return `
+        <a class="atlas-door ms-chapter" href="trip.html?tag=${encodeURIComponent(h.trip_tag)}">
+            ${DOOR_CHAPTER_GLYPH}
+            <span class="ad-copy">
+                <span class="ad-main">The whole chapter</span>
+                <span class="ad-sub">${tripName(h.trip_tag)}</span>
             </span>
             ${DOOR_CHEV_FWD}
         </a>`;
@@ -1355,9 +1435,16 @@ function bootSpine(hikes) {
             if (ref) raiseSheet(ref, h);
         },
         onScrub: (t, trailId) => {
-            // the engine owns the clock during cinema; a raised sheet has
-            // pinned its own moment — otherwise the centre of the chain IS nowT
-            if (mode !== 'free' || playing || sheetHikeId) return;
+            /* The chain is live in BOTH modes (July 2026). Only two things can
+               take the clock away from it: the engine while it is actually
+               PLAYING, and a raised sheet, which has pinned its own moment.
+               It used to also bail out whenever mode !== 'free', which meant
+               that pausing mid-expedition froze the timeline — you could drag
+               it but nothing lit or dimmed, and there was no way to scroll to a
+               different part of the Atlas without first leaving the tour.
+               Programmatic scrolls (syncScrub, the ceremony) suppress this
+               callback in atlas-chain.js, so the engine can't feed itself. */
+            if (playing || sheetHikeId) return;
             scrubRevealToTime(t, trailId);
         }
     });
@@ -1379,9 +1466,12 @@ function scrubRevealToTime(t, trailId) {
     nowT = tt;
     holdLegId = null;
     applyReveal();
-    // scrubbing in free mode previews the hike under the playhead in the deck —
-    // the name is right there as you slide, and the tour picks up from it
+    // scrubbing previews the hike under the playhead in the deck — the name is
+    // right there as you slide, and the tour picks up from it
     if (!playing && legs[inkIx]) previewPlaque(legs[inkIx].h);
+    // ...and the readout follows too, so scrubbing across a chapter line while
+    // paused renames the chapter instead of leaving a stale one on screen
+    updateDeck();
 }
 
 // --- Framing: fit a trail into the open space beside the card + deck.
@@ -1889,6 +1979,12 @@ const DOOR_LOG_GLYPH = '<svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="t
     '<path d="M12 7.2v12.2"/></svg>';
 const DOOR_CHEV_FWD = '<svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true">' +
     '<path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>';
+// The chapter glyph: a surveyed section line with its stations standing on it.
+// It is a picture of the trip page's own instrument — the Traverse — so the
+// door shows you what is on the other side of it rather than an abstract icon.
+const DOOR_CHAPTER_GLYPH = '<svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<path d="M2 15.5l4.5-6 4 4.5 4.5-8 7 9.5"/><path d="M2 19h20"/>' +
+    '<circle cx="6.5" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><circle cx="17.5" cy="19" r="1.6"/></svg>';
 
 // --- the field plaque: the ledger inside the deck, no photo by decision ---
 function plaqueHtml(h) {

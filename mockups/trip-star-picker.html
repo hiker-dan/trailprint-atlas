@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Workbench — pick each trip's opening photograph</title>
+<style>
+/* A WORKBENCH PAGE, not part of the site. It exists so Danny can look at every
+   photograph a trip holds and choose the one that opens it. Clicking a frame
+   copies the line to paste into TRIP_STARS. */
+:root { --evergreen:#2f5c40; --stone:#6f6a58; --gravel:#9a927c; --brass:#b9a578; --parch:#f0e7cf; }
+* { box-sizing:border-box; }
+body { margin:0; background:#e8dfc6; color:#2b2a24; font-family:Georgia,serif; padding:26px 30px 60px; }
+h1 { font-size:24px; color:var(--evergreen); margin:0 0 4px; font-weight:normal; }
+.sub { font-size:12.5px; font-style:italic; color:var(--stone); margin-bottom:20px; }
+select { font-family:Georgia,serif; font-size:15px; padding:7px 10px; border:1px solid var(--brass);
+    background:#fffdf6; color:var(--evergreen); margin-bottom:6px; min-width:340px; }
+.stop { margin:22px 0 0; }
+.stop h2 { font-size:15px; color:var(--evergreen); margin:0 0 2px; font-weight:normal; }
+.stop .m { font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--gravel); margin-bottom:9px; }
+.row { display:flex; flex-wrap:wrap; gap:12px; }
+figure { margin:0; width:250px; cursor:pointer; }
+figure img { width:250px; height:158px; object-fit:cover; display:block;
+    border:1px solid var(--brass); background:#ddd3b8; transition:outline 0.12s ease; }
+figure.star img { outline:4px solid #b83d2e; outline-offset:2px; }
+figcaption { font-size:10.5px; color:var(--stone); margin-top:5px; word-break:break-all; }
+figure:hover img { outline:3px solid var(--evergreen); outline-offset:2px; }
+.out { position:fixed; left:0; right:0; bottom:0; background:#2f2b20; color:#f0e7cf;
+    font-family:Menlo,monospace; font-size:12px; padding:12px 18px; white-space:pre; overflow-x:auto;
+    border-top:2px solid var(--brass); }
+.none { font-size:12.5px; font-style:italic; color:var(--gravel); }
+</style>
+</head>
+<body>
+<h1>Which photograph opens this trip?</h1>
+<div class="sub">Every frame the trip holds. Click one to choose it — the line at the bottom is what goes into
+    <b>TRIP_STARS</b>. A red outline marks the current pick; with nothing picked, the trip falls back to the
+    most-photographed stop's first frame.</div>
+<select id="pick"></select>
+<div id="body"></div>
+<div class="out" id="out">Pick a photograph…</div>
+
+<script>
+const MED = id => `https://res.cloudinary.com/dgdniwosl/image/upload/w_600,h_380,c_fill,q_auto,f_auto/${id}`;
+const fmt = s => new Date(s + 'T00:00:00Z').toLocaleDateString('en-US',
+    { timeZone:'UTC', month:'short', day:'numeric', year:'numeric' });
+let picked = {};
+
+fetch('../data/hikes.json').then(r => r.json()).then(hikes => {
+    const trips = {};
+    hikes.forEach(h => { if (h.trip_tag) (trips[h.trip_tag] = trips[h.trip_tag] || []).push(h); });
+    const tags = Object.keys(trips);
+    const sel = document.getElementById('pick');
+    tags.forEach(t => {
+        const n = trips[t].reduce((s, h) => s + (h.images || []).length, 0);
+        sel.appendChild(Object.assign(document.createElement('option'),
+            { value:t, textContent:`${t}  (${n} photos)` }));
+    });
+
+    function render() {
+        const tag = sel.value;
+        const trip = trips[tag].slice().sort((a, b) => a.date_completed.localeCompare(b.date_completed) ||
+            (+a.trail_id.split('_')[1]) - (+b.trail_id.split('_')[1]));
+        const body = document.getElementById('body');
+        body.innerHTML = '';
+        trip.forEach(h => {
+            const imgs = h.images || [];
+            const d = document.createElement('div');
+            d.className = 'stop';
+            d.innerHTML = `<h2>${h.trail_name}</h2><div class="m">${h.hike_type} · ${h.location} · ${fmt(h.date_completed)}</div>`;
+            const row = document.createElement('div');
+            row.className = 'row';
+            if (!imgs.length) row.innerHTML = '<div class="none">No photographs on this stop.</div>';
+            imgs.forEach(id => {
+                const f = document.createElement('figure');
+                if (picked[tag] === id) f.className = 'star';
+                f.innerHTML = `<img loading="lazy" src="${MED(id)}" alt=""><figcaption>${id}</figcaption>`;
+                f.onclick = () => {
+                    picked[tag] = id;
+                    document.getElementById('out').textContent =
+                        `'${tag}' : '${id}',`;
+                    navigator.clipboard && navigator.clipboard.writeText(`    '${tag}' : '${id}',`);
+                    render();
+                };
+                row.appendChild(f);
+            });
+            d.appendChild(row);
+            body.appendChild(d);
+        });
+    }
+    sel.onchange = render;
+    render();
+});
+</script>
+</body>
+</html>

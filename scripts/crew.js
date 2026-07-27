@@ -88,11 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span class="cdh-arrow">&rarr;</span>
             </a>`).join('');
         const tripsLine = p.trips.size > 0
-            ? `<div class="crew-drawer-trips">Trips together: ${[...p.trips].map(t => {
-                    const splitAt = t.lastIndexOf(' - ');
-                    const tripName = splitAt > 0 ? t.slice(0, splitAt) : t;
-                    return `<a href="trip.html?tag=${encodeURIComponent(t)}">${tripName}</a>`;
-                }).join(' &middot; ')}</div>`
+            ? `<div class="crew-drawer-trips">Trips together: ${[...p.trips].map(t =>
+                    `<a href="trip.html?tag=${encodeURIComponent(t)}">${tripName(t)}</a>`
+                ).join(' &middot; ')}</div>`
             : '';
         return `
         <div class="crew-row" data-row="${i}">

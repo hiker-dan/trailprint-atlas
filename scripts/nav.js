@@ -6,8 +6,12 @@
  * loading-bar sequence — always find them. Load this immediately after the
  * <nav id="top-bar-container"></nav> placeholder.
  *
- * Behavior (latest-hike link target, active-page highlight) lives in
- * nav-updater.js. Styling lives in styles/base.css.
+ * Behavior (active-page highlight) lives in nav-updater.js. Styling lives in
+ * styles/base.css.
+ *
+ * There is deliberately NO link to a hike page here (removed July 2026). A hike
+ * is reached through the land — the interactive map, or a trip chapter opened
+ * from it — never by jumping straight to whichever one happens to be newest.
  */
 (function () {
     const navContainer = document.getElementById('top-bar-container');
@@ -24,7 +28,6 @@
         <div id="main-nav">
             <a href="index.html">Home</a>
             <a href="map.html">Interactive Map</a>
-            <a href="#" id="latest-hike-link">Logbook</a>
             <a href="echoes.html">Echoes</a>
             <a href="crew.html">Trail Crew</a>
             <a href="credits.html">The Overlook</a>

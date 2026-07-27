@@ -534,13 +534,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         $('c-sub').textContent =
             `${hike.location} — ${hike.region} · ${isVp ? 'Visited' : 'Hiked'} ${formatHikeDate(hike.date_completed)}`;
 
+        /* The collar NAMES the chapter; the chapter door beside it is what
+           crosses to it. They used to be one clickable line, which meant two
+           routes to the same page sitting inches apart — the door is the
+           crossing everywhere else in the Atlas, so it is the crossing here. */
         const tripLine = $('c-trip');
+        const chapterDoor = $('chapter-door');
         if (hike.trip_tag) {
-            const splitAt = hike.trip_tag.lastIndexOf(' - ');
-            const tripName = splitAt > 0 ? hike.trip_tag.slice(0, splitAt) : hike.trip_tag;
-            tripLine.innerHTML = `<a href="trip.html?tag=${encodeURIComponent(hike.trip_tag)}">Part of: ${tripName} &rarr;</a>`;
+            tripLine.textContent = `Part of the ${tripName(hike.trip_tag)}`;
+            chapterDoor.href = `trip.html?tag=${encodeURIComponent(hike.trip_tag)}`;
+            chapterDoor.title = `Back to the chapter — the whole ${tripName(hike.trip_tag)}, end to end`;
+            chapterDoor.hidden = false;
         } else {
-            tripLine.innerHTML = '';
+            tripLine.textContent = '';
+            chapterDoor.hidden = true;
         }
 
         const seal = $('seal');

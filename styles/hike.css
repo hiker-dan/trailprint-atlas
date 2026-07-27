@@ -14,7 +14,8 @@
       from the trail it describes.
 
    Mockup / spec: mockups/hike-light-table-v2.html
-   The timeline strip at the top is untouched (timeline-nav.css);
+   The timeline strip at the top is gone (July 2026 — time-navigation
+   lives only on the map);
    its future is its own conversation.
    ============================================================ */
 
@@ -274,6 +275,14 @@ body {
 .land-door { gap: 7px; padding: 6px 12px; font-size: 8.5px; letter-spacing: 0.18em; line-height: 1.5; }
 .land-door .ad-chev { width: 12px; height: 12px; }
 .land-door .ad-glyph { width: 15px; height: 15px; }
+
+/* THE CHAPTER DOOR: out to the trip this day belonged to. The same return
+   door, sized identically to its neighbour so the pair reads as one set of
+   ways out — the chapter is the wider frame, the land is the map itself. */
+.chapter-door { gap: 7px; padding: 6px 12px; font-size: 8.5px; letter-spacing: 0.18em; line-height: 1.5; }
+.chapter-door .ad-chev { width: 12px; height: 12px; }
+.chapter-door .ad-glyph { width: 15px; height: 15px; }
+.chapter-door[hidden] { display: none; }
 .full-btn {
     width: 34px;
     height: 34px;

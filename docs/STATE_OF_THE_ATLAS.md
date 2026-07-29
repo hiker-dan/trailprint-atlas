@@ -11,10 +11,11 @@ in git history.*
 
 ## Where the build actually stands
 
-**The redesign arc has three pages left.** Home, the interactive map, the hike page
-and Echoes speak the engraved-atlas language. **`trip.html`, `crew.html` and
-`crew-member.html` do not** — they share one dated visual system between them
-(see live problem 2).
+**The redesign arc is closed.** Every page of the Atlas now speaks the engraved-
+atlas language: home, the interactive map, the hike page, Echoes, `trip.html`
+(The Traverse, July 2026) and finally `crew.html` + `crew-member.html`
+(The Muster Roll and The Service Record, July 2026). There is no page left
+wearing the old slab-hero, white-card system.
 
 **The data is complete and caught up.** 123 records, 8 Jan 2022 → 18 Jul 2026;
 113 hikes and 10 viewpoints; every `description`, `flora` and `fauna` filled.
@@ -35,7 +36,7 @@ diet (1,916 → 674 tile requests on a fixed session).
 | **2 — Pack Lighter** (perf + mobile) | ✅ Perf done, and then some — the July map diet cut tile traffic ~65%. ⏸ **Mobile still deferred by choice** |
 | **3 — Catch Up the Logbook** (data) | ✅ **Done.** Pipeline shipped; backlog fully entered (123 records through 18 Jul 2026). Runyon became Echoes' Local Loop |
 | **4 — Find Your Voice** (storytelling) | ◐ Trip pages ✅, Local Loop ✅, elevation profiles ✅, fire memorial ✅, loading phrases ✅. **Journal (`notes`, 0/123) and The Overlook statement still empty — deferred by choice** |
-| **5 — New Summits** (expansion) | ◐ Trail Crew ✅ *(built, but still in the old skin — see roadmap item 2)*, Observatory ✅, hero film + map expedition ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
+| **5 — New Summits** (expansion) | ◐ Trail Crew ✅ *(rebuilt as The Muster Roll + The Service Record, July 2026)*, Observatory ✅, hero film + map expedition ✅. **Park Badges, Gear catalog, Year in Review, achievement badges pending. Photo privacy gate cut** |
 
 ---
 
@@ -47,8 +48,8 @@ diet (1,916 → 674 tile requests on a fixed session).
   is live on the map, the deck's old year-banded scrub is retired, and the
   explicitly-deferred bug ("returning from a hike page resets the animation to the
   end") is fixed: `restoreLandState` restores `inkIx` and parks the chain on it.
-  **Stage 4's trip page is now done too** (The Traverse — see the roadmap below);
-  only the crew re-skin is left of the redesign arc.
+  **Stage 4 is now complete**: the trip page (The Traverse) and the crew pages
+  (The Muster Roll + The Service Record) both shipped, closing the redesign arc.
 - **The backlog (old item 5).** Finished ahead of its slot in the order.
 - **Elevation ground truth** (unplanned). `tools/correct-elevations.py` asks USGS
   3DEP what the ground really is; `summit_elevation` is derived, never typed;
@@ -170,11 +171,32 @@ Two retirements fell out of it:
   the last holdout. Kept for now, deleted in stage 6 unless it finds a new home.
 - The old trip page's journey map, stop clustering and itinerary are gone with it.
 
-**Still open: `crew.html` + `crew-member.html` — a coat of paint.** The bones stay,
-explicitly: core-crew field cards, the register with era bars, and the
-region-grouped shared-trail maps. What changes is the surface — the slab hero, the
-white cards, the underlined headings — and the maps trade stock Esri Topo for the
-Atlas basemap. The Traverse's sheet-compacted-to-a-card is the pattern to reuse.
+**`crew.html` + `crew-member.html` are done — THE MUSTER ROLL shipped July 2026,
+and it is not the coat of paint this item planned.** Three concepts were mocked
+up (Triangulation Network, Muster Roll, Trail Register), then the last two were
+blended, because they turned out to be the same object: a muster roll *is* a
+register, and both already ordered people by arrival. So Trail Crew is a bound
+volume open on a desk — cover and roll on `crew.html`, record and plates on
+`crew-member.html` — with a **page turn** (`crew-book.js`) carrying a visitor
+between them, filmed across two documents so the swap is never seen.
+
+What the rebuild added beyond the surface:
+- **Order of arrival, not rank.** The ranked list was hiding the Atlas's social
+  eras; ordered by first signature, the circles visibly arrive and hand off.
+- **Ledger brace + ditto** for a party who signed in on one outing (five did, at
+  Astral Drive, March 2022).
+- **The cross-read** — hover a lane and the outings shared with everyone else
+  light across the other lanes. The triangulation idea, on the time axis.
+- **The counter-lane** of outings walked alone, drawn hollow.
+- The plate maps traded stock Esri Topo for the real Atlas basemap, and the
+  enlarged personal lane became the **index** to them.
+- Every companion now has a Service Record, so a companion's name anywhere in
+  the Atlas leads to the same place instead of a generic front door.
+
+**The Triangulation Network is not dropped** — Danny wants a version of it as an
+**Observatory** element on the home page, since that section is already the
+Atlas's data room. Unbuilt; it is the one piece of this arc still owed.
+`mockups/crew-network.html` is the reference.
 
 ### 3. Park Badges  *(the trophy case)*
 47 unique `location` values are waiting. Park type derives from `location` via a

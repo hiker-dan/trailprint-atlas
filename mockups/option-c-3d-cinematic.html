@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Life in Trails — the cutting room</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<style>html { background: #ece3ce; }</style>
+<link rel="stylesheet" href="../styles/base.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="../styles/home.css">
+<style>
+/* ===========================================================================
+   THE CUTTING ROOM.
+
+   This page is not a copy of the film — it IS the film, in a room with the
+   lights on. `scripts/intro-film.js` and `styles/home.css` are the same two
+   files index.html loads; everything below is only the furniture you need in
+   order to judge and re-cut it, and none of it ships:
+
+     · a full-screen stage instead of the homepage's hero section
+     · a boot screen, because there is no nav loading-bar to hide behind here
+     · the instruments (frame rate, worst frame, which movement is playing)
+     · window.__film, which tools/render-intro.py drives
+
+   The video is baked FROM this page — `tools/render-intro.py`, which passes
+   ?live=1 so the real 3D flight runs instead of the video of it. So this is the
+   room the cut is made in, and index.html is where the cut is shown. If you
+   change the choreography, you change it in scripts/intro-film.js and it lands
+   in both places at once, which is the entire point of this arrangement.
+   =========================================================================== */
+* { box-sizing: border-box; }
+body { margin: 0; background: #0b1013; font-family: var(--font-body); overflow: hidden; }
+/* The homepage sizes its hero to leave the nav room; here the film has the
+   whole window, which is also the shape it is rendered at. */
+#hero-film { height: 100vh; width: 100vw; min-height: 0; }
+
+.hud { position: absolute; z-index: 600; left: 12px; top: 12px; background: rgba(255,253,246,0.92);
+    border: 1px solid #d8ccae; border-radius: 4px; padding: 9px 12px; font-size: 0.74em;
+    color: var(--evergreen); line-height: 1.65; letter-spacing: 0.02em; min-width: 205px;
+    box-shadow: 0 2px 10px rgba(60,50,30,0.12); }
+.hud .h { text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.86em;
+    color: var(--trail-green); font-weight: 700; margin-bottom: 4px; }
+.hud b { font-weight: 700; }
+.hud .note { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e6dbc0; color: var(--gravel); font-size: 0.92em; }
+
+.boot { position: absolute; z-index: 700; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #ece3ce; transition: opacity 0.8s ease; }
+.boot.done { opacity: 0; pointer-events: none; }
+.boot-t { font-family: var(--font-display); font-size: 1.05em; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--evergreen); }
+</style>
+</head>
+<body>
+
+<!-- The film builds its own layers inside this element, exactly as it does in
+     index.html. The chrome below is the homepage's own, kept so both hosts are
+     judged on the same picture. -->
+<section class="hero-film" id="hero-film">
+    <div class="hero-title" id="hero-title">
+        <h1><span>The Trailprint Atlas</span></h1>
+    </div>
+    <div class="terrain-credit">Imagery: Esri World Imagery &middot; Terrain: Mapzen / AWS</div>
+    <button class="film-btn" id="film-btn" type="button">Skip</button>
+</section>
+
+<div class="hud" id="hud">
+    <div class="h">Instruments</div>
+    <div>Frame rate <b id="fps">&mdash;</b></div>
+    <div>Slowest frame <b id="worst">&mdash;</b></div>
+    <div>Stage <b id="stage-n">&mdash;</b></div>
+    <div class="note" id="note">Real GPX &middot; real DEM &middot; real imagery</div>
+</div>
+<div class="boot" id="boot"><div class="boot-t">Loading the ground</div></div>
+
+<script src="../scripts/config.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+<script src="../scripts/intro-film.js"></script>
+<script>
+// ===== The cutting room's own instruments ==================================
+// Everything here READS the film; nothing here is part of it.
+(async function () {
+    const $ = id => document.getElementById(id);
+    const film = await (window.AtlasFilmReady || Promise.resolve(window.AtlasFilm));
+    if (!film) { $('boot').querySelector('.boot-t').textContent = 'The film failed to start'; return; }
+
+    let frames = 0, fpsT = 0, worst = 0, last = 0;
+    film.onFrame(now => {
+        if (last) { const d = now - last; if (d > worst) { worst = d; $('worst').textContent = Math.round(d) + ' ms'; } }
+        last = now; frames++;
+        if (now - fpsT >= 500) { $('fps').textContent = Math.round(frames * 1000 / (now - fpsT)) + ' fps'; frames = 0; fpsT = now; }
+    });
+    film.onStage(name => { $('stage-n').textContent = name; });
+    // `dress` strips the film for the camera; the room's furniture goes with it.
+    film.onDress(() => { ['hud', 'boot'].forEach(id => $(id).style.display = 'none'); });
+
+    // In video mode the flight's own schedule is never built (its ink is a
+    // matter of record, not derivation), so count what the RECORD says.
+    const d = film.dbg;
+    const inFlight = d.FILM ? d.FILM.inked.length : d.SCHED.anf.length + 1;
+    $('note').innerHTML = `${inFlight} trails inked in the flight` +
+        `${d.FILM ? ' (from the record)' : ' (live cut)'}<br>` +
+        `${d.natOrder.length} trailprints nationwide`;
+
+    await film.ready;
+    $('boot').classList.add('done');
+    setTimeout(() => { $('boot').style.display = 'none'; }, 800);
+})();
+</script>
+</body>
+</html>

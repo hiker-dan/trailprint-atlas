@@ -78,25 +78,92 @@ h1 {
 }
 
 /* --- The Life in Trails: the hero film --- */
-/* No raster basemap in the usual sense — the whole map lives in one SVG whose
-   viewBox drives the zoom. viewBox re-renders the vectors crisply every frame
-   (an ANIMATED transform would get GPU-snapshotted and stretched — blurry).
-   Stroke widths counter-scale via --z (set per frame by home.js) so line
-   weight stays constant on screen at any depth, and the dash-based draw-on
-   animation keeps working in map units. The terrain is static rings of Esri
-   Shaded Relief imagery placed inside the same SVG, so it rides the zoom with
-   zero mid-animation tile loading. */
+/* Two halves joined by a cloud: a baked video of the 3D flight over the San
+   Gabriels, then a LIVE MapLibre map of the Atlas sheet pulling back to the
+   whole country. scripts/intro-film.js builds every layer below inside
+   .hero-film — the markup in index.html holds only the chrome that outlives the
+   film (title, hint, credit, button, vignette). The same script and the same
+   stylesheet dress the cutting room at mockups/option-c-3d-cinematic.html, so
+   there is exactly one copy of all of this.
+   (The old SVG-viewBox film lived here until July 2026. Its trail/state/halo
+   rules went with it — the trails are drawn by MapLibre now, in GL.) */
 .hero-film { position: relative; height: calc(100vh - 40px); min-height: 620px; overflow: hidden; background: #ece3ce; }
-#hero-map { position: absolute; inset: 0; background: #ece3ce; }
-#map-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; opacity: 0; transition: opacity 0.7s ease; }
-#map-svg.ready { opacity: 1; }
-.trail-line { fill: none; stroke-width: calc(3px / var(--z, 1)); stroke-linecap: round; stroke-linejoin: round; }
-/* Soft under-glow per trail, in the trail's own year colour. Invisible up
-   close; home.js fades the group in as the camera recedes, so the final
-   frame reads as warm trailprints — brightest where the most miles live. */
-.trail-halo { fill: none; stroke-width: calc(11px / var(--z, 1)); stroke-linecap: round; stroke-linejoin: round; }
-/* Terrain sits underneath, so states are borders only — no fill. */
-.state-line { fill: none; stroke: #a8946e; stroke-opacity: 0.55; stroke-width: calc(1.1px / var(--z, 1)); }
+.hero-film.is-film { background: #0b1013; }
+/* Both maps fill the stage. The sheet starts invisible and is faded up behind
+   the cloud; the flight sits above it until the swap. */
+.if-map { position: absolute; inset: 0; }
+.if-atlas { opacity: 0; }
+.if-globe { z-index: 2; }
+/* If the film cannot start at all, the hero is still a hero: parchment, the
+   title, and the page carrying on below it. */
+.hero-film.film-failed { background: #ece3ce; }
+.hero-film.film-failed .if-map,
+.hero-film.film-failed .if-video { display: none; }
+
+.maplibregl-ctrl-attrib { display: none !important; }
+
+/* The cloud. Not one gradient but several at different scales and speeds —
+   a single radial reads as a vignette, and what sells cloud is that different
+   parts of it move differently. */
+/* display:none until it is actually wanted. `will-change` on the three layers
+   below promotes each to its own compositor layer the moment it exists, and at
+   120% of the viewport that is three full-screen surfaces being composited on
+   every frame of the film — for the 66% of it where the cloud is invisible. */
+/* AERIAL HAZE — and it is doing a job MapLibre was supposed to do and doesn't.
+   The style asks for fog (`fog-ground-blend`), but measured against the rendered
+   pixels that setting changes NOTHING in this shot: at 50 degrees of pitch from
+   a low altitude the horizon is above the top of the frame, there is no sky in
+   the picture, and MapLibre's fog is computed against the horizon. Setting it to
+   0.05 and to 0.34 produced byte-identical frames.
+   Which matters because the top of the frame is 60 km of Mojave, drawn from
+   tiles two levels coarser than the foreground, and Esri RE-RENDERS its imagery
+   per level from different source photography — so that band is a patchwork of
+   grey-green rectangles beside brown ones, and the boundary marches sideways in
+   steps as tiles swap level under the widening camera. Measured: the band's
+   colour drifts by 0.045 a frame and then jumps by up to 3.6.
+   So the haze is painted here instead. It is NOT the fix for the patchwork any
+   more — turning the camera to rest facing south-east is (see FINAL_BEARING),
+   and that removed the steps entirely rather than covering them. What is left
+   here is only what MapLibre's fog was for: aerial perspective, the oldest
+   depth cue there is, on a film whose whole subject is scale. It is therefore
+   half the strength it needed to be as a patch, and it arrives later, because
+   at patch strength it read as the cloud closing in early. ?haze=0 turns it
+   off, ?haze=1.6 to push it. */
+.if-haze { position: absolute; inset: 0; z-index: 200; pointer-events: none; opacity: 0;
+    background: linear-gradient(to bottom,
+        rgba(220,210,188,0.52) 0%, rgba(221,211,189,0.40) 8%,
+        rgba(222,212,190,0.24) 16%, rgba(223,213,191,0.10) 24%,
+        rgba(224,214,192,0) 32%); }
+
+/* The flight is cool olive satellite; the Atlas sheet it becomes is warm
+   parchment. A light wash of the Atlas's own tone over the imagery pulls the
+   two halves into one film instead of two mediums joined by a cloud. It is the
+   same device map.html uses over CARTO, for the same reason. ?wash=0 / ?wash=1.6 */
+/* The baked flight. `cover` rather than `contain`: this is a full-bleed hero,
+   and the film was framed 16:9 with margin precisely so a crop on a taller or
+   wider window takes room the composition can spare. The one moment the video
+   and the live map must agree is the swap, and by then the screen is white. */
+.if-video { position: absolute; inset: 0; z-index: 5; object-fit: cover;
+    width: 100%; height: 100%; opacity: 0; background: #b9b3a2; }
+
+.if-wash { position: absolute; inset: 0; z-index: 190; pointer-events: none;
+    background: #c9a86a; mix-blend-mode: soft-light; }
+
+.if-clouds { position: absolute; inset: -20%; z-index: 300; pointer-events: none;
+    opacity: 0; display: none; }
+.if-clouds.on { display: block; }
+.if-clouds i { position: absolute; inset: 0; display: block; will-change: transform, opacity; }
+/* The billow layers get REAL cloud texture, generated at boot as fractal noise
+   (see cloudTexture()) rather than drawn as radial gradients. Stacked radials
+   read as a vignette closing in, which is exactly what Danny called "just a
+   white screen taking over" — clouds have edges and structure at every scale,
+   and that is what fractal noise gives you and a gradient never can. */
+.if-clouds i.puff { background-repeat: repeat; background-position: 50% 50%; }
+/* The base still has to reach FULLY OPAQUE, or the cloud is a haze rather than a
+   mask and the swap underneath it shows. The puffs are what you WATCH; this is
+   what actually hides the cut, and it arrives late and briefly. */
+.c3 { background: radial-gradient(150% 140% at 50% 45%, #ffffff 0%, #fdfbf6 60%, #f6f2e8 100%); }
+
 /* --- The inset plates (Alaska, and one day Hawaii) ---
    The film frames the lower 48; country too far out to share that frame gets
    its own small sheet in the corner, at its own scale, the way atlases have
@@ -143,17 +210,76 @@ h1 {
     font-size: 0.6em; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700;
     color: var(--evergreen); opacity: 0.7; text-shadow: 0 1px 2px rgba(236,227,206,0.9); }
 
-.hero-vig { position: absolute; inset: 0; z-index: 400; pointer-events: none;
-    background: radial-gradient(120% 90% at 50% 42%, rgba(236,227,206,0) 45%, rgba(60,50,30,0.14) 100%); }
+/* The film's vignette. Built by intro-film.js, and its exact colour matters:
+   the SAME gradient is baked into the video, so any difference between the two
+   shows up as the corners changing at the moment the live map takes over. */
+/* --- The plate room: what you look at while the film loads ---------------
+   Parchment and brass, deliberately: the film opens on satellite terrain, so
+   the cover gives nothing of it away. Inside the compass sits a REAL trailprint
+   from the Atlas, picked fresh on every load and inked in its own year's
+   colour, and the ring is the true fraction of the film that has arrived. */
+.if-load { position: absolute; inset: 0; z-index: 800; background: #ece3ce;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+    transition: opacity 0.9s ease; }
+.if-load.is-gone { opacity: 0; pointer-events: none; }
+.if-plate { width: 208px; height: 208px; overflow: visible; }
+/* the neatline, and the plate's own face */
+.pl-rule { fill: none; stroke: #9c8862; stroke-opacity: 0.45; stroke-width: 1; }
+.pl-face { fill: #f3ecda; stroke: #9c8862; stroke-opacity: 0.7; stroke-width: 1.2; }
+.pl-tick { stroke: #9c8862; stroke-opacity: 0.55; stroke-width: 1; }
+.pl-tick.is-card { stroke-opacity: 0.85; stroke-width: 1.6; }
+.pl-north { fill: #9c8862; fill-opacity: 0.8; }
+/* the progress ring: brass, drawn clockwise from north */
+.pl-ring { fill: none; stroke: var(--trail-green, #3f6b4a); stroke-width: 2.6;
+    stroke-linecap: round; transform: rotate(-90deg); transform-origin: 100px 100px;
+    transition: stroke-dashoffset 0.35s ease; }
+/* the trailprint. Round caps so a short walk still reads as a deliberate mark. */
+.pl-ink { fill: none; stroke: #6d6350; stroke-width: 2.4;
+    stroke-linecap: round; stroke-linejoin: round;
+    transition: stroke-dashoffset 0.5s ease; }
+.if-load-cap { font-family: var(--font-display); font-size: 0.82em; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--evergreen); opacity: 0.65; }
+
+.if-vig { position: absolute; inset: 0; z-index: 400; pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 45%, rgba(0,0,0,0) 44%, rgba(20,14,6,0.30) 100%); }
 .terrain-credit { position: absolute; z-index: 500; left: 12px; bottom: 12px; font-size: 0.72em;
     color: var(--stone); opacity: 0.75; letter-spacing: 0.04em; pointer-events: none; }
 
+/* --- The title -----------------------------------------------------------
+   The one moment the Atlas says its own name, so it is given room and nothing
+   else. The rules and sub-line that were here briefly are gone: over shaded
+   relief they read as more state borders, which is the opposite of grandeur.
+   What is left is scale, spacing, and the same gesture as every other mark in
+   this project — it INKS ON, left to right, as if written. */
 .hero-title { position: absolute; z-index: 500; left: 0; right: 0; top: 50%; transform: translateY(-50%);
     text-align: center; pointer-events: none; }
-.hero-title h1 { font-family: var(--font-display); font-size: clamp(2.6em, 6vw, 5.2em); color: var(--evergreen);
-    margin: 0; letter-spacing: 0.02em; text-shadow: 0 2px 22px rgba(247,244,236,0.9), 0 1px 3px rgba(247,244,236,1);
-    opacity: 0; transform: translateY(16px); transition: opacity 1.2s ease, transform 1.3s cubic-bezier(0.16, 1, 0.3, 1); }
-.hero-title.show h1 { opacity: 1; transform: none; }
+.hero-title h1 { margin: 0; font-weight: 500; font-family: var(--font-display);
+    font-size: clamp(2.9em, 7.4vw, 6.6em); line-height: 1.04;
+    letter-spacing: 0.085em; text-indent: 0.085em;   /* the tracking, given back */
+    color: var(--evergreen); }
+/* The pen. `clip-path` wipes the glyphs in from the left rather than fading
+   them, which is what makes it read as ink being laid rather than a title
+   appearing. Chromium can composite a rectangular clip-path like this one
+   without repainting every frame; Firefox generally cannot, so the wipe still
+   costs a real paint per frame there — `will-change` gives both engines the
+   best shot at it, and on a single small heading, rarely shown, leaving it on
+   is not worth the complexity of toggling it off again.
+   The span exists only to carry the clip: clipping the h1 itself would cut off
+   the glow that lifts the name off the map. */
+.hero-title h1 span { display: inline-block;
+    clip-path: inset(0 100% -30% 0);
+    opacity: 0;
+    will-change: clip-path, opacity;
+    /* a paper-white halo, then the faintest engraved shadow under it */
+    text-shadow: 0 0 34px rgba(247,244,236,0.92), 0 0 14px rgba(247,244,236,0.98),
+                 0 1px 0 rgba(255,253,246,0.55), 0 2px 3px rgba(60,50,30,0.22);
+    transition: clip-path 1.9s cubic-bezier(0.22, 0.61, 0.24, 1),
+                opacity 0.5s ease; }
+.hero-title.show h1 span { clip-path: inset(0 -12% -30% 0); opacity: 1; }
+/* Landing without the film — a repeat visit, or reduced motion — should not
+   perform. The name is simply already written. */
+.intro-fast-forward .hero-title h1 span,
+.hero-title.no-anim h1 span { transition: none; }
 
 .scroll-hint { position: absolute; z-index: 500; left: 0; right: 0; bottom: 26px; text-align: center;
     color: var(--stone); font-size: 0.85em; letter-spacing: 0.16em; text-transform: uppercase; opacity: 0;

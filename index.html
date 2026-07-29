@@ -25,10 +25,7 @@
          flash) and fetches its terrain from Esri — warm that connection early. -->
     <style>html { background: #ece3ce; }</style>
     <link rel="preconnect" href="https://server.arcgisonline.com">
-    <!-- Add Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
+    <link rel="preconnect" href="https://res.cloudinary.com">
     <link rel="stylesheet" href="styles/base.css"/>
     <link rel="stylesheet" href="styles/threads.css"/>
     <link rel="stylesheet" href="styles/observatory.css"/>
@@ -50,18 +47,21 @@
     <script src="scripts/nav.js"></script>
 
     <!-- ===== THE LIFE IN TRAILS (hero film: the Atlas draws itself) =====
-         A vector map opens tight over home ground and pulls back to the whole
-         country while every trail draws itself in, in year colours. First visit
-         each session gets the full ~20s film (skippable); after that the page
-         loads straight onto the finished map, and the button offers a replay. -->
+         A 3D flight over the San Gabriels with the PCT leg inking itself, into
+         cloud, and out onto the Atlas sheet pulling back to the whole country
+         while the rest of the trailprints draw themselves in. The flight is a
+         baked video (see tools/render-intro.py); everything from the cloud
+         onward is a live map, so a hike added tomorrow appears with no
+         re-render. First visit each session gets the full film (skippable);
+         after that the page loads straight onto the finished sheet.
+         Only the chrome that OUTLIVES the film is written here — the map
+         layers, the video and the cloud are built by scripts/intro-film.js. -->
     <section class="hero-film" id="hero-film">
-        <div id="hero-map"></div>
-        <div class="hero-vig"></div>
         <div class="hero-title" id="hero-title">
-            <h1>The Trailprint Atlas</h1>
+            <h1><span>The Trailprint Atlas</span></h1>
         </div>
         <div class="scroll-hint" id="scroll-hint">scroll to begin</div>
-        <div class="terrain-credit">Terrain &copy; Esri &middot; Shaded Relief</div>
+        <div class="terrain-credit">Imagery: Esri World Imagery &middot; Terrain: Mapzen / AWS</div>
         <button class="film-btn" id="film-btn" type="button">Skip</button>
     </section>
 
@@ -192,20 +192,22 @@
          data returns inside the Observatory section. Echoes of the Trail
          moved to echoes.html.) -->
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-   crossorigin=""></script>
+    <!-- Leaflet is NOT loaded here any more. The old SVG hero film used it for
+         projection only (no tiles, no layers); the film is MapLibre now, which
+         projects for itself, and nothing else on this page ever used it.
+         trail-renderer.js went with it — no homepage section calls it. -->
 
    <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
    <script src="scripts/config.js"></script>
    <script src="scripts/atlas-data.js"></script>
 
-   <!-- Our new shared trail renderer -->
-   <script src="scripts/trail-renderer.js"></script>
-
    <!-- Homepage logic (extracted in Phase 1.4) -->
    <script src="scripts/home.js"></script>
+
+   <!-- The opening film. MapLibre GL renders both of its maps; home.js must go
+        first because the film coordinates its skip through AtlasIntro. -->
+   <script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
+   <script src="scripts/intro-film.js"></script>
 
    <!-- Threads of the Trail: the milestone quadrangle (home redesign, July 2026) -->
    <script src="scripts/threads.js"></script>

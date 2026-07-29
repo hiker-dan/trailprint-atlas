@@ -10,3 +10,9 @@ node_modules/
 intake/
 tools/cloudinary-credentials.json
 *.bak
+
+# Intro-film renders: the baked video is delivered through Cloudinary, never
+# committed — a binary that grows every time the film is re-cut is exactly the
+# thing git is worst at. tools/render-intro.py builds its own venv here too.
+renders/
+tools/.render-venv/

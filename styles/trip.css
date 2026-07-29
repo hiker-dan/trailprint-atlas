@@ -143,11 +143,9 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 /* =====================================================================
    THE TRAVERSE
    ===================================================================== */
-.trip-hint {
-    position: absolute; right: 26px; top: 22px; z-index: 600;
-    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
-    text-transform: uppercase; color: #9a927c;
-}
+/* (The "Walk the traverse" hint that used to sit in the top-right corner is
+   gone, July 2026: the traverse is the loudest thing on the page and needed
+   no label, and the corner belongs to the land.) */
 
 .trav {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 650; height: 204px;
@@ -174,7 +172,17 @@ body { margin: 0; font-family: var(--font-body); overflow: hidden; }
 
 #trav-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; cursor: pointer; }
 .t-st { cursor: pointer; }
-.t-st .hit { fill: transparent; }
+/* A ONE-STOP CHAPTER has nothing to select, so nothing on it may LOOK
+   selectable — the traverse is a drawing there, not an instrument. The ink
+   and the pin drop their cursor by being created non-interactive (see SOLO
+   in trip.js); the traverse drops it here. */
+.trav.is-solo #trav-svg, .trav.is-solo .t-st { cursor: default; }
+/* Hit surfaces are invisible but must still hit-test, so they are filled with
+   transparent rather than left unfilled. NB the selector is deliberately not
+   scoped to .t-st: the traverse also lays one across its whole stage so the
+   scrub works over the travel ramps, and scoped, that rect defaulted to
+   SVG's own black fill and painted the panel out. */
+.hit { fill: transparent; }
 .t-num { font-family: var(--font-display); font-weight: 700; font-size: 10px; }
 .t-day { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.2em; fill: #9a927c; }
 .t-mi { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.14em; fill: #9a927c; }

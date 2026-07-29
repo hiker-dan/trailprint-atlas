@@ -110,10 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
         let left = 26, top = 26, right = 26, bottom = 26;
         const sheet = box('.sheet-mount');
         if (sheet) left = Math.max(left, sheet.right - host.left + GAP);
-        ['.trip-mark', '.trip-hint'].forEach(s => {
-            const r = box(s);
-            if (r) top = Math.max(top, r.bottom - host.top + GAP);
-        });
+        const markBox = box('.trip-mark');
+        if (markBox) top = Math.max(top, markBox.bottom - host.top + GAP);
         const trav = box('.trav');
         if (trav) bottom = Math.max(bottom, host.bottom - trav.top + GAP);
         return {
@@ -180,6 +178,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const gain = walked.reduce((s, h) => s + (h.elevation_gain || 0), 0);
         /* under 100 ft climbed across the whole trip there is no section to draw */
         const LEVEL = gain < 100;
+
+        /* A ONE-STOP CHAPTER has nothing to choose between. The chapter card
+           and the stop card describe the same outing, and the camera is
+           already framing it, so selecting the station changed the sheet's
+           wording and nothing else a visitor could see — then offered a way
+           "back" to a view they had never left. Such a chapter opens ON its
+           stop and stays there.
+
+           It must also stop ADVERTISING a choice it doesn't have: the ink and
+           the pin are created non-interactive, the traverse is not scrubbed,
+           and both drop their pointer cursor. Declared up here, before any of
+           the three is built, so nothing has to remember to opt out later. */
+        const SOLO = trip.length === 1;
 
         const first = trip[0], last = trip[trip.length - 1];
         const oneDay = first.date_completed === last.date_completed;
@@ -252,10 +263,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // the class names the trail, so a stop's own ink can be found
                 lines[h.trail_id] = segs.map(ll => L.polyline(ll, {
                     color: YEAR_INK, weight: 3.2, opacity: 0.9,
-                    className: `ink ink-${h.trail_id}`
+                    className: `ink ink-${h.trail_id}`,
+                    // on a one-stop chapter the ink IS scenery again: there is
+                    // nothing to select, so it takes no cursor and no clicks
+                    interactive: !SOLO
                 }).addTo(map));
                 // with the map fixed, the ink is a control, not scenery
-                lines[h.trail_id].forEach(pl => {
+                if (!SOLO) lines[h.trail_id].forEach(pl => {
                     pl.on('mouseover', () => preview(h));
                     pl.on('mouseout', () => preview(null));
                     pl.on('click', () => select(h));
@@ -287,16 +301,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         trip.forEach(h => {
             const vp = isViewpoint(h);
-            L.marker(home[h.trail_id], {
+            const pin = L.marker(home[h.trail_id], {
                 icon: L.divIcon({
                     className: '', iconSize: [26, 26],
                     html: `<div class="pin-wrap" data-id="${h.trail_id}"><div class="pin${vp ? ' vp' : ''}">` +
                           (vp ? `<span>${mark[h.trail_id]}</span>` : mark[h.trail_id]) + '</div></div>'
-                })
-            }).addTo(map)
-              .on('mouseover', () => preview(h))
-              .on('mouseout', () => preview(null))
-              .on('click', () => select(h));
+                }),
+                interactive: !SOLO      // see SOLO: a lone stop is not a choice
+            }).addTo(map);
+            if (!SOLO) pin
+                .on('mouseover', () => preview(h))
+                .on('mouseout', () => preview(null))
+                .on('click', () => select(h));
         });
 
         /**
@@ -355,6 +371,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const doorEl = $('ts-door'), doorGl = $('ts-door-glyph');
         const doorMain = $('ts-door-main'), doorSub = $('ts-door-sub');
+        const doorChev = $('ts-door-chev');
+
+        /* This one door serves both directions, so it has to say which way it
+           goes. Into a hike is FORWARD (glyph, then chevron-through-a-doorway
+           pointing right); back onto the land is a RETURN, and the Atlas's
+           return doors are the exact mirror — chevron first and pointing left,
+           glyph last — as the hike page's own two doors are built. */
+        const CHEV_FWD = '<path d="M10 6l6 6-6 6"/><path d="M4 4v16"/>';
+        const CHEV_BACK = '<path d="M14 6l-6 6 6 6"/><path d="M20 4v16"/>';
+        function doorDirection(back) {
+            doorEl.classList.toggle('is-return', back);
+            doorChev.innerHTML = back ? CHEV_BACK : CHEV_FWD;
+            if (back) {
+                doorEl.insertBefore(doorChev, doorEl.firstChild);
+                doorEl.appendChild(doorGl);
+            } else {
+                doorEl.insertBefore(doorGl, doorEl.firstChild);
+                doorEl.appendChild(doorChev);
+            }
+        }
         const kickEl = $('ts-kicker'), titleEl = $('ts-title');
         const subEl = $('ts-sub'), withEl = $('ts-with'), vitalsEl = $('ts-vitals');
         const noEl = $('ts-no'), ctEl = $('ts-ct');
@@ -396,6 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 doorMain.textContent = 'Trace this chapter on the land';
                 doorSub.textContent = 'the interactive map, opened on this trip';
                 doorEl.href = `map.html?trip=${encodeURIComponent(tag)}`;
+                doorDirection(true);
                 return;
             }
             /* ON A STOP — the sheet's own collar → vitals → slide → door.
@@ -428,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doorMain.textContent = 'Open the field log';
             doorSub.textContent = 'the whole day — the map, every slide & the almanac';
             doorEl.href = `hike.html?id=${h.trail_id}`;
+            doorDirection(false);
         }
 
         /* =================================================================
@@ -482,6 +520,14 @@ document.addEventListener('DOMContentLoaded', () => {
             svg.innerHTML = '';
             let x = gutter;
             segs.forEach(g => { g.x0 = x; g.px = g.w * k; x += g.px; });
+
+            /* One hit surface across the whole stage, laid down first so it
+               sits under every mark. The traverse is SCRUBBED, not clicked
+               station by station: the ground between two stops is unfilled
+               path, so it received no pointer events at all, and walking the
+               line dropped the card back to the chapter every time you
+               crossed a ramp. See the scrub handlers below. */
+            svg.appendChild(el('rect', { x: 0, y: 0, width: W, height: H, class: 'hit' }));
 
             /* ---- THE VERTICAL SCALE ---------------------------------------
                The floor of the plot is the trip's own lowest ground, but drawn
@@ -694,9 +740,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 grp.appendChild(s.txt);
 
                 grp.appendChild(el('rect', { x: g.x0, y: 0, width: g.px, height: base + 18, class: 'hit' }));
-                grp.addEventListener('mouseenter', () => preview(g.h));
-                grp.addEventListener('mouseleave', () => preview(null));
-                grp.addEventListener('click', ev => { ev.stopPropagation(); select(g.h); });
                 svg.appendChild(grp);
                 stops.push(s);
             });
@@ -762,15 +805,62 @@ document.addEventListener('DOMContentLoaded', () => {
             cutTo(h ? bounds[h.trail_id] : whole, h ? (isViewpoint(h) ? 14 : 16) : 15);
         }
 
-        // clicking the empty ground pulls back to the whole chapter
-        svg.addEventListener('click', () => select(null));
-        map.on('click', () => select(null));
+        /* =================================================================
+           SCRUBBING THE TRAVERSE
+
+           The traverse is one continuous line, so it is read like one: the
+           pointer is always AT some station, the nearest one, and walking
+           left to right steps cleanly from stop to stop.
+
+           It used to be a row of buttons — each station owned a hit area and
+           gave the card back on mouseleave. But the ground BETWEEN two stops
+           is a travel ramp, which belongs to no station, so every crossing
+           dropped the sheet back to the chapter card and picked the next one
+           up again. Trying to walk the line smoothly made it flicker.
+
+           Nearest-station also answers it more honestly than "don't show the
+           chapter card while hovering" would: a ramp is not nowhere, it is
+           the ground on the way to somewhere.
+           ================================================================= */
+        function stationAt(clientX) {
+            const r = svg.getBoundingClientRect();
+            const x = clientX - r.left;
+            let best = null, bestDist = Infinity;
+            segs.forEach(g => {
+                if (!g.h) return;
+                const dist = Math.abs(x - (g.x0 + g.px / 2));
+                if (dist < bestDist) { bestDist = dist; best = g.h; }
+            });
+            return best;
+        }
+        // mousemove fires per pixel; the card is only rebuilt when the answer
+        // actually changes, so scrubbing costs one repaint per station crossed
+        let scrubbed = null;
+        // a one-stop chapter is already standing on its only station, so the
+        // traverse is a drawing there, not an instrument
+        if (!SOLO) {
+            svg.addEventListener('mousemove', ev => {
+                const h = stationAt(ev.clientX);
+                if (h === scrubbed) return;
+                scrubbed = h;
+                preview(h);
+            });
+            svg.addEventListener('mouseleave', () => { scrubbed = null; preview(null); });
+            // and clicking commits to whatever the scrub is already showing
+            svg.addEventListener('click', ev => {
+                const h = stationAt(ev.clientX);
+                if (h) select(h);
+            });
+        }
+        // the land is what pulls back to the whole chapter
+        map.on('click', () => { if (!SOLO) select(null); });
         // and the arrows walk it, exactly as the map's transport does
         document.addEventListener('keydown', e => {
             // one handler for the whole page: Escape raises the frontispiece
             // first, and only afterwards means "pull back to the whole chapter"
             if (!lifted) { if (e.key === 'Escape') lift(); return; }
-            if (e.key === 'Escape') { select(null); return; }
+            if (e.key === 'Escape') { if (!SOLO) select(null); return; }
+            if (SOLO) return;   // one stop: there is nowhere to walk to
             if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
             e.preventDefault();
             const i = selected ? trip.findIndex(h => h.trail_id === selected) : -1;
@@ -780,16 +870,31 @@ document.addEventListener('DOMContentLoaded', () => {
         // a level trip's panel collapses — chromePads() measures it, so the
         // camera reclaims the freed space by itself
         if (LEVEL) $('trav').classList.add('is-level');
+        if (SOLO) $('trav').classList.add('is-solo');
 
-        readout(null);
         drawTraverse();
+        // a one-stop chapter opens already standing on its stop
+        if (SOLO) {
+            selected = trip[0].trail_id;
+            readout(trip[0]);
+            highlight();
+            paintLit();
+        } else {
+            readout(null);
+        }
         window.addEventListener('resize', () => {
             map.invalidateSize();
             drawTraverse();
             reframe();
             refreshPins();
         });
-        setTimeout(() => { map.invalidateSize(); cutTo(whole, 15); }, 80);
+        setTimeout(() => {
+            map.invalidateSize();
+            // a one-stop chapter frames its stop the way selecting it would,
+            // so opening on the stop and clicking it can't look different
+            cutTo(SOLO ? bounds[trip[0].trail_id] : whole,
+                  SOLO ? (isViewpoint(trip[0]) ? 14 : 16) : 15);
+        }, 80);
 
     }).catch(error => {
         console.error('Error initializing the trip page:', error);

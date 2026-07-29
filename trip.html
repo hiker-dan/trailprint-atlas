@@ -74,12 +74,13 @@
                         <span class="ad-main" id="ts-door-main">&mdash;</span>
                         <span class="ad-sub" id="ts-door-sub">&mdash;</span>
                     </span>
-                    <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+                    <!-- the chevron and the glyph swap places between the two
+                         states: into a hike is a way FORWARD, back to the land
+                         is a way BACK. scripts/trip.js reorders them. -->
+                    <svg class="ad-chev" id="ts-door-chev" viewBox="0 0 24 24" aria-hidden="true"></svg>
                 </a>
             </div>
         </div>
-
-        <div class="trip-hint" id="trip-hint">Walk the traverse &darr;</div>
 
         <!-- THE TRAVERSE: the trip's whole terrain in one line. Every hike's
              real elevation profile stitched end to end, the ground covered

@@ -297,18 +297,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* ===================== small helpers ===================== */
 
     /**
-     * Companion names become Trail Crew links: core crew (10+ shared outings)
-     * go to their member page, everyone else to the register.
+     * Companion names become Trail Crew links. Every companion has a Service
+     * Record now (July 2026), so every name leads to the same place — before
+     * the Muster Roll rebuild, only the core crew had a page and everyone
+     * else was dropped at the register's front door, which meant a visitor
+     * could not tell which names were worth clicking.
      */
-    function linkifyCrewNames(names, hikes) {
-        const people = groupByCompanion(hikes);
-        return names.map(name => {
-            const count = (people.get(name) || []).length;
-            const href = count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES
-                ? `crew-member.html?name=${encodeURIComponent(name)}`
-                : 'crew.html';
-            return `<a class="crew-name-link" href="${href}">${name}</a>`;
-        }).join(', ');
+    function linkifyCrewNames(names) {
+        return names.map(name =>
+            `<a class="crew-name-link" href="crew-member.html?name=${encodeURIComponent(name)}">${name}</a>`
+        ).join(', ');
     }
 
     /**
@@ -582,7 +580,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // The lower collar keeps what a map's lower margin actually carries:
         // where this sheet came from, not its headline numbers.
         const party = (hike.hiked_with && hike.hiked_with.length)
-            ? linkifyCrewNames(hike.hiked_with, hikes)
+            ? linkifyCrewNames(hike.hiked_with)
             : 'Solo';
         // Nothing here that the title block already says: the only sheets that
         // need a headline down here are the ones with no numbers to feature.

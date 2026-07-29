@@ -4,21 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Trail Crew - The Trailprint Atlas</title>
-    <meta name="description" content="One member of the Trail Crew — every trail shared, mapped and listed.">
+    <meta name="description" content="A Service Record from the Muster Roll — one companion's shared history with the Atlas, and every trail walked together.">
     <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
     <link rel="icon" href="assets/favicon-32.png" type="image/png" sizes="32x32">
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="The Trailprint Atlas">
     <meta property="og:title" content="Trail Crew — The Trailprint Atlas">
-    <meta property="og:description" content="One member of the Trail Crew — every trail shared, mapped and listed.">
+    <meta property="og:description" content="A Service Record from the Muster Roll — every trail walked together.">
     <meta property="og:url" content="https://hiker-dan.github.io/trailprint-atlas/crew-member.html">
     <meta property="og:image" content="https://res.cloudinary.com/dgdniwosl/image/upload/w_1200,h_630,c_fill,q_auto,f_jpg/tta_68-seal-lion-point-to-hidden-beach-loop-02">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Trail Crew — The Trailprint Atlas">
-    <meta name="twitter:description" content="One member of the Trail Crew — every trail shared, mapped and listed.">
+    <meta name="twitter:description" content="A Service Record from the Muster Roll — every trail walked together.">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -31,36 +31,74 @@
     <nav id="top-bar-container"></nav>
     <script src="scripts/nav.js"></script>
 
-    <!-- Member hero: name + the shared story in numbers -->
-    <div id="crew-hero">
-        <p id="crew-eyebrow">Trail Crew</p>
-        <h1 id="member-name">Loading...</h1>
-        <p id="member-statline"></p>
-        <p id="member-since"></p>
-    </div>
+    <!-- THE SERVICE RECORD — the same volume as crew.html, opened at one
+         person's entry. Left leaf is the record, right leaf is the country
+         walked together. The enlarged lane on the left is not decoration:
+         it is the INDEX to the plates on the right, and the two are wired
+         to each other in both directions. -->
+    <div class="crew-book crew-record">
 
-    <div class="crew-container">
-        <a class="member-back" href="crew.html">&larr; Back to the Trail Crew</a>
-
-        <!-- Every shared trail, as atlas plates: one mini-map per region so
-             the trails are legible at a glance, plus a "Scattered Trails"
-             row of line-art trailprints for the far-flung one-offs. -->
-        <div class="info-section">
-            <h3>Trails We've Shared</h3>
-            <div id="member-plates" class="plates-grid"></div>
-            <div id="member-scattered" class="plate scattered-plate" style="display: none;">
-                <div class="plate-title">
-                    <span class="plate-name">Scattered Trails</span>
-                    <span class="plate-count" id="scattered-count"></span>
+        <!-- the record -->
+        <div class="leaf l">
+            <div class="inner">
+                <div class="rk">
+                    <span id="sig-no">Signature</span>
+                    <span>The Trailprint Atlas</span>
                 </div>
-                <div id="member-prints" class="trailprints"></div>
+                <h1 class="rec-name" id="member-name">&nbsp;</h1>
+                <div class="bk-rule"></div>
+
+                <div class="plate-photo" id="member-portrait"></div>
+                <div class="svc" id="member-service"></div>
+
+                <div class="lane-block" id="member-lane-block">
+                    <div class="lane-hd">
+                        <span class="t">Every outing together</span>
+                        <span class="c">hover a mark</span>
+                    </div>
+                    <div class="big-lane" id="member-lane"></div>
+                    <div class="readout rest" id="member-readout"></div>
+                </div>
+
+                <!-- the way back is the same door in reverse: base.css's
+                     .atlas-door, mirrored, naming the destination -->
+                <div class="rec-back">
+                    <a class="atlas-door is-wide is-return" id="member-back" href="crew.html">
+                        <svg class="ad-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5 L8 12 L15 19"/></svg>
+                        <span class="ad-copy">
+                            <span class="ad-main">THE MUSTER ROLL</span>
+                            <span class="ad-sub">Back to the book</span>
+                        </span>
+                        <svg class="ad-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                             stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3.5" y="4" width="17" height="16" rx="1.5"/>
+                            <path d="M7 8.5h10M7 12h10M7 15.5h6"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
         </div>
 
-        <!-- The full shared history, newest first -->
-        <div class="info-section">
-            <h3>Every Hike Together</h3>
-            <div id="member-hikes"></div>
+        <div class="gutter"></div>
+
+        <!-- the plates -->
+        <div class="leaf r">
+            <div class="inner">
+                <div class="rec-head">
+                    <span class="t">The country walked together</span>
+                    <span class="n" id="member-platecount"></span>
+                </div>
+                <div class="sheets" id="member-sheets">
+                    <div class="plates" id="member-plates"></div>
+                    <div class="loose" id="member-loose" hidden>
+                        <div class="p-collar">
+                            <span class="p-name">Loose sheet</span>
+                            <span class="p-cnt" id="member-loose-count"></span>
+                        </div>
+                        <div class="prints" id="member-prints"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -69,6 +107,8 @@
     <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
     <script src="scripts/config.js"></script>
     <script src="scripts/atlas-data.js"></script>
+    <!-- The page turn: the gesture shared with crew.html -->
+    <script src="scripts/crew-book.js"></script>
     <!-- This page's script -->
     <script src="scripts/crew-member.js"></script>
     <!-- Shared script: active-page highlight (+ the credits slideshow) -->

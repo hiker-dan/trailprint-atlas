@@ -372,12 +372,22 @@
         if (roll) {
             const counts = {};
             ascents.forEach(a => a.with.forEach(n => { counts[n] = (counts[n] || 0) + 1; }));
-            Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).forEach(([name, c]) => {
-                const chip = document.createElement('a');
-                chip.className = 'loop-chip';
-                chip.href = 'crew.html';
-                chip.innerHTML = `${name}${c > 1 ? ` <em>×${c}</em>` : ''}`;
-                roll.appendChild(chip);
+            // A chip leads to that person's Service Record when the Muster
+            // Roll has one — but the Runyon record is deliberately outside
+            // hikes.json, so some of this hill's regulars never appear in the
+            // book at all. Those keep the front door rather than being sent
+            // to an unsigned page. (fetchHikes is cached; this costs nothing.)
+            fetchHikes().then(hikes => {
+                const inTheBook = groupByCompanion(hikes);
+                Object.entries(counts).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).forEach(([name, c]) => {
+                    const chip = document.createElement('a');
+                    chip.className = 'loop-chip';
+                    chip.href = inTheBook.has(name)
+                        ? `crew-member.html?name=${encodeURIComponent(name)}`
+                        : 'crew.html';
+                    chip.innerHTML = `${name}${c > 1 ? ` <em>×${c}</em>` : ''}`;
+                    roll.appendChild(chip);
+                });
             });
         }
     }

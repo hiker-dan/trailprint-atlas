@@ -1,77 +1,195 @@
 /**
- * Trail Crew member page — one person's shared history with the Atlas.
+ * THE SERVICE RECORD — one companion's own leaf of the Muster Roll.
  *
  * URL: crew-member.html?name=Will%20R.
- * Hero (their cover photo + headline numbers), a map of every trail walked
- * together (year colors, same visual language as the trip journey map), and
- * the full chronological list. Every hike links back to the Field Log.
+ *
+ * The crew index is a book, so a person is not a separate page: they are a
+ * page IN it, reached by turning (see crew-book.js). Same volume, same
+ * paper, same gutter.
+ *
+ *   LEFT LEAF, the record: the portrait in the cover's own mount, the
+ *   service block as a ledger rather than a stat row, and this person's
+ *   single lane from the roll, ENLARGED.
+ *
+ *   RIGHT LEAF, the plates: the country walked together, one numbered plate
+ *   per region, on the Atlas's own basemap in year ink. Outings too far
+ *   from the rest to share a plate print as line art on a loose sheet —
+ *   a plate for one trail 2,000 miles from the next is a map of nothing.
+ *
+ *   THE TIE: the enlarged lane is the INDEX to the plates. Hover a mark and
+ *   its trail lights on whichever plate holds it; hover a trail and its mark
+ *   lights back. The left leaf asks when, the right leaf answers where.
+ *
+ * The plates never pan or zoom. Roaming the land belongs to map.html.
  */
 document.addEventListener('DOMContentLoaded', async () => {
 
-    const params = new URLSearchParams(window.location.search);
-    const name = params.get('name');
+    const name = new URLSearchParams(window.location.search).get('name');
 
-    let allHikes;
+    let allHikes, portraits, geometries;
     try {
         allHikes = await fetchHikes();
-    } catch (err) {
-        console.error('Could not load hike data:', err);
-        return;
-    }
-
-    const shared = name ? (groupByCompanion(allHikes).get(name) || []) : [];
-    if (shared.length === 0) {
-        document.getElementById('member-name').innerText = 'Off the Trail';
-        document.getElementById('member-statline').innerHTML =
-            `No shared outings found. <a href="crew.html" style="color:#fff">Back to the Trail Crew &rarr;</a>`;
-        return;
-    }
-
-    const sorted = [...shared].sort(compareHikesChrono);
-    const totalMiles = shared.reduce((s, h) => s + h.miles, 0);
-    const totalFeet = shared.reduce((s, h) => s + h.elevation_gain, 0);
-
-    // --- Hero ---
-    document.title = `${name} - Trail Crew - The Trailprint Atlas`;
-    document.getElementById('member-name').innerText = name;
-    document.getElementById('member-statline').innerText =
-        `${shared.length} outings together · ${totalMiles.toFixed(1)} miles · ${totalFeet.toLocaleString()} ft climbed`;
-    const firstYear = hikeYear(sorted[0]);
-    const lastYear = hikeYear(sorted[sorted.length - 1]);
-    document.getElementById('member-since').innerText = firstYear === lastYear
-        ? `On the trail together in ${firstYear}`
-        : `On the trail together since ${firstYear}`;
-
-    // No photo behind this hero, by design: member pages keep the plain
-    // evergreen header (like hike pages) so the photographic hero stays a
-    // trip-page signature. The portrait lives on their crew.html card.
-
-    // --- The shared trails, as atlas plates ---
-    // Hikes gather into geographic clusters; each cluster with company gets
-    // its own mini-map plate, zoomed so the trails are legible at a glance.
-    // Far-flung one-offs skip the basemap and render as line-art trailprints
-    // in the "Scattered Trails" row instead — the shape of the walk itself.
-    let geometries = {};
-    try {
+        portraits = await fetchCrewPortraits();
         geometries = await fetchTrailGeometries();
     } catch (err) {
-        console.error('Could not load trail geometries:', err);
+        console.error('Could not load the Atlas records:', err);
+        geometries = geometries || {};
     }
 
-    const popupHtml = (hike) => `
-        <div class="member-popup">
-            <div class="mp-title">${hike.trail_name}</div>
-            <div class="mp-date">${formatHikeDate(hike.date_completed)}</div>
-            <a href="hike.html?id=${hike.trail_id}">Open the Field Log &rarr;</a>
-        </div>`;
-    const hikeColor = (hike) => ATLAS_CONFIG.COLOR_MAP[hikeYear(hike)] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const shared = (allHikes && name)
+        ? [...(groupByCompanion(allHikes).get(name) || [])].sort(compareHikesChrono)
+        : [];
 
-    // Complete-linkage clustering with a diameter cap. Two groups merge only
-    // if EVERY pair of hikes in the union stays within MAX_PLATE_SPAN_KM —
-    // order-independent (no drifting centroids, no orphaned neighbors), and
-    // the cap directly bounds each plate's zoom: a plate can never sprawl
-    // past the span, so its trails stay legible. Always merge the tightest
-    // compatible pair first, so natural regions form before loose ones.
+    /* ---- the friendly dead end: a name that isn't in the book ---- */
+    if (shared.length === 0) {
+        document.getElementById('member-name').textContent = 'Not in the book';
+        document.getElementById('sig-no').textContent = 'No signature';
+        document.getElementById('member-portrait').remove();
+        document.getElementById('member-service').innerHTML =
+            `<div><span class="k">Note</span><span class="v">No shared outings are recorded under that name.</span></div>`;
+        document.getElementById('member-lane-block').remove();
+        document.getElementById('member-sheets').innerHTML = `
+            <div class="bk-lost">
+                <div class="tl-kick">The Trailprint Atlas</div>
+                <h2 class="tl-title">An unsigned page</h2>
+                <p class="tl-msg">Every companion in the Atlas has a leaf in the Muster Roll. This one has no entry, so there is no country to draw.</p>
+            </div>`;
+        bookWireTurns(document);
+        bookOpen();
+        return;
+    }
+
+    const first = shared[0], last = shared[shared.length - 1];
+    const totalMiles = shared.reduce((s, h) => s + h.miles, 0);
+    const totalFeet = shared.reduce((s, h) => s + h.elevation_gain, 0);
+    const trips = [...new Set(shared.filter(h => h.trip_tag).map(h => h.trip_tag))];
+    const ink = (h) => ATLAS_CONFIG.COLOR_MAP[hikeYear(h)] || ATLAS_CONFIG.DEFAULT_COLOR;
+    const initials = name.split(/\s+/).map(w => w[0]).join('');
+
+    /* ---- their number in the register is signature order, the same order
+            the roll itself is entered in ---- */
+    const firstOf = new Map();
+    [...allHikes].sort(compareHikesChrono).forEach(h =>
+        (h.hiked_with || []).forEach(n => { if (!firstOf.has(n)) firstOf.set(n, h); }));
+    const sigNo = [...firstOf.entries()]
+        .sort((a, b) => compareHikesChrono(a[1], b[1]))
+        .findIndex(([n]) => n === name) + 1;
+
+    /* =====================================================================
+       THE RECORD
+       ===================================================================== */
+    document.title = `${name} - Trail Crew - The Trailprint Atlas`;
+    document.getElementById('sig-no').textContent = `Signature No. ${sigNo}`;
+    document.getElementById('member-name').textContent = name;
+
+    // one season together is a year, not a range
+    const span = hikeYear(first) === hikeYear(last)
+        ? `${hikeYear(first)}` : `${hikeYear(first)}&ndash;${hikeYear(last)}`;
+
+    const pid = portraits[name];
+    document.getElementById('member-portrait').innerHTML =
+        (pid
+            ? `<img src="${cloudinaryUrl(pid, 'w_640,h_480,c_fill,g_auto,q_auto,f_auto')}" alt="${name}">`
+            : `<div class="blank">${initials}</div>`) +
+        `<div class="cap"><span>PLATE &mdash; PORTRAIT</span><span>${span}</span></div>`;
+
+    // a single shared outing IS both the first and the last, and saying so
+    // twice makes the record look padded rather than short
+    const lastSeenRow = shared.length > 1
+        ? `<div><span class="k">Last seen</span><span class="v">${last.trail_name}<br><em>${formatHikeDate(last.date_completed)}</em></span></div>`
+        : '';
+    document.getElementById('member-service').innerHTML = `
+        <div><span class="k">Signed in</span><span class="v">${first.trail_name}<br><em>${formatHikeDate(first.date_completed)}</em></span></div>
+        ${lastSeenRow}
+        <div><span class="k">Outings</span><span class="v"><b>${shared.length}</b></span></div>
+        <div><span class="k">Ground</span><span class="v"><b>${totalMiles.toFixed(1)}</b> mi &nbsp;&middot;&nbsp; <b>${totalFeet.toLocaleString()}</b> ft climbed</span></div>
+        ${trips.length ? `<div><span class="k">Trips</span><span class="v">${trips.map(tag =>
+            `<a href="trip.html?tag=${encodeURIComponent(tag)}">${tripName(tag)}</a>`).join('<br>')}</span></div>` : ''}`;
+
+    // the way back lands on this person's own line in the roll, opened,
+    // rather than at the top of the book
+    const backDoor = document.getElementById('member-back');
+    const backHref = `crew.html?open=${encodeURIComponent(name)}`;
+    backDoor.href = backHref;
+    backDoor.dataset.turnTo = backHref;
+
+    /* =====================================================================
+       THE LANE — the roll's own track, given room to become an index
+       ===================================================================== */
+    const chronological = [...allHikes].sort(compareHikesChrono);
+    const firstYear = hikeYear(chronological[0]);
+    const thisYear = new Date().getUTCFullYear();
+    const T0 = Date.UTC(firstYear, 0, 1), T1 = Date.UTC(thisYear + 1, 0, 1);
+    const pct = (dateStr) => ((Date.parse(dateStr) - T0) / (T1 - T0)) * 100;
+    const years = [];
+    for (let y = firstYear; y <= thisYear; y++) years.push(y);
+    const midOf = (y) => (pct(`${y}-01-01`) + pct(`${y + 1}-01-01`)) / 2;
+
+    const laneEl = document.getElementById('member-lane');
+    const left = pct(first.date_completed);
+
+    /**
+     * Lays the marks out, stacking any that collide.
+     *
+     * At this width two outings a day apart draw on top of each other, and a
+     * mark buried under its neighbour cannot be pointed at — which would make
+     * some trails unreachable on the very leaf where the lane's job is to be
+     * the index to the plates. So a mark takes the lowest row that is clear,
+     * exactly as a survey sheet stacks coincident points. Measured in pixels,
+     * because "too close" is a screen question, not a calendar one — the same
+     * reasoning as the map page's stamp fanning.
+     */
+    const TICK_D = 12, STACK = 12, MAX_ROWS = 4;
+    function layoutLane() {
+        const width = laneEl.clientWidth || 300;
+        const lastInRow = [];
+        const placed = shared.map(hike => {
+            const x = pct(hike.date_completed) / 100 * width;
+            let row = 0;
+            while (row < MAX_ROWS && lastInRow[row] !== undefined && x - lastInRow[row] < TICK_D) row++;
+            if (row >= MAX_ROWS) row = 0;   // a tower helps nobody; let the rare deep pile overlap
+            lastInRow[row] = x;
+            return { hike, row };
+        });
+        const rows = Math.max(1, lastInRow.length);
+        laneEl.style.setProperty('--lane-h', `${26 + (rows - 1) * STACK + 14}px`);
+        laneEl.innerHTML =
+            years.map(y => `<span class="gl" style="left:${pct(`${y}-01-01`)}%"></span>`).join('') +
+            years.map(y => `<span class="yr" style="left:${midOf(y)}%">${String(y).slice(2)}</span>`).join('') +
+            `<span class="span" style="left:${left}%;width:${Math.max(0.3, pct(last.date_completed) - left)}%"></span>` +
+            // a stacked mark keeps a hairline down to the moment it happened
+            placed.filter(p => p.row > 0).map(p =>
+                `<span class="stem" style="left:${pct(p.hike.date_completed)}%;bottom:26px;height:${p.row * STACK}px"></span>`).join('') +
+            placed.map(({ hike, row }) => `<a class="tick" data-h="${hike.trail_id}" href="hike.html?id=${hike.trail_id}"
+                title="${hike.trail_name}" style="left:${pct(hike.date_completed)}%;--r:${row};background:${ink(hike)}"></a>`).join('');
+        wireTicks();
+    }
+
+    const readout = document.getElementById('member-readout');
+    const restReadout = () => {
+        readout.className = 'readout rest';
+        readout.innerHTML =
+            `<div class="t">${shared.length} outing${shared.length === 1 ? '' : 's'} together, ${span}.</div>`;
+    };
+    restReadout();
+    layoutLane();
+    // the leaf is fluid, so what collides changes with the window
+    let laneTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(laneTimer);
+        laneTimer = setTimeout(layoutLane, 180);
+    });
+
+    /* =====================================================================
+       THE PLATES
+
+       Complete-linkage clustering with a diameter cap: two groups merge only
+       if EVERY pair in the union stays within MAX_PLATE_SPAN_KM. That is
+       order-independent (no drifting centroids, no orphaned neighbours) and
+       the cap directly bounds each plate's zoom, so a plate can never sprawl
+       past legibility. Always merge the tightest compatible pair first, so
+       natural regions form before loose ones.
+       ===================================================================== */
     const MAX_PLATE_SPAN_KM = 75;
     const kmBetween = (a, b) => {
         const R = 6371;
@@ -81,167 +199,208 @@ document.addEventListener('DOMContentLoaded', async () => {
             Math.cos(a.latitude * Math.PI / 180) * Math.cos(b.latitude * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
         return 2 * R * Math.asin(Math.sqrt(s));
     };
-    // Span of a would-be merged group = its farthest-apart pair of hikes
     const mergedSpan = (a, b) => {
-        let span = 0;
         const union = [...a.hikes, ...b.hikes];
-        for (let i = 0; i < union.length; i++) {
-            for (let j = i + 1; j < union.length; j++) {
-                span = Math.max(span, kmBetween(union[i], union[j]));
-            }
-        }
+        let span = 0;
+        for (let i = 0; i < union.length; i++)
+            for (let j = i + 1; j < union.length; j++) span = Math.max(span, kmBetween(union[i], union[j]));
         return span;
     };
-
-    let clusters = sorted
-        .filter(h => h.latitude && h.longitude)
-        .map(h => ({ hikes: [h] }));
+    let clusters = shared.filter(h => h.latitude && h.longitude).map(h => ({ hikes: [h] }));
     while (clusters.length > 1) {
         let best = null;
-        for (let i = 0; i < clusters.length; i++) {
+        for (let i = 0; i < clusters.length; i++)
             for (let j = i + 1; j < clusters.length; j++) {
                 const span = mergedSpan(clusters[i], clusters[j]);
-                if (span <= MAX_PLATE_SPAN_KM && (!best || span < best.span)) {
-                    best = { i, j, span };
-                }
+                if (span <= MAX_PLATE_SPAN_KM && (!best || span < best.span)) best = { i, j, span };
             }
-        }
-        if (!best) break; // nothing left that can merge without over-stretching a plate
+        if (!best) break;   // nothing left that can merge without over-stretching a plate
         clusters[best.i].hikes.push(...clusters[best.j].hikes);
         clusters.splice(best.j, 1);
     }
     clusters.forEach(c => c.hikes.sort(compareHikesChrono));
     clusters.sort((a, b) => b.hikes.length - a.hikes.length);
 
-    // Plate titles come from the cluster's locations: one place names itself;
-    // a mixed cluster leads with its most-hiked place
+    // a plate names itself from its locations: one place speaks for itself,
+    // a mixed cluster leads with its most-walked one
     const plateTitle = (cluster) => {
         const tally = {};
         cluster.hikes.forEach(h => { tally[h.location] = (tally[h.location] || 0) + 1; });
         const places = Object.entries(tally).sort((a, b) => b[1] - a[1]);
         return places.length === 1 ? places[0][0] : `${places[0][0]} & nearby`;
     };
-
-    // Region plates: every cluster where you hiked together more than once
     const regions = clusters.filter(c => c.hikes.length > 1);
     const singles = clusters.filter(c => c.hikes.length === 1).map(c => c.hikes[0]);
-    const platesEl = document.getElementById('member-plates');
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
-    // Two passes: all plate frames enter the DOM first, so the grid is in
-    // its final layout before any Leaflet map measures its container.
-    // (Initializing map 1 while it was the grid's temporarily-full-width
-    // only child left its center computed for the wrong size.)
+    document.getElementById('member-platecount').innerHTML =
+        (regions.length ? `${regions.length} plate${regions.length === 1 ? '' : 's'}` : 'No plates') +
+        (singles.length ? ` &middot; ${singles.length} loose` : '');
+
+    /* ---- every frame enters the DOM first, so Leaflet measures a settled
+            layout rather than a column still reflowing around it ---- */
+    const platesEl = document.getElementById('member-plates');
     regions.forEach((cluster, i) => {
         const plate = document.createElement('div');
         plate.className = 'plate';
         plate.innerHTML = `
-            <div class="plate-title">
-                <span class="plate-name">${plateTitle(cluster)}</span>
-                <span class="plate-count">${cluster.hikes.length} hikes together</span>
+            <div class="p-collar">
+                <div>
+                    <div class="p-no">Plate ${ROMAN[i] || i + 1}</div>
+                    <div class="p-name">${plateTitle(cluster)}</div>
+                </div>
+                <span class="p-cnt">${cluster.hikes.length} together</span>
             </div>
-            <div class="plate-map" id="plate-map-${i}"></div>`;
+            <div class="p-map" id="plate-map-${i}"></div>`;
         platesEl.appendChild(plate);
     });
 
-    const plateFits = []; // each plate's (map, bounds), for post-layout re-fits
+    /* ---- the Atlas basemap: the same stack map.js wears (CARTO Voyager,
+            Esri hillshade multiplied over it, quiet labels under the
+            parchment wash) so a plate has the Atlas's own complexion ---- */
+    const VOYAGER_URL = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+    const HILLSHADE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
+    const LABELS_URL = 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png';
+
+    const inkLayers = {};       // trail_id -> [leaflet layers], for the cross-light
+    const plateFits = [];       // (map, bounds) pairs, for post-layout re-fits
+
     regions.forEach((cluster, i) => {
-        // Static like the hike page's map — but trails stay clickable for
-        // their Field Log popups
+        // static, like the hike page's map: this is a plate, not a vehicle
         const plateMap = L.map(`plate-map-${i}`, {
-            zoomControl: false, dragging: false, scrollWheelZoom: false,
-            doubleClickZoom: false, touchZoom: false, boxZoom: false, keyboard: false,
-            attributionControl: false
+            zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+            touchZoom: false, boxZoom: false, keyboard: false
         });
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri'
-        }).addTo(plateMap);
+        L.tileLayer(VOYAGER_URL, { subdomains: 'abcd', maxZoom: 18, attribution: '&copy; CARTO' }).addTo(plateMap);
+        L.tileLayer(HILLSHADE_URL, { maxNativeZoom: 16, maxZoom: 18, className: 'hillshade-multiply', attribution: 'Esri' }).addTo(plateMap);
+        L.tileLayer(LABELS_URL, { subdomains: 'abcd', maxZoom: 18, className: 'atlas-labels' }).addTo(plateMap);
+        const wash = document.createElement('div');
+        wash.className = 'parchment-wash';
+        plateMap.getContainer().appendChild(wash);
 
         const bounds = L.latLngBounds([]);
         cluster.hikes.forEach(hike => {
             const segments = geometries[hike.trail_id];
+            const drawn = [];
             if (segments) {
                 segments.forEach(seg => {
-                    const line = L.polyline(seg, { color: hikeColor(hike), weight: 3.5, opacity: 0.95 }).addTo(plateMap);
-                    line.bindPopup(popupHtml(hike));
+                    const line = L.polyline(seg, { color: ink(hike), weight: 3.8, opacity: 0.95 }).addTo(plateMap);
+                    drawn.push(line);
                     bounds.extend(line.getBounds());
                 });
             } else {
-                // Viewpoints and missing tracks still get a dot on their plate
+                // viewpoints and missing tracks still hold their place
                 const dot = L.circleMarker([hike.latitude, hike.longitude], {
-                    radius: 6, color: '#fff', weight: 2, fillColor: hikeColor(hike), fillOpacity: 1
+                    radius: 5, color: '#fffdf6', weight: 2, fillColor: ink(hike), fillOpacity: 1
                 }).addTo(plateMap);
-                dot.bindPopup(popupHtml(hike));
+                drawn.push(dot);
                 bounds.extend(dot.getLatLng());
             }
+            inkLayers[hike.trail_id] = drawn;
+            drawn.forEach(layer => {
+                layer.on('mouseover', () => light(hike.trail_id));
+                layer.on('mouseout', unlight);
+                layer.on('click', () => { window.location.href = `hike.html?id=${hike.trail_id}`; });
+            });
         });
-        plateMap.fitBounds(bounds, { padding: [24, 24] });
+        plateMap.fitBounds(bounds, { padding: [18, 18] });
         plateFits.push({ map: plateMap, bounds });
     });
 
     // Late layout shifts (web fonts landing, a scrollbar appearing) change
-    // container sizes after init — re-measure and re-center every plate
+    // container sizes after init — re-measure and re-centre every plate.
     const refitPlates = () => plateFits.forEach(({ map, bounds }) => {
         map.invalidateSize();
-        map.fitBounds(bounds, { padding: [24, 24] });
+        map.fitBounds(bounds, { padding: [18, 18] });
     });
-    setTimeout(refitPlates, 60);
+    setTimeout(refitPlates, 80);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(refitPlates);
 
-    // Scattered Trails: the far-flung one-offs as line-art trailprints
+    /* ---- the loose sheet ---- */
     if (singles.length > 0) {
-        document.getElementById('member-scattered').style.display = 'block';
-        document.getElementById('scattered-count').innerText =
-            `${singles.length} ${singles.length === 1 ? 'outing' : 'outings'} beyond the regions above`;
-        const printsEl = document.getElementById('member-prints');
-        singles.forEach(hike => {
-            const card = document.createElement('a');
-            card.className = 'trailprint';
-            card.href = `hike.html?id=${hike.trail_id}`;
-            card.innerHTML = `
-                ${trailprintSVG(geometries[hike.trail_id], hikeColor(hike))}
-                <div class="tp-name">${hike.trail_name}</div>
-                <div class="tp-place">${hike.location}</div>`;
-            printsEl.appendChild(card);
-        });
+        document.getElementById('member-loose').hidden = false;
+        // "too far from the rest" is only true when there IS a rest — with no
+        // plates at all, the loose sheet is simply the whole record
+        document.getElementById('member-loose-count').textContent = regions.length
+            ? `${singles.length} outing${singles.length === 1 ? '' : 's'} too far from the rest to share a plate`
+            : `${singles.length === 1 ? 'the one outing' : `all ${singles.length} outings`} you have walked together, drawn as ${singles.length === 1 ? 'its own trailprint' : 'their own trailprints'}`;
+        document.getElementById('member-prints').innerHTML = singles.map(hike => `
+            <a class="print" data-h="${hike.trail_id}" href="hike.html?id=${hike.trail_id}">
+                ${trailprintSVG(geometries[hike.trail_id], ink(hike))}
+                <div class="t">${hike.trail_name}</div>
+                <div class="p">${hike.location}</div>
+            </a>`).join('');
     }
 
-    // --- Every hike together, newest first ---
-    document.getElementById('member-hikes').innerHTML =
-        sorted.slice().reverse().map(hike => {
-            const tripChip = hike.trip_tag
-                ? `<span class="mhr-trip">${(() => {
-                        const splitAt = hike.trip_tag.lastIndexOf(' - ');
-                        return splitAt > 0 ? hike.trip_tag.slice(0, splitAt) : hike.trip_tag;
-                    })()}</span>`
-                : '';
-            return `
-            <a class="member-hike-row" href="hike.html?id=${hike.trail_id}">
-                <span class="mhr-date">${formatHikeDate(hike.date_completed)}</span>
-                <span class="mhr-name">${hike.trail_name}</span>
-                ${tripChip}
-                <span class="mhr-stats">${hike.miles} mi &middot; ${hike.elevation_gain.toLocaleString()} ft</span>
-            </a>`;
-        }).join('');
+    /* =====================================================================
+       THE TIE — a mark on the lane and its trail on the plates, both ways
+       ===================================================================== */
+    const byId = new Map(shared.map(h => [h.trail_id, h]));
+    function light(id) {
+        const hike = byId.get(id);
+        if (!hike) return;
+        readout.className = 'readout';
+        readout.innerHTML =
+            `<div class="t">${hike.trail_name}</div>
+             <div class="d">${formatHikeDate(hike.date_completed)} &middot; ${hike.location}</div>`;
+        laneEl.classList.add('reading');
+        laneEl.querySelectorAll('.tick').forEach(tick => tick.classList.toggle('lit', tick.dataset.h === id));
+        // every other trail steps back so the lit one is found at a glance,
+        // but never so far that the plate reads as empty
+        Object.entries(inkLayers).forEach(([tid, layers]) => layers.forEach(layer => {
+            if (layer.setStyle) layer.setStyle(tid === id
+                ? { weight: 5.5, opacity: 1 }
+                : { weight: 3.4, opacity: 0.38 });
+        }));
+        document.querySelectorAll('.print').forEach(p => p.classList.toggle('lit', p.dataset.h === id));
+    }
+    function unlight() {
+        restReadout();
+        laneEl.classList.remove('reading');
+        laneEl.querySelectorAll('.tick').forEach(tick => tick.classList.remove('lit'));
+        Object.values(inkLayers).forEach(layers => layers.forEach(layer => {
+            if (layer.setStyle) layer.setStyle({ weight: 3.8, opacity: 0.95 });
+        }));
+        document.querySelectorAll('.print').forEach(p => p.classList.remove('lit'));
+    }
+
+    // the lane is rebuilt whenever the leaf changes width, so its marks are
+    // wired from there rather than once at the end
+    function wireTicks() {
+        laneEl.querySelectorAll('.tick').forEach(tick => {
+            tick.addEventListener('mouseenter', () => light(tick.dataset.h));
+            tick.addEventListener('mouseleave', unlight);
+            tick.addEventListener('focus', () => light(tick.dataset.h));
+            tick.addEventListener('blur', unlight);
+        });
+    }
+    document.querySelectorAll('.print').forEach(print => {
+        print.addEventListener('mouseenter', () => light(print.dataset.h));
+        print.addEventListener('mouseleave', unlight);
+    });
+
+    bookWireTurns(document);
+    bookOpen();
 });
 
 /**
- * A trail's shape as standalone line art (the literal trailprint): the GPX
- * geometry normalized into a small square SVG, drawn in the hike's year
- * color with no basemap. Trackless hikes (viewpoints) print as a single dot.
+ * A trail's shape as standalone line art — the literal trailprint. The GPX
+ * geometry normalised into a small square, drawn in the hike's year ink with
+ * no basemap beneath it. Trackless outings (viewpoints) print as a single
+ * mark. Equirectangular with a latitude correction, so shapes aren't stretched.
  * @param {Array|undefined} segments - [lat, lng] segment arrays from trails.geojson
- * @param {string} color - stroke color (the hike's year color)
+ * @param {string} color - the hike's year ink
  */
 function trailprintSVG(segments, color) {
-    const S = 120, PAD = 10;
+    const S = 96, PAD = 9;
     if (!segments) {
         return `<svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
-            <circle cx="${S / 2}" cy="${S / 2}" r="7" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
+            <circle cx="${S / 2}" cy="${S / 2}" r="6" fill="${color}" stroke="#fffdf6" stroke-width="2"/></svg>`;
     }
     const pts = segments.flat();
     const lats = pts.map(p => p[0]), lons = pts.map(p => p[1]);
     const minLat = Math.min(...lats), maxLat = Math.max(...lats);
     const minLon = Math.min(...lons), maxLon = Math.max(...lons);
-    // Equirectangular with latitude correction, so shapes aren't stretched
     const cosMid = Math.cos((minLat + maxLat) / 2 * Math.PI / 180);
     const w = (maxLon - minLon) * cosMid, h = maxLat - minLat;
     const scale = (S - 2 * PAD) / Math.max(w, h);
@@ -250,6 +409,6 @@ function trailprintSVG(segments, color) {
         `${(offX + (p[1] - minLon) * cosMid * scale).toFixed(1)},${(offY + (maxLat - p[0]) * scale).toFixed(1)}`
     ).join(' L ')).join(' ');
     return `<svg width="${S}" height="${S}" viewBox="0 0 ${S} ${S}">
-        <path d="${paths}" fill="none" stroke="${color}"
-            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+        <path d="${paths}" fill="none" stroke="${color}" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }

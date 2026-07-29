@@ -1,438 +1,487 @@
 /* =====================================================================
-   The Trailprint Atlas — Trail Crew styles
-   The people of the Atlas: core-crew field cards, the trail register
-   ledger with era bars, and (crew-member.html) one person's page.
-   Shares the palette + fonts from base.css.
+   The Trailprint Atlas — TRAIL CREW: THE MUSTER ROLL  (rebuilt July 2026)
+
+   A muster roll IS a register: a bound book listing everyone present, with
+   the date each one signed and the seasons they served. So Trail Crew is a
+   volume open on a desk, and both of its pages live in this one sheet
+   because they are the same object:
+
+     crew.html         THE MUSTER ROLL   — left leaf the cover, right leaf
+                                           the roll (a lane per companion,
+                                           ordered by first signature)
+     crew-member.html  THE SERVICE RECORD — the same volume opened at one
+                                           person's entry: left leaf their
+                                           record, right leaf their plates
+
+   Crew is the Atlas's only PEOPLE page — the other three (map, trip, hike)
+   are its three scales of place — so it deliberately does not borrow the
+   "land is the page" pattern. It borrows the language instead: the same
+   parchment, the same engraved collars, the same .atlas-door from base.css.
+
+   THE PAGE TURN at the bottom of this file is the one gesture that carries
+   a visitor between the two, and it is filmed across two documents: the
+   leaving page closes a leaf over itself, the arriving page opens it again.
+   The paper never blinks — only what is written on it changes.
    ===================================================================== */
+
+:root {
+    --paper:  #f4ecd8;
+    --leaf-l: #efe5cc;
+    --card:   #fffdf6;
+    --rule:   #d8ccae;
+    --bk-ink: #24401f;
+    --bk-sub: #6f6a58;
+    --muted:  #9a927c;
+    --margin: #b4645c;                      /* the ledger's red margin rule */
+    --ruled:  rgba(140, 160, 190, 0.34);    /* the blue-grey lines of the page */
+    /* Fixed columns, fluid track: every pixel of slack in the window goes to
+       the timeline, which is the one thing here that gets better with room.
+       Lines breathe with the height rather than pooling at the top of a tall
+       screen; past 52px a ledger stops reading as a ledger. */
+    --row:    clamp(30px, 3.4vh, 52px);
+}
+
+/* This codebase has no global border-box, and base.css's nav and footer are
+   built without it — so the box model is switched on for the BOOK only. */
+.crew-book, .crew-book *, .crew-book *::before, .crew-book *::after { box-sizing: border-box; }
 
 body {
     margin: 0;
     font-family: var(--font-body);
-    background-color: #fdfdfd;
-    color: var(--charcoal);
-}
-
-/* --- Hero --- */
-#crew-hero {
-    background-color: var(--evergreen);
-    background-size: cover;
-    background-position: center;
-    color: #fff;
-    text-align: center;
-    padding: 60px 24px 70px;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-}
-#crew-hero h1 {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 3.4em;
-    line-height: 1.1;
-    margin: 0 0 12px;
-}
-#crew-eyebrow {
-    margin: 0 0 10px;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    opacity: 0.75;
-}
-#crew-tally, #member-statline {
-    margin: 0;
-    font-size: 17px;
-    opacity: 0.95;
-}
-#member-since {
-    margin: 8px 0 0;
-    font-size: 14px;
-    font-style: italic;
-    opacity: 0.8;
-}
-
-/* --- Page layout + section shell (mirrors trip.css) --- */
-.crew-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 40px 20px 60px;
-}
-.info-section {
-    background-color: #fff;
-    padding: 30px;
-    border-radius: 8px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-}
-.info-section h3 {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 1.6em;
-    color: var(--trail-green);
-    border-bottom: 3px solid #e0e8e2;
-    padding-bottom: 8px;
-    margin-top: 0;
-    margin-bottom: 25px;
-    display: inline-block;
-}
-
-/* --- Core crew cards --- */
-.crew-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 22px;
-}
-.crew-card {
-    display: block;
-    text-decoration: none;
-    color: var(--charcoal);
-    border: 1px solid #e4e0d5;
-    border-radius: 10px;
+    color: var(--bk-ink);
+    background: #b8a67e;
+    background-image: radial-gradient(ellipse at 50% 0%, #c8b892 0%, #ac9a72 70%, #97865f 100%);
+    height: 100vh;
     overflow: hidden;
-    background-color: #fff;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-.crew-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.14);
-}
-.crew-card-photo {
-    height: 160px;
-    background-color: var(--evergreen);
-    background-size: cover;
-    background-position: center;
-}
-.crew-card-body {
-    padding: 14px 16px 16px;
-}
-.crew-card-name {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 24px;
-    color: var(--evergreen);
-    margin-bottom: 2px;
-}
-.crew-card-count {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--trail-green);
-    margin-bottom: 6px;
-}
-.crew-card-stats {
-    font-size: 13.5px;
-    color: var(--stone);
-}
-.crew-card-since {
-    font-size: 12px;
-    font-style: italic;
-    color: var(--gravel);
-    margin-top: 8px;
 }
 
-/* --- The trail register ledger --- */
-.crew-row {
-    border-bottom: 1px solid var(--mist);
+/* =====================================================================
+   THE VOLUME — the shell both pages share
+   ===================================================================== */
+/* 40px is the shared nav; the book sits under it, as the map and trip
+   shells do. The footer nav.js appends lands below the fold by design. */
+.crew-book {
+    position: fixed; inset: 52px 14px 12px;
+    display: flex; border-radius: 2px;
+    box-shadow: 0 18px 60px rgba(40, 30, 12, 0.45);
 }
-.crew-row:last-child {
-    border-bottom: none;
+.leaf { position: relative; display: flex; flex-direction: column; min-height: 0; }
+.leaf.l {
+    flex: none; border-radius: 3px 0 0 3px;
+    background: linear-gradient(96deg, #e4d9ba 0%, var(--leaf-l) 9%, #f3ead4 62%, #e0d4b2 100%);
+    border: 1px solid #a89769; border-right: none;
 }
-.crew-row-line {
+.leaf.r {
+    flex: 1; min-width: 0; border-radius: 0 3px 3px 0;
+    background: linear-gradient(264deg, #e4d9ba 0%, var(--paper) 8%, #f8f2e2 55%, #e3d8b8 100%);
+    border: 1px solid #a89769; border-left: none;
+    /* the perspective the page turn is seen through — it must live on the
+       turning panel's own parent, not on an ancestor further up */
+    perspective: 1900px;
+}
+/* the cover takes a share of the width rather than a fixed slab, so on a
+   wide desk the photographs grow with the book instead of stranding it */
+.crew-roll .leaf.l   { width: clamp(300px, 20vw, 440px); }
+.crew-record .leaf.l { width: clamp(320px, 23vw, 470px); }
+
+/* the gutter: where the leaves meet, the paper curves into shadow and the
+   sewing shows. The one place the book looks like an object, not a page. */
+.gutter { flex: none; width: 30px; position: relative; z-index: 4; }
+.gutter::before {
+    content: ''; position: absolute; inset: 0; background-color: #e6dbbd;
+    background-image: linear-gradient(90deg, rgba(90, 72, 36, 0) 0%, rgba(90, 72, 36, 0.28) 42%,
+        rgba(70, 55, 26, 0.42) 50%, rgba(90, 72, 36, 0.28) 58%, rgba(90, 72, 36, 0) 100%);
+    border-left: 1px solid rgba(120, 100, 62, 0.35);
+    border-right: 1px solid rgba(120, 100, 62, 0.35);
+}
+.gutter::after {
+    content: ''; position: absolute; left: 50%; top: 34px; bottom: 34px; width: 3px; margin-left: -1.5px;
+    background: repeating-linear-gradient(#6f5729 0 10px, transparent 10px 24px);
+    opacity: 0.55; border-radius: 2px;
+}
+
+.leaf .inner { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.crew-roll   .leaf.l .inner { padding: 26px 24px 20px 30px; }
+.crew-record .leaf.l .inner { padding: 22px 24px 18px 30px; overflow-y: auto; }
+.leaf.r .inner { padding: 20px 28px 14px 26px; }
+
+/* shared collar type */
+.bk-kick { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--muted); }
+.bk-title {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 2.1vw, 46px);
+    letter-spacing: 0.055em; text-transform: uppercase; margin: 7px 0 0; line-height: 0.98;
+}
+.bk-rule { height: 1.5px; background: #2f5c40; margin: 11px 0 10px; }
+.bk-sub { font-size: 12.5px; font-style: italic; color: var(--bk-sub); line-height: 1.5; }
+
+/* =====================================================================
+   THE MUSTER ROLL — left leaf, the cover
+   ===================================================================== */
+.tally { margin: 16px 0 4px; }
+.tally div { display: flex; align-items: baseline; gap: 9px; padding: 4px 0; border-bottom: 1px solid rgba(184, 165, 120, 0.4); }
+.tally b { font-family: var(--font-display); font-weight: 700; font-size: 21px; min-width: 40px; }
+.tally span { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+
+.tuck { margin-top: 16px; min-height: 0; display: flex; flex-direction: column; }
+.tuck .cap { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+/* four across: eleven photographs land in three rows, and at three columns
+   the last two fell off the bottom of the leaf */
+.strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 9px; }
+.snap {
+    position: relative; padding: 4px 4px 12px; background: var(--card); border: 1px solid #ddd0ae;
+    box-shadow: 0 3px 8px rgba(60, 45, 20, 0.26); cursor: pointer; text-decoration: none; color: inherit;
+    transform: rotate(var(--rot, 0deg)); transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.snap:hover, .snap.lit { transform: rotate(0deg) translateY(-3px) scale(1.07); box-shadow: 0 10px 20px rgba(60, 45, 20, 0.36); z-index: 5; }
+.snap:focus-visible { outline: 2px solid #2f5c40; outline-offset: 2px; }
+.snap img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: #ded0a6; }
+.snap .blank {
+    display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1;
+    background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%);
+    font-family: var(--font-display); font-weight: 700; font-size: 15px; color: #7d6231;
+}
+.snap .who { font-size: 7.5px; text-align: center; color: var(--bk-sub); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* the key follows the photographs rather than being pinned to the foot: on a
+   tall window a pinned key opened a hole through the middle of the cover.
+   Empty paper at the BOTTOM of a page is a margin; in the middle, a mistake. */
+.foot-l { margin-top: clamp(16px, 3vh, 40px); padding-top: 14px; }
+.bk-key { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 10.5px; color: var(--muted); }
+.bk-key i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.closing { margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(184, 165, 120, 0.5);
+    font-size: 12.5px; font-style: italic; color: var(--muted); }
+
+/* =====================================================================
+   THE MUSTER ROLL — right leaf, the roll
+   ===================================================================== */
+.r-head { flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding-bottom: 7px; }
+.r-head .t { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
+.order { display: flex; align-items: center; gap: 8px; font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.order button {
+    font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase;
+    background: none; border: none; border-bottom: 1.5px solid transparent; padding: 2px 1px;
+    cursor: pointer; color: var(--muted);
+}
+.order button.on { color: var(--bk-ink); border-bottom-color: #2f5c40; }
+
+.roll { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
+
+/* Fixed columns, fluid track. The name, date and tally columns take a little
+   more room on a wide desk so they aren't starved beside a long timeline,
+   but every remaining pixel belongs to the track. */
+.lane {
     display: grid;
-    grid-template-columns: 170px 90px 1fr 220px 20px;
-    align-items: center;
-    gap: 14px;
-    width: 100%;
-    padding: 13px 6px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-body);
-    text-align: left;
-    font-size: 15px;
-    color: var(--charcoal);
+    grid-template-columns:
+        22px
+        clamp(150px, 10vw, 230px)
+        clamp(96px, 6.5vw, 132px)
+        1fr
+        clamp(118px, 8vw, 168px);
+    align-items: stretch; column-gap: 12px;
+    border-bottom: 1px solid var(--ruled);
 }
-.crew-row-line:hover {
-    background-color: #f6f8f6;
+.lane.body { cursor: pointer; }
+.lane.body:hover { background: rgba(255, 253, 246, 0.55); }
+.lane.body.open { background: rgba(255, 253, 246, 0.8); }
+
+.lane.head { position: sticky; top: 0; z-index: 6; border-bottom: 1.5px solid #2f5c40; }
+.lane.head::before { content: ''; position: absolute; inset: 0; background: #f6f0df; z-index: -1; }
+.lane.head > * { align-self: end; padding-bottom: 5px; }
+.lane.head .track { position: relative; height: 36px; padding-bottom: 0; }
+.hd { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.hd.r { text-align: right; }
+.yr { position: absolute; bottom: 5px; transform: translateX(-50%); font-family: var(--font-display);
+    font-weight: 700; font-size: 11.5px; letter-spacing: 0.15em; color: #a89769; }
+.yrn { position: absolute; top: 2px; transform: translateX(-50%); font-size: 9px; color: var(--muted); white-space: nowrap; }
+
+.no { font-family: var(--font-display); font-size: 9.5px; color: var(--muted); text-align: right; align-self: center; letter-spacing: 0.06em; }
+
+.who { display: flex; align-items: center; gap: 8px; min-width: 0; height: var(--row); }
+.face { flex: none; width: 21px; height: 21px; border-radius: 50%; object-fit: cover;
+    border: 1px solid #c2a25c; box-shadow: 0 1px 3px rgba(60, 45, 20, 0.3); background: #ded0a6; }
+.face.blank { display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 8px; color: #7d6231;
+    background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%); }
+/* the signature: a name in a book leans. The core crew sign it heavier. */
+.sig { font-size: clamp(16px, 1.05vw, 22px); font-style: italic; color: #2f4a63;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lane.core .sig { font-weight: 700; }
+
+/* the date column, with the ledger's brace and ditto for repeated values */
+.when { position: relative; align-self: center; font-size: 11px; color: var(--bk-sub); white-space: nowrap; }
+.when.grp::before { content: ''; position: absolute; left: -9px; top: -17px; bottom: -17px; width: 1px; background: var(--margin); opacity: 0.5; }
+.when.grp.first::before { top: 8px; }
+.when.grp.last::before { bottom: 8px; }
+.when.grp.first::after { content: ''; position: absolute; left: -9px; top: 8px; width: 6px; height: 1px; background: var(--margin); opacity: 0.5; }
+.ditto { color: var(--muted); letter-spacing: 0.1em; font-size: 13px; }
+
+/* the track: where a companion's outings actually fall in Atlas time */
+.track { position: relative; height: var(--row); }
+.gl { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(184, 165, 120, 0.34); }
+.span { position: absolute; top: 50%; height: 1.5px; margin-top: -0.75px; background: rgba(120, 100, 62, 0.38); }
+.tick {
+    position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
+    border: 1px solid rgba(255, 253, 246, 0.8); box-shadow: 0 1px 2px rgba(60, 45, 20, 0.3);
+    transition: transform 0.15s ease, opacity 0.15s ease;
 }
-.crew-row-name {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 19px;
-    color: var(--evergreen);
-}
-.crew-row-count {
-    font-weight: 700;
-    color: var(--trail-green);
-    white-space: nowrap;
-}
-.crew-row-stats {
-    color: var(--stone);
-    font-size: 14px;
-    white-space: nowrap;
-}
-/* Era bar: when this person was active, against the Atlas's whole life */
-.crew-row-era {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-.crew-era-track {
-    position: relative;
-    flex: 1;
-    height: 6px;
-    border-radius: 3px;
-    background-color: #ece9e1;
-}
-.crew-era-fill {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    border-radius: 3px;
-    background-color: var(--trail-green);
-}
-.crew-era-span {
-    font-size: 12px;
-    color: var(--gravel);
-    white-space: nowrap;
-    min-width: 66px;
-    text-align: right;
-}
-.crew-row-chevron {
-    color: var(--gravel);
-    font-size: 13px;
-    transition: transform 0.2s ease;
-}
-.crew-row.open .crew-row-chevron {
-    transform: rotate(180deg);
+.tick.solo { background: none !important; border: 1.4px solid #a89769; box-shadow: none;
+    width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; }
+
+.lane-stats { display: flex; align-items: center; justify-content: flex-end; gap: 11px; height: var(--row); }
+.lane-stats .n { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.lane-stats .m { font-size: 11px; color: var(--bk-sub); white-space: nowrap; min-width: 76px; text-align: right; }
+
+/* the horizon lane and the counter-lane: the book's first and last lines */
+.lane.atlas { border-bottom: 1.5px solid var(--rule); }
+.lane.atlas .sig { font-style: normal; font-family: var(--font-display); font-weight: 700; font-size: 12.5px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--bk-ink); }
+.lane.atlas .tick { width: 6px; height: 6px; margin: -3px 0 0 -3px; opacity: 0.9; }
+.lane.alone { border-top: 1.5px solid var(--rule); border-bottom: none; margin-top: 5px; }
+.lane.alone .sig { font-style: normal; font-family: var(--font-display); font-size: 12.5px;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+
+/* ---------------------------------------------------------------------
+   THE CROSS-READ. Hovering a lane asks "and who else was there?", and the
+   book answers on every other line at once. Nothing moves; ink recedes or
+   holds, the way the map's earlier visits fade to echoes.
+   --------------------------------------------------------------------- */
+.roll.reading .lane .sig,
+.roll.reading .lane .lane-stats,
+.roll.reading .lane .face { opacity: 0.42; }
+.roll.reading .tick { opacity: 0.16; }
+.roll.reading .lane.self .sig,
+.roll.reading .lane.self .lane-stats,
+.roll.reading .lane.self .face,
+.roll.reading .lane.kin .sig,
+.roll.reading .lane.kin .face { opacity: 1; }
+.roll.reading .lane.self .tick { opacity: 1; transform: scale(1.3); }
+.roll.reading .tick.shared { opacity: 1; box-shadow: 0 0 0 2.5px rgba(47, 92, 64, 0.5); }
+.roll.reading .lane.kin .kn { opacity: 1; }
+.kn {
+    position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+    font-family: var(--font-display); font-weight: 700; font-size: 10px; letter-spacing: 0.08em;
+    color: #2f5c40; opacity: 0; transition: opacity 0.15s ease; pointer-events: none;
+    background: rgba(248, 242, 226, 0.9); padding: 1px 4px; border-radius: 2px;
 }
 
-/* The drawer: shared hikes, expanding in place */
-.crew-drawer {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    background-color: #fafaf7;
-    border-radius: 6px;
+/* the drawer: a line opens onto the outings it stands for, and onto the door
+   into that person's own leaf of the book */
+.drawer { grid-column: 2 / 6; max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+.lane.open .drawer { max-height: 620px; }
+.dwr-note {
+    font-size: 12.5px; color: var(--bk-sub); font-style: italic;
+    padding: 9px 0 8px; border-bottom: 1px dashed var(--rule); margin-bottom: 6px;
 }
-.crew-row.open .crew-drawer {
-    max-height: 900px;
-    margin-bottom: 12px;
-}
-.crew-drawer-hike {
-    display: flex;
-    align-items: baseline;
-    gap: 14px;
-    padding: 8px 18px;
-    text-decoration: none;
-    color: var(--charcoal);
-    font-size: 14.5px;
-}
-.crew-drawer-hike:hover {
-    background-color: #eef3ee;
-}
-.cdh-date {
-    color: var(--gravel);
-    font-size: 12.5px;
-    min-width: 130px;
-}
-.cdh-name {
-    flex: 1;
-    color: var(--evergreen);
-    font-weight: 700;
-}
-.crew-drawer-hike:hover .cdh-name {
-    color: var(--trail-green);
-}
-.cdh-arrow {
-    color: var(--trail-green);
-}
-.crew-drawer-trips {
-    padding: 10px 18px 14px;
-    font-size: 13.5px;
-    color: var(--stone);
-    border-top: 1px dashed var(--mist);
-    margin-top: 4px;
-}
-.crew-drawer-trips a {
-    color: var(--trail-green);
-    font-weight: 700;
-    text-decoration: none;
-}
-.crew-drawer-trips a:hover {
-    text-decoration: underline;
+.dwr-note b { font-style: normal; font-weight: 700; color: var(--bk-ink); }
+.dwr { padding: 0 0 10px; column-count: 2; column-gap: 26px; }
+.dwr a { display: flex; gap: 9px; align-items: baseline; text-decoration: none; color: var(--bk-sub); font-size: 12px; padding: 2.5px 0; break-inside: avoid; }
+.dwr a:hover { color: var(--bk-ink); }
+.dwr .dt { width: 6px; height: 6px; border-radius: 50%; flex: none; align-self: center; }
+.dwr .d { font-size: 10.5px; color: var(--muted); min-width: 72px; }
+.dwr .t { flex: 1; }
+.dwr-trips { padding: 0 0 12px; font-size: 12px; color: var(--bk-sub); }
+.dwr-trips b { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
+.dwr-trips a { color: #2f5c40; text-decoration: none; font-weight: 700; }
+.dwr-trips a:hover { text-decoration: underline; }
+.dwr-door { padding-bottom: 14px; max-width: 340px; }
+
+/* =====================================================================
+   THE SERVICE RECORD — left leaf, the record
+   ===================================================================== */
+.rk { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.rk span { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+.rec-name {
+    font-family: var(--font-display); font-weight: 700; font-size: clamp(30px, 2.2vw, 46px);
+    letter-spacing: 0.05em; text-transform: uppercase; margin: 6px 0 0; line-height: 0.98;
 }
 
-/* The quiet footnote under the register */
-.crew-solo-line {
-    margin: 18px 6px 0;
-    font-size: 14px;
-    font-style: italic;
-    color: var(--gravel);
+/* the portrait, in the same mount the cover photographs use */
+.plate-photo { position: relative; background: var(--card); border: 1px solid #ddd0ae; padding: 6px 6px 20px;
+    box-shadow: 0 4px 12px rgba(60, 45, 20, 0.28); }
+.plate-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #ded0a6; }
+.plate-photo .blank {
+    display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4 / 3;
+    background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%);
+    font-family: var(--font-display); font-weight: 700; font-size: 44px; color: #7d6231; letter-spacing: 0.06em;
+}
+.plate-photo .cap { position: absolute; left: 9px; right: 9px; bottom: 4px; display: flex; justify-content: space-between;
+    font-family: var(--font-display); font-size: 7px; letter-spacing: 0.2em; color: var(--muted); }
+
+/* the service block: a ledger, not a stat row */
+.svc { margin: 15px 0 0; }
+.svc div { display: grid; grid-template-columns: 86px 1fr; gap: 12px; align-items: baseline;
+    padding: 6px 0; border-bottom: 1px solid rgba(184, 165, 120, 0.4); }
+.svc .k { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.svc .v { font-size: 13px; color: var(--bk-ink); line-height: 1.35; }
+.svc .v em { font-style: italic; color: var(--bk-sub); font-size: 11.5px; }
+.svc .v b { font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: 0.02em; }
+.svc .v a { color: #2f5c40; text-decoration: none; font-weight: 700; }
+.svc .v a:hover { text-decoration: underline; }
+
+/* THE LANE, enlarged — the same track the roll draws, given room to become
+   the INDEX to the plates on the facing leaf */
+.lane-block { margin-top: 18px; }
+.lane-hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.lane-hd .t { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.lane-hd .c { font-size: 11px; color: var(--muted); font-style: italic; }
+/* The lane is measured from its BASELINE up, because marks that collide have
+   to stack: two outings a day apart draw on top of each other at this width,
+   and a mark buried under its neighbour cannot be pointed at — which would
+   quietly make some trails unreachable on the leaf where the lane's whole
+   job is to be the index. --lane-h and each mark's --r are set by
+   crew-member.js from the measured width, and recomputed when it changes. */
+.big-lane { position: relative; height: var(--lane-h, 54px); }
+.big-lane .gl { top: 0; bottom: 16px; }
+.big-lane .yr { position: absolute; bottom: 0; transform: translateX(-50%); font-family: var(--font-display);
+    font-weight: 700; font-size: 9.5px; letter-spacing: 0.14em; color: #a89769; }
+.big-lane .span { top: auto; bottom: 26px; margin-top: 0; }
+.big-lane .tick {
+    top: auto; bottom: calc(26px + var(--r, 0) * 12px);
+    width: 11px; height: 11px; margin: 0 0 -5.5px -5.5px;
+    border: 1px solid rgba(255, 253, 246, 0.85); box-shadow: 0 1px 3px rgba(60, 45, 20, 0.35); cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+}
+/* a stacked mark keeps its tie to the moment it happened */
+.big-lane .tick[style*="--r:0"] { box-shadow: 0 1px 3px rgba(60, 45, 20, 0.35); }
+.big-lane .stem { position: absolute; width: 1px; background: rgba(120, 100, 62, 0.3); }
+.big-lane .tick:hover, .big-lane .tick.lit { transform: scale(1.5); box-shadow: 0 0 0 3px rgba(47, 92, 64, 0.45); z-index: 3; }
+.big-lane.reading .tick:not(.lit) { opacity: 0.28; }
+/* the readout: what the pointer is on. No floating tooltip — the Atlas rule. */
+.readout { margin-top: 8px; min-height: 34px; padding-top: 8px; border-top: 1px dashed var(--rule); }
+.readout .t { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em;
+    text-transform: uppercase; line-height: 1.2; }
+.readout .d { font-size: 11.5px; font-style: italic; color: var(--bk-sub); margin-top: 2px; }
+.readout.rest .t { font-family: var(--font-body); font-weight: 400; font-size: 12px; font-style: italic;
+    text-transform: none; letter-spacing: 0; color: var(--muted); }
+
+.rec-back { margin-top: auto; padding-top: 16px; }
+
+/* the doors are base.css's own .atlas-door — only their scale is set here.
+   NB no width:100%: display:flex already fills the container, and without a
+   global border-box the width plus padding would overflow it. */
+.dwr-door .atlas-door.is-wide,
+.rec-back .atlas-door.is-wide { padding: 10px 13px; gap: 10px; }
+.dwr-door .atlas-door.is-wide .ad-glyph,
+.rec-back .atlas-door.is-wide .ad-glyph { width: 19px; height: 19px; }
+.dwr-door .atlas-door.is-wide .ad-chev,
+.rec-back .atlas-door.is-wide .ad-chev { width: 14px; height: 14px; }
+.dwr-door .ad-main, .rec-back .ad-main { font-size: 9.5px; letter-spacing: 0.18em; }
+.dwr-door .ad-sub,  .rec-back .ad-sub  { font-size: 10.5px; }
+
+/* =====================================================================
+   THE SERVICE RECORD — right leaf, the plates
+   ===================================================================== */
+.rec-head { flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: 16px;
+    padding-bottom: 10px; border-bottom: 1.5px solid #2f5c40; margin-bottom: 14px; }
+.rec-head .t { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
+.rec-head .n { font-size: 11.5px; font-style: italic; color: var(--bk-sub); white-space: nowrap; }
+
+.sheets { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; }
+/* A plate must be big enough to read a trail on: the Angeles plate carries a
+   dozen hikes across the cluster cap's full 75 km. The column COUNT is fixed
+   and the plates take the extra width — auto-fill got it exactly backwards,
+   packing ever more, ever smaller plates onto a bigger desk. */
+.plates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+@media (min-width: 2200px) { .plates { grid-template-columns: repeat(3, 1fr); } }
+.plates:empty { display: none; }
+
+.plate { background: var(--card); border: 1px solid #cdbf9c; box-shadow: 0 4px 14px rgba(60, 45, 20, 0.24); padding: 5px; }
+.p-collar { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 6px 7px; }
+.p-no { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
+.p-name { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--bk-ink); line-height: 1.15; }
+.p-cnt { font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.p-map { position: relative; height: clamp(260px, 30vh, 460px); border: 1px solid #b9a578; background: #e6dcc0; }
+.p-map .leaflet-container { background: #e6dcc0; font-family: var(--font-body); }
+
+/* the plate wears the Atlas's own complexion: the parchment wash is laid
+   between the tiles (200) and the ink (400), exactly as map.css does it */
+.parchment-wash { position: absolute; inset: 0; z-index: 250; pointer-events: none;
+    background: #d9c8a0; mix-blend-mode: multiply; opacity: 0.42; }
+.hillshade-multiply { mix-blend-mode: multiply; }
+.atlas-labels { z-index: 240 !important; filter: sepia(0.45) saturate(0.6) contrast(0.92); }
+.crew-record .leaflet-control-attribution {
+    background: rgba(255, 253, 246, 0.75) !important; font-size: 9px !important;
 }
 
-/* --- Crew member page (crew-member.html) --- */
-.leaflet-container {
-    font-family: var(--font-body);
-}
+/* the loose sheet: one-offs as line art, the shape of the walk itself */
+.loose { margin-top: 18px; background: var(--card); border: 1px solid #cdbf9c;
+    box-shadow: 0 4px 14px rgba(60, 45, 20, 0.24); padding: 5px; }
+.loose[hidden] { display: none; }
+.loose .p-collar { border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+.prints { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 12px 8px; }
+.print { text-align: center; text-decoration: none; color: inherit; }
+.print svg { display: block; margin: 0 auto 6px; }
+.print .t { font-family: var(--font-display); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--bk-ink); line-height: 1.2; }
+.print .p { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.print.lit .t, .print:hover .t { color: #2f5c40; }
 
-/* Atlas plates: one legible mini-map per shared region */
-.plates-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 22px;
-}
-/* A lone region plate spreads across the full row */
-.plates-grid > .plate:only-child {
-    grid-column: 1 / -1;
-}
-.plate {
-    border: 1px solid #e4e0d5;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-}
-.plate-title {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 10px 16px;
-    background-color: #f7f5ef;
-    border-bottom: 1px solid #e4e0d5;
-}
-.plate-name {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 19px;
-    color: var(--evergreen);
-}
-.plate-count {
-    font-size: 12.5px;
-    font-weight: 700;
-    color: var(--trail-green);
-    white-space: nowrap;
-}
-.plate-map {
-    height: 250px;
-}
+/* the friendly dead end, when a name isn't in the book */
+.bk-lost { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    text-align: center; height: 100%; padding: 24px; }
+.bk-lost .tl-kick { font-family: var(--font-display); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+.bk-lost .tl-title { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--bk-ink); margin: 0; }
+.bk-lost .tl-msg { font-size: 13.5px; font-style: italic; color: var(--bk-sub); margin: 0 0 8px; max-width: 30em; }
 
-/* Scattered Trails: far-flung one-offs as line-art trailprints */
-.scattered-plate {
-    margin-top: 22px;
+/* =====================================================================
+   THE PAGE TURN
+   One gesture, filmed across two documents. Leaving a page, a leaf swings
+   shut over it; arriving, the same leaf swings open again. The navigation
+   happens while the paper is flat across the screen, so the document swap
+   is never seen — the book turns, it does not blink.
+
+   It is a PANEL, not the leaf itself: crew-member.html's right leaf holds
+   live Leaflet maps, and a rotated container makes getBoundingClientRect
+   report the transformed box, which would quietly wreck every fitBounds.
+   ===================================================================== */
+/* 1200 clears Leaflet's own control container (1000) — otherwise the plates'
+   attribution badges float straight through the turning page. The leaf's
+   `perspective` already makes it a stacking context, so the number is
+   scoped to this leaf and cannot climb over the nav. */
+.page-turn {
+    position: absolute; inset: -1px; z-index: 1200; pointer-events: none; opacity: 0;
+    transform-origin: left center; transform: rotateY(-92deg);
+    background: linear-gradient(264deg, #e4d9ba 0%, var(--paper) 8%, #f8f2e2 55%, #e3d8b8 100%);
+    border: 1px solid #a89769; border-left: none; border-radius: 0 3px 3px 0;
+    box-shadow: -20px 0 46px rgba(40, 30, 12, 0.34);
+    backface-visibility: hidden;
 }
-.trailprints {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    padding: 16px;
+/* the leaf's own shading as it lifts off the desk */
+.page-turn::after {
+    content: ''; position: absolute; inset: 0; border-radius: 0 3px 3px 0;
+    background: linear-gradient(90deg, rgba(90, 72, 36, 0.3) 0%, rgba(90, 72, 36, 0.05) 22%, rgba(90, 72, 36, 0) 55%);
 }
-.trailprint {
-    text-align: center;
-    text-decoration: none;
-    border: 1px solid #e4e0d5;
-    border-radius: 10px;
-    padding: 14px 10px 12px;
-    background-color: #fdfcf8;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* The easing is doing real work. A page rotating about its spine is steeply
+   foreshortened for most of its arc — near 90 degrees it is a line, and
+   invisible — so a linear turn reads as blank paper appearing from nowhere.
+   Both curves therefore spend their time where the page can actually be
+   SEEN: shutting eases out, racing through the steep angles and settling
+   visibly flat; opening eases in, lifting off in plain view before whipping
+   away through the same steep angles. */
+.crew-book.turn-shut .page-turn { animation: pt-shut 0.5s cubic-bezier(0.15, 0.62, 0.3, 1) forwards; }
+.crew-book.turn-open .page-turn { animation: pt-open 0.6s cubic-bezier(0.55, 0, 0.76, 0.42) forwards; }
+@keyframes pt-shut {
+    from { transform: rotateY(-92deg); opacity: 1; }
+    to   { transform: rotateY(0deg);   opacity: 1; }
 }
-.trailprint:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+@keyframes pt-open {
+    from { transform: rotateY(0deg);   opacity: 1; }
+    to   { transform: rotateY(-92deg); opacity: 1; }
 }
-.trailprint svg {
-    display: block;
-    margin: 0 auto 8px;
+/* the facing leaf changes with it, so the whole spread turns as one object */
+.leaf-scrim {
+    position: absolute; inset: 0; z-index: 890; pointer-events: none; opacity: 0;
+    background: linear-gradient(96deg, #e4d9ba 0%, var(--leaf-l) 9%, #f3ead4 62%, #e0d4b2 100%);
+    transition: opacity 0.34s ease;
 }
-.tp-name {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 15px;
-    color: var(--evergreen);
-    line-height: 1.25;
-}
-.trailprint:hover .tp-name {
-    color: var(--trail-green);
-}
-.tp-place {
-    font-size: 11.5px;
-    color: var(--gravel);
-    margin-top: 3px;
-}
-.member-hike-row {
-    display: flex;
-    align-items: baseline;
-    gap: 16px;
-    padding: 11px 6px;
-    text-decoration: none;
-    color: var(--charcoal);
-    border-bottom: 1px solid var(--mist);
-    font-size: 15px;
-}
-.member-hike-row:last-child {
-    border-bottom: none;
-}
-.member-hike-row:hover {
-    background-color: #f6f8f6;
-}
-.mhr-date {
-    color: var(--gravel);
-    font-size: 13px;
-    min-width: 150px;
-}
-.mhr-name {
-    flex: 1;
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 18px;
-    color: var(--evergreen);
-}
-.member-hike-row:hover .mhr-name {
-    color: var(--trail-green);
-}
-.mhr-stats {
-    color: var(--stone);
-    font-size: 13.5px;
-    white-space: nowrap;
-}
-.mhr-trip {
-    background-color: var(--trail-green);
-    color: #fff;
-    font-size: 10.5px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    padding: 2px 9px;
-    border-radius: 10px;
-    white-space: nowrap;
-}
-/* Small field-card popups on the member map */
-.member-popup .mp-title {
-    font-family: var(--font-display);
-    letter-spacing: 0.02em;
-    font-size: 17px;
-    color: var(--evergreen);
-}
-.member-popup .mp-date {
-    font-size: 12px;
-    color: var(--stone);
-    margin-bottom: 6px;
-}
-.member-popup a {
-    color: var(--trail-green);
-    font-weight: 700;
-    text-decoration: none;
-}
-.member-popup a:hover {
-    text-decoration: underline;
-}
-.member-back {
-    display: inline-block;
-    margin-bottom: 16px;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--trail-green);
-    text-decoration: none;
-}
-.member-back:hover {
-    text-decoration: underline;
+.crew-book.turn-shut .leaf-scrim { opacity: 1; transition-duration: 0.3s; }
+.crew-book.turn-open .leaf-scrim { opacity: 0; }
+.crew-book.pre-turn .leaf-scrim { opacity: 1; transition: none; }
+.crew-book.pre-turn .page-turn { opacity: 1; transform: rotateY(0deg); }
+
+@media (prefers-reduced-motion: reduce) {
+    .page-turn, .leaf-scrim { display: none; }
+    .snap, .tick, .drawer, .kn { transition: none; }
 }

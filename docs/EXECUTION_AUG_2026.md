@@ -274,6 +274,32 @@ cloud puffs.
 still read as drawn rather than stepped. Then re-run the harness and compare `long(>25ms)`
 frame counts during the live half.
 
+## A-LATER — **The standing option: bake the pull-back too, draw only the ink live**
+
+*Not scheduled. Danny's call, 31 July: "keep that concept in our back pocket and ready to
+jump into if the intro gets bad again or we undergo a thorough cleaning/simplifying round."*
+
+The film's second half is a **live camera flight across six zoom levels on a raster map**,
+which is precisely the thing `CLAUDE.md` records as tried three times on `map.html` and
+rejected — "never reintroduce them" — with the honest fix being vector tiles, which the
+no-build-step architecture rules out. Everything in A1–A5 makes that flight cheaper. None of
+it makes it not-a-flight.
+
+If it degrades again, the structural answer is the one that already worked on the first half:
+
+- **Bake the terrain pull-back to video.** The terrain never changes. It is the same country
+  every time, pulled back along a fixed path, so it is a finished picture exactly as the
+  flight is.
+- **Draw only the trailprints live on top of it**, on the film's existing clock. Trails are
+  vectors and cost essentially nothing; they are also the only thing that changes when a
+  hike is added.
+- **The growth property survives intact** — a hike added tomorrow still appears with no
+  re-render, which is the whole reason the second half is live in the first place.
+
+The result would be a second half as smooth as the first, which Danny now rates highly.
+Cost: a longer bake, a second video to host, and `tools/render-intro.py` extended past S4.
+The clock, the cut and the ink schedule all already exist and would not change.
+
 ## A6 — Let the film tune itself down, rather than guessing at the device
 
 This is the answer to Danny's actual question: *instead of mapping a solution for every

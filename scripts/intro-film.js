@@ -121,6 +121,19 @@ window.AtlasFilmReady = new Promise(res => { PUBLISH = res; });
 // the film opens on satellite terrain, so parchment and brass is a deliberate
 // contrast — and it is made of the same thing the whole site is made of.
 const loadEl = layer('if-load');
+// Setting an opacity that has not changed still dirties the element, and a
+// full-screen layer sitting at opacity 0 is still a layer the compositor has to
+// carry through every frame. So this writes only on a real change, and takes a
+// fully transparent layer OUT of the tree rather than leaving it there invisible.
+// Both matter here because these layers are full-screen, and on a 4K display a
+// full-screen layer is eight megapixels whether or not you can see it.
+function setOp(el, v) {
+    if (el.__op === v) return;
+    el.__op = v;
+    el.style.opacity = v;
+    el.style.display = v > 0 ? '' : 'none';
+}
+
 const NS = 'http://www.w3.org/2000/svg';
 const svgEl = (t, a) => { const e = document.createElementNS(NS, t);
     for (const k in a) e.setAttribute(k, a[k]); return e; };
@@ -502,6 +515,16 @@ const collectHook = (url, kind) => {
     return { url };
 };
 
+// No maxTileCacheSize here, and that was TESTED rather than assumed. The theory
+// was that the sheet crosses six zoom levels in one move, so MapLibre's default
+// viewport-derived cache must be evicting the early ones and forcing a re-decode
+// mid-zoom — which would have explained why a Replay is smoother. Raising it to
+// 900 (the warm list is 705) changed the re-requests during the pull-back not at
+// all, 390 -> 383, and made the Replay measurably WORSE: long frames 4 -> 14,
+// worst frame 83 ms -> 224 ms. Holding ~900 raster textures is on the order of
+// 200 MB of GPU memory, and paying that to fix nothing is a bad trade. The same
+// note on the globe below reaches the same conclusion from the other direction.
+// Leave the default alone.
 const atlasMap = new maplibregl.Map({
     container: atlasEl, interactive: false, attributionControl: false,
     center: [-98.58, 39.82], zoom: 3.4, transformRequest: collectHook,
@@ -518,9 +541,37 @@ const atlasMap = new maplibregl.Map({
             natpt: { type: 'geojson', data: natPointsFC, tolerance: 0 }
         },
         layers: [
-            { id: 'parchment', type: 'background', paint: { 'background-color': '#ece3ce' } },
+            // ---- THE PARCHMENT IS PAINTED IN THE SHADER, NOT BLENDED ON TOP ----
+            // The sheet used to wear TWO stacked full-screen blend layers: a
+            // `multiply` wash inside this container and the film's own
+            // `soft-light` wash over the whole stage. A blend mode is not a
+            // cheap overlay — the browser has to read the backdrop back into a
+            // texture and re-composite the entire stack every time the backdrop
+            // changes, and during the pull-back the backdrop changes on every
+            // frame, at eight megapixels on a 4K screen. Two of them, sixty
+            // times a second, is what made the pull-back run at a fraction of
+            // its frame rate while everything looked fine at rest.
+            //
+            // The map is already shading these pixels, so the tint is free
+            // here. These three values were not guessed: they came from a
+            // search against the old look, measured on the rendered picture,
+            // and they land within 3 of 255 per channel on land, plains and
+            // water alike. Nobody can see 3/255; everybody could see 12fps.
+            { id: 'parchment', type: 'background', paint: { 'background-color': '#cdbb98' } },
+            // fade 0, not 250 and certainly not the 450 this started at. The
+            // pull-back is ONE uninterrupted zoom across six levels, so a fade
+            // of any length means two whole raster levels are dissolved through
+            // each other for most of the film rather than momentarily at a
+            // level change. That is a second full-screen composite to pay for,
+            // and it is also the "tiles randomly glitching" — a fade IS tiles
+            // appearing and disappearing through each other, and mid-zoom that
+            // is exactly what it looks like. The flight kept its fade because
+            // Esri re-renders its imagery per level and the levels genuinely
+            // differ; shaded relief barely changes between levels, so there is
+            // nothing here for a dissolve to hide.
             { id: 'relief', type: 'raster', source: 'relief',
-              paint: { 'raster-opacity': 0.62, 'raster-fade-duration': 450 } },
+              paint: { 'raster-opacity': 0.40, 'raster-saturation': -0.15,
+                       'raster-fade-duration': 0 } },
             { id: 'states', type: 'line', source: 'states',
               paint: { 'line-color': '#a8946e', 'line-opacity': 0.55, 'line-width': 1.1 } },
             { id: 'nat-core', type: 'line', source: 'nat',
@@ -536,10 +587,51 @@ const atlasMap = new maplibregl.Map({
         ]
     }
 });
-// A parchment wash over the whole sheet, the same one the hero film wears.
-const wash = document.createElement('div');
-wash.style.cssText = 'position:absolute;inset:0;background:#d9c8a0;opacity:.40;mix-blend-mode:multiply;pointer-events:none';
-atlasEl.appendChild(wash);
+// ---- CHEAP WHILE IT MOVES, SHARP WHEN IT STOPS -----------------------------
+// The pull-back is one continuous zoom across six levels, and every pixel of it
+// is shaded on every frame and then blended a second time by the parchment wash
+// on top. On a big screen MapLibre builds this canvas at the full device ratio:
+// measured 3840 x 2100 on a modest 1.5x display, and 3840 x 2160 on a native 4K
+// one. Eight megapixels, twice over, sixty times a second, for a soft
+// shaded-relief map under a parchment tint.
+//
+// The tiles are NOT the bottleneck, and that was checked rather than assumed:
+// at 50, 12 and even 5 Mbps with a cold cache the warm completes in full (705
+// of 705 before the cut) and the tiles the sheet asks for mid-zoom come back in
+// 2-4 ms. The bytes are always there. What costs is drawing them.
+//
+// TWO TRAPS, BOTH HIT ON THE WAY HERE.
+//
+//  1. It is `setPixelRatio()`, NOT a `pixelRatio` constructor option. MapLibre
+//     5.6.1 silently ignores the option: the canvas came back 3840 x 2100
+//     exactly as before, which is the kind of change that looks landed and does
+//     nothing at all.
+//  2. Capping the RATIO does not cap the PIXELS. A native 4K monitor already
+//     reports devicePixelRatio 1, so `Math.min(dpr, 1.5)` is 1 there and
+//     changes nothing — on the one display that needs it most. The budget has
+//     to be a pixel COUNT, converted back into a ratio through the CSS width.
+//
+// And the reason this can be aggressive: the cost only exists while the sheet
+// is MOVING, and the sharpness only matters once it has STOPPED. So the film
+// runs at the budget and land() hands the full ratio back, on a picture that
+// has stopped moving and can afford it.
+const SHEET_MAX_W = 2560;
+function setSheetDetail(full) {
+    const css = atlasEl.clientWidth || window.innerWidth || SHEET_MAX_W;
+    const dpr = window.devicePixelRatio || 1;
+    // The cutting room and the offline renderer always get full detail. They
+    // exist to JUDGE the picture, and a budget meant to protect a frame rate
+    // has no business changing what they are looking at.
+    atlasMap.setPixelRatio(full || LIVE_FLIGHT ? dpr : Math.min(dpr, SHEET_MAX_W / css));
+}
+// Full detail is the resting state, so a repeat visit — which lands without
+// ever playing the film — is sharp from its first frame.
+setSheetDetail(true);
+
+// (The parchment wash that used to be appended here as a full-screen
+// `mix-blend-mode: multiply` div is gone. Its tint now lives in the sheet's own
+// paint properties above, where it costs nothing — see the note on the
+// `parchment` layer for why a blend over a moving map is so expensive.)
 
 // Order the national reveal outward from the HERO TRAIL — the same point the
 // flight spiralled around, not a hardcoded downtown LA that no longer means
@@ -1051,8 +1143,27 @@ applyPin();
 // No band is reserved at the bottom for the inset plates either, for the same
 // reason: they sit over the map's own two lower corners, which at this framing
 // are Pacific and Atlantic, and a plate over open water is a plate over nothing.
-// home.js's own number. `?pad=` to compare landings.
-const PAD = (v => v === null ? 0.18 : +v)(new URLSearchParams(location.search).get('pad'));
+// 0.06, tightened from home.js's inherited 0.18 (Danny, 31 July 2026): the film
+// was coming to rest wider than the country needed, with a band of empty ground
+// all round it. Measured over all 108 continental trailprints at 1920x1080, the
+// closest any trailhead comes to an edge:
+//
+//     pad 0.18   z4.300   174 px clear   (the old landing)
+//     pad 0.10   z4.481   139 px clear
+//     pad 0.06   z4.580   103 px clear   <- here
+//     pad 0.02   z4.687    37 px clear   (too close; the corners get crowded)
+//
+// Zero trailprints clipped at any of them, so this is a framing choice rather
+// than a safety one, and 0.06 keeps a comfortable margin while letting the
+// country actually fill the frame.
+//
+// SAFE TO RETUNE WITHOUT RE-BAKING THE VIDEO, and that is worth knowing: the
+// FLIGHT's zoom ramp comes from `data/intro-film.json` (`zSpan`), so it is
+// pinned to the cut that was baked. This number only moves where the SHEET
+// comes to rest — `sheetZoom` interpolates atlasStart.zoom -> atlasEnd.zoom —
+// and atlasStart is also from the record, so the handover is untouched.
+// `?pad=` to compare landings live.
+const PAD = (v => v === null ? 0.06 : +v)(new URLSearchParams(location.search).get('pad'));
 const atlasEnd = (() => {
     let w = 180, e = -180, s = 90, n = -90;
     natFeatures.forEach(f => {
@@ -1287,6 +1398,9 @@ function heroSlice(p) {
 const HERO_HEAD = 0.014;
 let heroShowing = true, heroLastP = -1;
 function inkHero(p) {
+    // The hero's stroke lives on the globe, so in video mode it is baked into
+    // the picture and drawing it again is invisible work. See cameraAt.
+    if (!LIVE_FLIGHT) return;
     const show = p > 0;
     if (show !== heroShowing) {
         heroShowing = show;
@@ -1453,7 +1567,17 @@ const imy = y => 180 / Math.PI * Math.atan(Math.sinh(Math.PI * (1 - 2 * y)));
 // around it; a straight interpolation between two centres a third of a continent
 // apart sends it swinging sideways across the sheet, which is the drift that
 // once put mockup A's camera in the Utah desert half way through.
+// The sheet's camera is a pure function of its zoom, so an unchanged zoom is an
+// unchanged view and there is nothing to issue. This matters for one stretch in
+// particular: for the whole VIDEO half, cameraAt asks for `atlasStart.zoom` on
+// every frame — the same number, hundreds of times — and each jumpTo was a fresh
+// move event and a repaint on a map sitting at opacity 0. The sheet must stay
+// BUILT and WARM behind the video (its tiles are being pre-fetched, and the cut
+// at S4 has to land on a finished picture), but it has no business repainting.
+let atlasViewZ = NaN;
 function setAtlasView(zoom) {
+    if (zoom === atlasViewZ) return;
+    atlasViewZ = zoom;
     // how far through the sheet's own journey this zoom is — the centre drift is
     // tied to the ZOOM, not to the clock, so the two can never disagree
     const a = clamp01((atlasStart.zoom - zoom) / (atlasStart.zoom - atlasEnd.zoom));
@@ -1840,24 +1964,62 @@ const PUFFS = [
 // camera path at boot and asking where each trail actually lands on screen —
 // without dragging the ink and the reveal, which depend on that schedule, round
 // in a circle with it.
+// ===== THE FLIGHT IS ONLY FLOWN WHEN IT IS THE PICTURE =====================
+// In video mode the first half of the film is a finished video, and the globe
+// underneath it is HIDDEN (see the `visibility` note where flightEl is chosen).
+// It was still being flown anyway — camera moved, trails inked, hero gradient
+// rewritten — thirty to a hundred and twenty times a second, drawing a picture
+// that was then thrown away. Measured in Chrome at a 2560 window, over five
+// seconds inside the video half:
+//
+//     total WebGL draw calls          1,286,326
+//     ...of which the HIDDEN globe    1,002,502   (78%)
+//     ...of which the sheet, at
+//        opacity 0 until the cloud      283,824   (22%)
+//
+// Every one of them invisible. `visibility: hidden` hides a canvas; it does not
+// stop WebGL drawing into it, and a jumpTo marks the map dirty whether anyone
+// can see it or not. Muting just the globe's share took the worst frame from
+// 125 ms to 25 ms and dropped video frames from 6 to 0 on a machine with
+// nothing else running — which is the whole judder, on hardware that had room
+// to spare. A 4K screen has none.
+//
+// So in video mode the globe becomes an INSTRUMENT rather than a picture. It is
+// still built, and it is still MEASURED — the reveal schedule walks this camera
+// at boot and asks the canvas how big the frame is — but from the moment the
+// film starts it is never moved, never re-inked, and never repainted. The
+// handoff it hands over to is not re-derived either: `data/intro-film.json`
+// records the ground the video's last frame shows and the trails it drew, so
+// the sheet always picks up in exactly the same place.
+//
+// The gate is safe INCLUDING during the boot walk, and that is worth checking
+// rather than assuming: the walk's flight half is already `LIVE_FLIGHT`-only
+// (see SCHED), and the sheet half projects against atlasMap, not the globe. So
+// nothing in video mode ever needs the globe to have moved.
 function cameraAt(q) {
-    if (q < S2) {
-        const u = clamp01(q / S2);
-        const spun = smoother(clamp01(u / SPIRAL_END));
-        const c = bez(ANCHOR, heroMid, [anfCam.center.lng, anfCam.center.lat],
-                      smoother(clamp01((u - SPIRAL_END * 0.55) / (1 - SPIRAL_END * 0.55))));
-        globe.jumpTo({ center: c, bearing: B0 + SWEEP * spun, zoom: zoomOf(q),
-                       pitch: lerp(PITCH0, FINAL_PITCH, ease(u, 1.3, 1.3)) });
-        globeParked = false;
-    } else if (!globeParked) {
-        globe.jumpTo({ center: [anfCam.center.lng, anfCam.center.lat],
-                       zoom: HANDOFF_Z, bearing: FINAL_BEARING, pitch: FINAL_PITCH });
-        globeParked = true;
+    if (LIVE_FLIGHT) {
+        if (q < S2) {
+            const u = clamp01(q / S2);
+            const spun = smoother(clamp01(u / SPIRAL_END));
+            const c = bez(ANCHOR, heroMid, [anfCam.center.lng, anfCam.center.lat],
+                          smoother(clamp01((u - SPIRAL_END * 0.55) / (1 - SPIRAL_END * 0.55))));
+            globe.jumpTo({ center: c, bearing: B0 + SWEEP * spun, zoom: zoomOf(q),
+                           pitch: lerp(PITCH0, FINAL_PITCH, ease(u, 1.3, 1.3)) });
+            globeParked = false;
+        } else if (!globeParked) {
+            globe.jumpTo({ center: [anfCam.center.lng, anfCam.center.lat],
+                           zoom: HANDOFF_Z, bearing: FINAL_BEARING, pitch: FINAL_PITCH });
+            globeParked = true;
+        }
     }
     setAtlasView(q >= S4 ? sheetZoom(q) : atlasStart.zoom);
 }
 
 function setAnfLit(n) {
+    // The Angeles trails are the globe's, so in video mode the video already
+    // shows them and this is invisible work. Guarded here rather than at each
+    // call site so run()'s reset is covered too. See cameraAt.
+    if (!LIVE_FLIGHT) return;
     if (n === anfLit) return;
     const on = n > anfLit;
     for (let i = Math.min(anfLit, n); i < Math.max(anfLit, n); i++)
@@ -1924,6 +2086,7 @@ function penHold(map, pen, feat) {
 // it handed to, so every trail in the forest brightened while it was being
 // written and dropped to its true colour the instant it finished.
 function penDraw(map, pen, row, p, glow) {
+    pen.lit = true;
     const cols = glow ? [row.color, row.case, row.body] : [row.color];
     const ops = glow ? [ANF_GLOW_OP, 1, 1] : [1];
     pen.layers.forEach((lid, j) => {
@@ -1935,7 +2098,17 @@ function penDraw(map, pen, row, p, glow) {
             grad(cols[j], p, 0.02, j === 1 && glow ? cols[1] : undefined));
     });
 }
+// Putting a pen down, and ONLY when it is not already down. `setPaintProperty`
+// marks the style dirty and forces a repaint whether or not the value changed,
+// so a pen told "draw nothing" every frame is a repaint every frame. That is
+// what the SHEET was doing for the entire video half: runPens is called with
+// q = -1 before the cloud, no row is ever active, and all ten pens were being
+// re-idled on every frame of a map at opacity 0 — 283,824 draw calls in five
+// seconds, all of them invisible. It costs the live half nothing either: a pen
+// is idled once when its stroke finishes, not continuously thereafter.
 function penIdle(map, pen) {
+    if (!pen.lit) return;
+    pen.lit = false;
     pen.layers.forEach(lid => map.setPaintProperty(lid, 'line-opacity', 0));
 }
 
@@ -2157,6 +2330,15 @@ const SCHED = (() => {
                      starts: anfRows.map(r => +r.start.toFixed(4)) } };
 })();
 const PRE_LIT = SCHED.preN;
+
+// The globe has now been MEASURED, which was its only remaining job in video
+// mode: SCHED walks its camera and asks its canvas how big the frame is. From
+// here it is never moved, never inked and never drawn, so it has no business
+// being a full-screen WebGL surface in the compositor's layer tree either.
+// `visibility: hidden` was deliberate earlier — it keeps the box, and the
+// schedule needed the box. The schedule is built now, so the box can go, and
+// eight megapixels of dead canvas leave every composite with it.
+if (!LIVE_FLIGHT) globeEl.style.display = 'none';
 const anfOrder = SCHED.anf;      // setAnfLit lights a prefix of this
 const natOrder = SCHED.nat;      // setNatLit lights a prefix of this
 
@@ -2243,7 +2425,7 @@ function renderAt(q) {
     // Finished strokes go to the static layers; the ones still being written are
     // held by pens.
     setAnfLit(doneCount(SCHED.anf, q, 0));
-    runPens(globe, gPens, SCHED.anf, q, true);
+    if (LIVE_FLIGHT) runPens(globe, gPens, SCHED.anf, q, true);
 
     if (q < S2) {
         // ---- I + II: one spiral, widening ----
@@ -2268,8 +2450,15 @@ function renderAt(q) {
         inkHero(1);
     }
 
-    washEl.style.opacity = 0.5 * WASH * live;
-    vigEl.style.opacity = live;
+    // THE WASH BELONGS TO THE FLIGHT, NOT TO THE SHEET, and that is a fix as
+    // much as an optimisation. Its stated job is to warm Esri's cool olive
+    // IMAGERY toward the Atlas's parchment so the two halves read as one film.
+    // The sheet is already parchment and now carries its own tint in its paint
+    // properties, so leaving this on past the cut was washing it twice — and
+    // paying for a full-screen `soft-light` composite over a moving map to do
+    // it. Off from S4 onward, in both modes.
+    setOp(washEl, q < S4 ? 0.5 * WASH * live : 0);
+    setOp(vigEl, live);
 
     // ---- the aerial haze, which is the far distance ----
     // It thickens as the camera widens, because that is when the far band both
@@ -2278,7 +2467,7 @@ function renderAt(q) {
     // nobody sees it leave.
     const haze = (q >= S4 || !LIVE_FLIGHT) ? 0
                : HAZE_K * smoother(clamp01((q - HAZE_IN) / (HAZE_FULL - HAZE_IN)));
-    if (haze > 0 || hazeEl.style.opacity !== '0') hazeEl.style.opacity = haze;
+    setOp(hazeEl, haze);   // in video mode this is always 0, so the layer simply never exists
 
     // ---- the cloud, which is the mask ----
     const cin = clamp01((q - CLOUD_IN) / (CLOUD_FULL - CLOUD_IN));
@@ -2327,7 +2516,13 @@ function renderAt(q) {
         // own, no catching up: the same curve the satellite was on, shifted by
         // the pitched-vs-flat offset — the zoom never learns the medium changed.
         atlasEl.style.opacity = 1;
-        flightEl.style.opacity = LIVE_FLIGHT ? 1 - clamp01((q - S4) / 0.05) : 1 - live;
+        // In video mode the flight surface is the <video>, and once the cut is
+        // made it is finished (the file ends at S2, well before S4). Taking it
+        // out of the tree rather than leaving a full-screen video element at
+        // opacity 0 is worth doing on a big display. In LIVE mode the flight
+        // surface is the globe, which must keep its box — see setOp.
+        if (LIVE_FLIGHT) flightEl.style.opacity = 1 - clamp01((q - S4) / 0.05);
+        else setOp(flightEl, 1 - live);
         // Starts at PRE_LIT, the trails the flight already inked, and grows on
         // the schedule — clock-paced, frame-gated, and each stroke drawn.
         setNatLit(doneCount(SCHED.nat, q, PRE_LIT));
@@ -2336,7 +2531,7 @@ function renderAt(q) {
         setCredit('Terrain: Esri World Shaded Relief');
     } else {
         atlasEl.style.opacity = 0;
-        flightEl.style.opacity = 1;
+        if (LIVE_FLIGHT) flightEl.style.opacity = 1; else setOp(flightEl, 1);
         setNatLit(PRE_LIT);
         runPens(atlasMap, aPens, SCHED.nat, -1, false);
         creditEl.classList.remove('dark');
@@ -2529,11 +2724,17 @@ function land(animated) {
     titleEl.classList.toggle('no-anim', animated === false);
     titleEl.classList.add('show');
     renderAt(1);
-    atlasEl.style.opacity = 1; flightEl.style.opacity = 0;
+    atlasEl.style.opacity = 1;
+    if (LIVE_FLIGHT) flightEl.style.opacity = 0; else setOp(flightEl, 0);
     cloudsEl.style.opacity = 0;
     setNatLit(natOrder.length);
     // The plates come last of all, onto a sheet that has stopped moving.
     revealPlates(animated !== false);
+    // And the sheet takes its full resolution back, now that nothing is moving
+    // and there is no frame budget left to protect. Deferred a beat rather than
+    // done inline: setPixelRatio resizes the canvas and forces a full repaint,
+    // and the one frame that must stay clean is the one the title inks on.
+    setTimeout(() => setSheetDetail(true), 900);
     if (hintEl) hintEl.classList.add('show');
     if (btn) btn.textContent = '\u21bb Replay';
     // The film has had its turn this session. A later Escape is a no-op, and a
@@ -2563,6 +2764,8 @@ function run() {
     if (hintEl) hintEl.classList.remove('show');
     hidePlates();
     setNatLit(PRE_LIT); setAnfLit(0);
+    // Down to the moving budget before a frame is drawn (see setSheetDetail).
+    setSheetDetail(false);
     t0 = performance.now();
     // Hand the clock to the picture. vClockT starts at -1 so the first read
     // anchors even though currentTime is legitimately 0.

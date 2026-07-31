@@ -1,4 +1,4 @@
-# State of the Atlas — July 2026 (re-audited 24 July)
+# State of the Atlas — July 2026 (re-audited 31 July)
 
 *The living plan of record for The Trailprint Atlas. This revision re-audits the July
 plan against the actual code and data after the map redesign — which ran far longer
@@ -7,15 +7,26 @@ homepage inset plates. Everything below was verified in the codebase or in a liv
 browser, not assumed. The June 2026 audit and the original six-phase roadmap live
 in git history.*
 
+*The 31 July revision adds four newly-found problems (the film's jitter, the home
+page's remaining old skin, the onX clock, and the almanac's pop-in) and re-orders
+the roadmap around them. The step-by-step build brief for those lives in its own
+working document, **[EXECUTION_AUG_2026.md](EXECUTION_AUG_2026.md)** — file, line,
+measurement and acceptance check for each. This file stays the plan; that file is
+the instructions.*
+
 ---
 
 ## Where the build actually stands
 
-**The redesign arc is closed.** Every page of the Atlas now speaks the engraved-
-atlas language: home, the interactive map, the hike page, Echoes, `trip.html`
-(The Traverse, July 2026) and finally `crew.html` + `crew-member.html`
-(The Muster Roll and The Service Record, July 2026). There is no page left
-wearing the old slab-hero, white-card system.
+**The redesign arc is nearly closed, and the 24 July claim that it *was* closed is
+withdrawn.** The interactive map, the hike page, Echoes, `trip.html` (The Traverse)
+and `crew.html` + `crew-member.html` (The Muster Roll and The Service Record) all
+speak the engraved-atlas language. **The home page does not.** Below the film it is
+still four coloured bands of white rounded drop-shadow cards, which is the exact
+system this arc set out to retire, and it is the same fault the 24 July audit named
+on `trip.html` and `crew.html`. It was missed because the home page had just been
+rebuilt *structurally* (Threads → Observatory → Record Books) and a rebuilt page
+reads as a finished one. Item D closes it.
 
 **The data is complete and caught up.** 123 records, 8 Jan 2022 → 18 Jul 2026;
 113 hikes and 10 viewpoints; every `description`, `flora` and `fauna` filled.
@@ -111,6 +122,55 @@ built this year is desktop-only; the audience is family on phones.
 
 ---
 
+## Live problems found on 31 July (measured, not assumed)
+
+**6. The opening film still judders, and three quarters of the reason is invisible
+work.** Measured in Chrome with every WebGL draw call counted and tagged by canvas:
+during the **baked-video** half of the film, when the picture on screen is a
+`<video>`, the page is still flying the old live 3D map behind it at full size.
+At a 2560 window it costs **1,002,502 draw calls in five seconds** on a canvas that
+is `visibility: hidden`, out of 1,286,326 total. The other 284,000 go to the Atlas
+sheet, which is at `opacity: 0`. **Essentially all of the graphics work during the
+video half is thrown away.** Muting just the hidden map's draws took the worst frame
+from 125 ms to 25 ms and dropped video frames from 6 to 0, on a fast Mac with nothing
+else running. Two smaller causes ride along: a 4K screen is served the **2560 video
+cut** (14.8 MB) because the width rule floors the request at the window's own width,
+and both MapLibre canvases are built at full device pixel ratio (**3840 × 2100 each**
+on a 1.5× display). Fix in EXECUTION_AUG_2026 Task A.
+
+**7. The home page is the last page wearing the old skin.** The audit above condemned
+"white rounded cards with drop shadows on a near-white page" on `trip.html` and
+`crew.html`. Both were rebuilt; the home page still has it verbatim — `.obs-panel` is
+`#fffdf6` + `border-radius: 16px` + `box-shadow`. On top of that the page is four
+stacked bands in four near-identical creams, each repeating the same eyebrow / 3.2 em
+title / centred lede formula, which is a marketing landing page rather than an atlas.
+Danny's own words: "elements just splashed on the page one by one." Fix in Task D.
+
+**8. The home page ignores a large monitor.** Every section is hard-capped at
+1080–1120 px, so a 3840 px display shows about 1,360 px of empty parchment on each
+side. It cannot simply be uncapped: the charts are fixed-aspect SVGs, so the Effort
+Field at 2,400 px wide would be **1,148 px tall** and clipped. The answer is to
+re-draw them wider rather than scale them, and to pair square panels instead of
+stretching them. Same job as item 7 and done with it, not after it.
+
+**9. Six hikes report an impossible time on the trail.** The onX Backcountry export
+thins the recording and re-stamps the survivors at a made-up 3-second rhythm, so the
+file's elapsed time is proportional to how many points it kept rather than to how long
+Danny was out. Measured: onX points sit 5.3–7.8 m apart where AllTrails' sit 3.5–3.7 m,
+giving implied speeds of up to 20 mph. Strawberry Peak claims 1 h 08 m for 7.2 miles;
+its own photographs span 3 h 26 m. Nothing in our parsing is wrong. Recoverable,
+because every intake photo carries a **GPS UTC timestamp** and a position, and
+`recorded_times` already exists in the schema and already wins over the GPX. Fix in
+Task B.
+
+**10. The almanac arrives with a jolt.** It is `display:none` until the Open-Meteo call
+returns, and it sits above four other cards, so its arrival shoves them down. It
+happens twice, because the "On the trail" row waits on the GPX and lands separately.
+The real fix is to bake the weather the way every other derived dataset in this
+project is baked: historical weather for a past date never changes. Fix in Task C.
+
+---
+
 ## Decisions locked
 
 - **Single track, features first.** No parallel work.
@@ -131,24 +191,71 @@ built this year is desktop-only; the audience is family on phones.
 
 ## The roadmap from here — one track, in order
 
-Sequencing logic: fix what's visibly wrong before adding anything new; finish the
-redesign arc; then build the new rooms; batch the taxonomy change over the complete
-set; and sweep the whole build last, when there's nothing left to make untidy.
+*Re-ordered 31 July. Sequencing logic is unchanged: fix what's visibly wrong before
+adding anything new; finish the redesign arc; then build the new rooms; batch the
+taxonomy change over the complete set; and sweep the whole build last, when there's
+nothing left to make untidy. What changed is that the audit found four things that
+are visibly wrong today, so they go in front. Steps, files and acceptance checks for
+items A–E are in **[EXECUTION_AUG_2026.md](EXECUTION_AUG_2026.md)**.*
 
-### 1. Territories abroad  *(small, overdue, and currently wrong on the live site)*
-Canada is the first case; the work is built once for every country after it.
-- **Country becomes a first-class field.** It can't be derived — "Dublin, ??" has no
-  state abbreviation to key off — so it goes in the schema, per the standing rule
-  that new per-hike information starts there.
-- **A silhouette source for countries**, generated locally the way trails.geojson is
-  (a tool, a committed asset, no runtime dependency), so Canada gets a real outline
-  instead of the fallback pennant.
-- Fix the **"N states"** wording everywhere → states *and* countries.
-- Give a country tile a working destination, as state tiles have.
-- Teach `new-hike.py` to ask, and infer the obvious cases.
-- Safe as-is: interactive map, weather almanac (Open-Meteo is global), park badges.
+### A. The film plays smoothly  *(first: it's the first thing anyone sees)*
+Five staged cuts, each independently verifiable, none of which changes what the film
+does. Stop driving the hidden 3D map during the video half (three quarters of the
+work, and the whole reason it judders); take that map's WebGL context down entirely;
+cap the film at the 1920 cut so a 4K screen stops pulling 14.8 MB; cap MapLibre's
+pixel ratio so a Retina display isn't shading 8 megapixels twice over; and stop
+rewriting every pen's gradient on every frame. Then one idea rather than a device
+matrix: **let the film watch its own first two seconds and tune itself down if it is
+struggling.** The file already does exactly this for video width; it just needs to
+cover the live half too.
 
-### 2. The last re-skin: trip ✅ + crew  *(stage 4 — closes the redesign arc)*
+### B. The Hike Almanac tells the truth  *(a correctness bug on six records)*
+A pace guard in the page so no wrong clock can ever be shown again, from any app;
+`tools/recover-times.py` to rebuild the real windows from the photographs' GPS
+timestamps; six hand-checked `recorded_times` entries; and a warning in
+`new-hike.py` so it can't happen silently again. **Do not rewrite the GPX files** —
+they are the archival record of what the app exported.
+
+### C. The Hike Almanac arrives without a jolt
+Reserve the card's space from first paint as a ruled-but-unwritten ledger, ink the
+values in rather than appearing, settle the "On the trail" row before revealing
+anything, and then remove the wait entirely by baking `data/almanac.json` the way
+`elevations.json` and `trails.geojson` are baked. That also takes a third-party API
+out of the visitor's page load.
+
+### D. The home page joins the Atlas  *(the centrepiece)*
+A real visual redo, not a restyle, following the house ritual: three concepts →
+mockups on Fable 5 → Danny picks → staged build. The framing question is answered
+in the brief — the home page is **the volume's front matter**, and the recommended
+concept is one continuous parchment desk with engraved collars and plate numbers in
+place of four coloured bands. The film keeps its wow and does not change.
+
+This item also absorbs two things that would otherwise be separate errands:
+- **The wide-screen work** (problem 8). Charts get re-drawn wider rather than scaled,
+  square panels pair instead of stretching, prose keeps its measure, and a screenshot
+  sweep at six widths asserts that nothing is ever clipped.
+- **The Triangulation Network** (below), which is the one piece of the crew arc still
+  owed and which belongs in the Observatory.
+
+### E. Trail Crew refinement  *(needs Danny's list)*
+Danny wants to refine the Muster Roll and the Service Record but hasn't said what.
+Ask for the list when this comes up. The one refinement already known is the
+Triangulation Network, and that is done inside D.
+
+---
+
+*The next two entries are **finished work**, kept in place so the roadmap still reads
+as one continuous record rather than losing its own history. Live work resumes at G.*
+
+### ✅ Territories abroad — **DONE** (commit `f7f7eda`, 24 July 2026)
+Verified 31 July: `country` is on all 123 records (120 United States, 3 Canada);
+`territoryKey()` / `territoryName()` / `isUsState()` / `hikeCountry()` live in
+`atlas-data.js` as the single source; `tools/build-countries.py` and
+`assets/countries.json` give Canada a real silhouette; `?state=XX` and `?country=Name`
+both deep-link the map. Left here as a record, not as work.
+
+### ✅ The re-skin: trip + crew — **DONE** (July 2026)
+*The home page was the third page in this arc and was missed. It is item D above.*
 
 **`trip.html` is done — THE TRAVERSE shipped July 2026.** Five concepts → three
 mockups → a combined fourth (Journey Ribbon + Route Card) → three rounds of
@@ -166,10 +273,15 @@ chapter and day is now written down in CLAUDE.md. Verified across all 21 trips
 and 73 stop framings, plus a 17-page regression sweep.
 
 Two retirements fell out of it:
-- **`timeline-nav.js` + `styles/timeline-nav.css` are now loaded by no page.**
-  hike.html dropped the strip in the Continuous Expedition rebuild; trip.html was
-  the last holdout. Kept for now, deleted in stage 6 unless it finds a new home.
+- **`timeline-nav.js` + `styles/timeline-nav.css` — ✅ deleted.** Verified gone
+  31 July. hike.html dropped the strip in the Continuous Expedition rebuild;
+  trip.html was the last holdout.
 - The old trip page's journey map, stop clustering and itinerary are gone with it.
+
+Still outstanding from the map rebuild, and now the *only* item left for the sweep's
+consolidation pass that this audit has actually named: **the deck's hidden
+`#timeline-scrub`**. The markup survives in `map.html` and `map.js` still writes to
+it in 15 places, every frame, for an element CSS hides (`.deck-track { display: none }`).
 
 **`crew.html` + `crew-member.html` are done — THE MUSTER ROLL shipped July 2026,
 and it is not the coat of paint this item planned.** Three concepts were mocked
@@ -195,32 +307,44 @@ What the rebuild added beyond the surface:
 
 **The Triangulation Network is not dropped** — Danny wants a version of it as an
 **Observatory** element on the home page, since that section is already the
-Atlas's data room. Unbuilt; it is the one piece of this arc still owed.
-`mockups/crew-network.html` is the reference.
+Atlas's data room. Unbuilt; it is the one piece of this arc still owed, and it is
+now scheduled **inside item D** (the home page rebuild) rather than as its own
+errand, because that is the section it belongs to and that section is being rebuilt
+anyway. `mockups/crew-network.html` is the reference.
 
-### 3. Park Badges  *(the trophy case)*
+**What the re-skin did NOT cover, and Danny has since raised twice:** the home page
+itself still wears the old system (problem 7 above). The redesign arc is therefore
+*not* closed, which the 24 July revision claimed. Item D closes it.
+
+---
+
+### G. Park Badges  *(the trophy case)*
 47 unique `location` values are waiting. Park type derives from `location` via a
 `parkTypeOf()` helper (same pattern as `isViewpoint()`) — no new field,
 self-maintaining. **Procedural placeholder medallions** in the site's language make
 the wall look intentionally collected from day one; commissioned art drops into the
 identical frame later, one park at a time.
 
-### 4. Gear section bones
+### H. Gear section bones
 A `gear.json` schema + the page scaffold with empty slots. "My first kit" → how it
 evolved. Bones first, data later.
 
-### 5. Geography deep-dive + reclassification
+### I. Geography deep-dive + reclassification
 Over the complete set: is 10 the right taxonomy? Resolve the thin tail, reclassify
 in one batch.
 
-### 6. The sweep — consolidation + future-proofing  *(last, and deliberately so)*
+### J. The sweep — consolidation + future-proofing  *(last, and deliberately so)*
 Two passes over the finished build, **changing nothing a visitor can see**:
 
 - **Consolidation.** Four rebuilds in one year leave sediment: retired components
   still loaded, rules re-derived in three places, CSS for elements that no longer
   exist, dead parameters. This audit already turned up three copies of a US-state
-  list and a hidden deck scrub still being written to every frame — that's the
-  shape of what a full sweep would find. Every removal verified against the
+  list (now fixed) and a hidden deck scrub still being written to every frame (still
+  there, 15 write sites in `map.js`) — that's the shape of what a full sweep would
+  find. The 31 July audit adds a third example of the same species, and it is the
+  most expensive one yet: **a whole 3D map being flown behind a video that replaced
+  it** (problem 6). Item A removes that one early rather than waiting, because it is
+  not tidiness, it is the reason the film judders. Every removal verified against the
   rendered page, since "no visual change" is the whole contract.
 - **Future-proofing.** Ask what breaks as the Atlas grows, and fix it while it's
   cheap. Known candidates: the map holds every trail's geometry in memory and
@@ -256,5 +380,11 @@ concepts), not just the coding.
 ---
 
 *Re-audited 24 July 2026 against the code and a live browser, after the map redesign,
-the backlog, the elevation ground-truthing, and the inset plates. The trail keeps
-going; so do we.*
+the backlog, the elevation ground-truthing, and the inset plates.*
+
+*Re-audited again 31 July 2026, this time with instruments: every WebGL draw call in
+the opening film counted and attributed, every GPX in the logbook parsed and compared
+against its own photographs, and every home-page width measured. Four new problems,
+one stale "done" corrected, and one claim withdrawn — the redesign arc is not closed
+while the home page still wears the old skin. The build brief is
+[EXECUTION_AUG_2026.md](EXECUTION_AUG_2026.md). The trail keeps going; so do we.*

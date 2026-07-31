@@ -176,10 +176,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             // (a recording that glitched, swapped for a clean route download)
             // and lose its timestamps while the day's real hours are still
             // known. `recorded_times` carries them; it wins when present.
+            // ...and a track whose timestamps describe a pace nobody walks
+            // carries no clock at all. Some apps thin the recording on export
+            // and re-stamp the survivors on a made-up cadence, which printed
+            // "1h 08m" on a 7.2-mile day. `clockWalked` is decided in
+            // AtlasShape.parseGpx, where the clock is read; the note there has
+            // the measurements. `recorded_times` is deliberately NOT tested —
+            // a hand-verified window is the truth by definition.
             const track = await trackPromise;
             const clock = hike.recorded_times
                 ? { startTime: new Date(hike.recorded_times.start), endTime: new Date(hike.recorded_times.end) }
-                : track;
+                : (track && track.clockWalked ? track : null);
             renderOnTrailCard(clock, data.utc_offset_seconds, sunrise, sunset);
         } catch (err) {
             console.error('Could not load the hike almanac:', err);

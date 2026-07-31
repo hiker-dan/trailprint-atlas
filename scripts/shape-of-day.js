@@ -28,6 +28,12 @@ const AtlasShape = (() => {
     const PX_PER_FT = 0.1;          // the honest vertical scale
     const MIN_PLOT_PX = 48;         // floor so flat days still read as a ribbon
     const MAX_PLOT_PX = 240;        // ceiling so big climbs don't swallow the page
+    // The pace a real hiking day never reaches. Over all 123 records the fastest
+    // genuine AVERAGE is 2.9 mph (the Zion Narrows Riverside Walk, flat and
+    // short), so 4.0 leaves headroom for a brisk day and still rejects every
+    // synthesized clock measured. See the note in parseGpx.
+    const MAX_AVG_MPH = 4.0;
+    const MAX_P95_MPH = 6.0;        // real tracks sit under 4.1; the fake ones start at 8.3
 
     /**
      * Parses GPX text into an evenly spaced elevation track.
@@ -108,6 +114,56 @@ const AtlasShape = (() => {
             }
         }
 
+        // ---- Is this clock a record of somebody WALKING? --------------------
+        // A GPX carries two independent things: where you went, and when. The
+        // route is reliable. The clock is not always, because some apps THIN the
+        // recording on export and then re-stamp the survivors on a made-up
+        // cadence — the shape of the walk survives, the timing does not.
+        //
+        // Measured across every track in this Atlas (31 July 2026): AllTrails
+        // exports put their points 3.5-3.7 m apart and peak around 4 mph; the
+        // six onX web exports put them 5.3-7.8 m apart and peak between 8 and
+        // 20 mph. Twenty miles an hour is not a person on a trail, and it was
+        // printing "1h 08m on the trail" on a 7.2-mile day.
+        //
+        // TWO tests, because either alone misses a real case. The whole-track
+        // average catches the badly wrong ones; the 95th-percentile step catches
+        // a track whose total happens to look reasonable anyway (tta_120
+        // averages an innocent 1.6 mph and still steps at 8.3).
+        // `tools/check-track-clock.py` is the same arithmetic, run offline over
+        // the whole logbook — keep the two thresholds in step.
+        //
+        // NO CLOCK IS BETTER THAN A WRONG CLOCK. A track that fails is still
+        // drawn in full, and its profile, its miles and its climb are untouched;
+        // only the hours are withheld. `recorded_times` on the record is never
+        // tested against this, because a hand-verified window is the truth by
+        // definition and must always win.
+        let clockWalked = startTime !== null;
+        if (clockWalked) {
+            const hours = (endTime - startTime) / 3600000;
+            const avgMph = hours > 0 ? dist / hours : Infinity;
+            const steps = [];
+            for (let i = 1; i < trkpts.length; i++) {
+                const ta = trkpts[i - 1].querySelector('time');
+                const tb = trkpts[i].querySelector('time');
+                if (!ta || !tb) continue;
+                const dt = (new Date(tb.textContent) - new Date(ta.textContent)) / 1000;
+                if (!(dt > 0 && dt < 120)) continue;   // skip pauses and backwards strays
+                const la = parseFloat(trkpts[i - 1].getAttribute('lat'));
+                const lo = parseFloat(trkpts[i - 1].getAttribute('lon'));
+                const lb = parseFloat(trkpts[i].getAttribute('lat'));
+                const lp = parseFloat(trkpts[i].getAttribute('lon'));
+                if ([la, lo, lb, lp].some(isNaN)) continue;
+                const dLat = (lb - la) * Math.PI / 180, dLon = (lp - lo) * Math.PI / 180;
+                const s = Math.sin(dLat / 2) ** 2 +
+                    Math.cos(la * Math.PI / 180) * Math.cos(lb * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+                steps.push((2 * R * Math.asin(Math.sqrt(s))) / (dt / 3600));
+            }
+            steps.sort((a, b) => a - b);
+            const p95 = steps.length ? steps[Math.floor(steps.length * 0.95)] : 0;
+            clockWalked = avgMph <= MAX_AVG_MPH && p95 <= MAX_P95_MPH;
+        }
+
         // Ground truth wins. The corrected profile is sampled evenly along the
         // same distance axis as `samples`, so position maps straight across —
         // only the heights change, never the route or the mile axis.
@@ -131,7 +187,10 @@ const AtlasShape = (() => {
             minEle: prof ? corrected.low_ft : Math.min(...samples.map(s => s.ele)),
             maxEle: prof ? corrected.high_ft : Math.max(...samples.map(s => s.ele)),
             startTime,
-            endTime
+            endTime,
+            // false when the file's timestamps describe a pace nobody walks.
+            // The almanac shows no clock rather than a wrong one.
+            clockWalked
         };
     }
 

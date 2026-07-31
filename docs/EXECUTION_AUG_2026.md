@@ -420,7 +420,34 @@ nearest recorded track point, the worst misses are **11.6 km** (tta_120) and **1
 bracket gives tta_119 a 9-hour hike. Photos further than ~150 m from the track must be
 discarded.
 
-## B1 — The guard in the page  *(do this first; it is small and it is permanent)*
+## B — DECISION, 31 July: fix it at SOURCE, not with a workaround
+
+Danny was not convinced by the photo-EXIF reconstruction, and he was right. It infers hike
+times from when photographs were taken, needs an arbitrary off-track distance threshold,
+extrapolates the end time, depends on the `intake/` originals surviving, and was already
+contaminated on two of the six hikes by bus-window and camp shots. That is a lot of
+machinery to arrive at a number nobody can check.
+
+**The chosen path: re-export the six hikes from the onX app on the PHONE.** Every broken
+file says `creator="onXmaps backcountry web"` — it is the *web* export that thins the points
+and stamps the fake cadence. The phone should still hold the original recording. If a mobile
+export carries real timestamps, the data is fixed at source, the GPX is simply replaced, and
+the problem never recurs for future onX hikes either.
+
+**Fallbacks if it doesn't, in order:** read the start time and duration off the onX app per
+track and hand-enter `recorded_times` (6 records, the tta_88 precedent); or Danny supplies
+the hours from memory; or the guard alone stands and those six simply show no clock.
+
+**Photo EXIF is demoted to a cross-check** — a way to sanity-test a number, never a way to
+invent one. The analysis below stays because it is sound and it is what proved the GPX was
+lying, but `tools/recover-times.py` is not being built unless the fallbacks are exhausted.
+
+**✅ Shipped for this:** `tools/check-track-clock.py` — screens any GPX (or the whole
+logbook) and says whether its clock describes somebody walking. Run it on a re-export to get
+an instant verdict. Validated over all 113 tracks: **63 plausible, 6 suspect, 44 with no
+timestamps, zero false positives.**
+
+## B1 — ✅ **DONE, 31 July.** The guard in the page
 
 **The change.** In `renderOnTrailCard`
 ([hike-detail.js:197-205](../scripts/hike-detail.js#L197-L205)), beside the existing

@@ -158,8 +158,17 @@ plate.appendChild(nMark);
 const ring = svgEl('circle', { class: 'pl-ring', cx: 100, cy: 100, r: R + 6 });
 ring.style.strokeDasharray = C + 12 * 2 * Math.PI;
 plate.appendChild(ring);
-// and the trailprint itself, laid in later once the geometry is in hand
-const inkPath = svgEl('path', { class: 'pl-ink' });
+/* And the trailprint itself, laid in later once the geometry is in hand.
+   THE PEN IS CAPPED BEFORE IT EVER TOUCHES THE PAPER. This used to set `d`
+   first and only then measure the path and apply the dash — which gives the
+   browser at least one frame in which the trail is a complete shape with no
+   dash on it, so every load flashed the finished trailprint, blanked, and only
+   then inked in. `pathLength` is what makes capping it first possible: it
+   normalises the path to 1 unit WHATEVER its real geometry, so a full offset
+   can be set here, before there is any geometry to measure. */
+const inkPath = svgEl('path', { class: 'pl-ink', pathLength: 1 });
+inkPath.style.strokeDasharray = 1;
+inkPath.style.strokeDashoffset = 1;
 plate.appendChild(inkPath);
 loadEl.appendChild(plate);
 const loadCap = document.createElement('div');
@@ -167,7 +176,7 @@ loadCap.className = 'if-load-cap';
 loadCap.textContent = 'Preparing the plate';
 loadEl.appendChild(loadCap);
 
-let ringLen = C + 12 * 2 * Math.PI, inkLen = 0;
+let ringLen = C + 12 * 2 * Math.PI, hasInk = false;
 
 // ---- One clean motion, however lumpy the truth underneath ------------------
 // The real signals arrive in steps — data, then a tile sweep that reports
@@ -184,7 +193,7 @@ function paint() {
     ring.style.strokeDashoffset = ringLen * (1 - shown);
     // The trail runs slightly ahead of the ring, so the walk is complete and
     // readable as a shape a moment before the cover lifts off it.
-    if (inkLen) inkPath.style.strokeDashoffset = inkLen * (1 - Math.min(1, shown * 1.18));
+    if (hasInk) inkPath.style.strokeDashoffset = 1 - Math.min(1, shown * 1.18);
 }
 function tick() {
     if (!ticking) return;
@@ -264,9 +273,11 @@ function layTrailprint(features, colorOf) {
     // the stylesheet, so the CSS default silently won and every trail came out
     // the same grey-brown.
     inkPath.style.stroke = colorOf(f.properties.trail_id);
-    inkLen = inkPath.getTotalLength();
-    inkPath.style.strokeDasharray = inkLen;
-    inkPath.style.strokeDashoffset = inkLen;
+    // The dash was set at creation and is measured in pathLength units, so
+    // there is nothing to measure here and nothing to re-apply — the path
+    // arrives already fully capped. All that changes is that there is now a
+    // trail to ink.
+    hasInk = true;
 }
 
 function showCover(caption) {
@@ -1140,22 +1151,30 @@ applyPin();
 // never visit." The Atlas is a record of where he has WALKED, so the frame is
 // cut to the walking.
 //
-// No band is reserved at the bottom for the inset plates either, for the same
-// reason: they sit over the map's own two lower corners, which at this framing
-// are Pacific and Atlantic, and a plate over open water is a plate over nothing.
-// 0.06, tightened from home.js's inherited 0.18 (Danny, 31 July 2026): the film
-// was coming to rest wider than the country needed, with a band of empty ground
-// all round it. Measured over all 108 continental trailprints at 1920x1080, the
-// closest any trailhead comes to an edge:
+// No band is reserved at the bottom for the inset plates: they sit over the
+// map's own two lower corners, and the intent is that those corners are Pacific
+// and Atlantic, because a plate over open water is a plate over nothing.
 //
-//     pad 0.18   z4.300   174 px clear   (the old landing)
-//     pad 0.10   z4.481   139 px clear
-//     pad 0.06   z4.580   103 px clear   <- here
-//     pad 0.02   z4.687    37 px clear   (too close; the corners get crowded)
+// THAT IS A CONSTRAINT ON THE PAD, and it was missed once. 0.06 was chosen
+// (Danny, 31 July 2026) purely on how close a trailhead came to the frame EDGE;
+// nobody re-measured how close the corners came to the PLATES, and at 0.06 the
+// south-west corner is no longer ocean — the Hawaii plate lands on Baja and the
+// southern California coast, with the SoCal cluster 3 px off its corner. The
+// edge measurement was fine and the picture was still wrong.
 //
-// Zero trailprints clipped at any of them, so this is a framing choice rather
-// than a safety one, and 0.06 keeps a comfortable margin while letting the
-// country actually fill the frame.
+// So both are measured now, over all 115 continental trailheads at 1512x950:
+//
+//     pad          zoom     to frame edge    to nearest plate
+//     0.06        4.236        81 px             3 px   <- plate sits on land
+//     0.09        4.160       115 px            33 px   grazes the Baja coast
+//     0.12        4.089       146 px            61 px   <- here
+//     0.15        4.021       173 px            87 px
+//     0.18        3.955       182 px           111 px   (the old landing)
+//
+// No trailprint is clipped at any of them, so the frame edge was never the
+// binding constraint — the plates always were. 0.12 puts both plates back over
+// open water with the country still filling the frame, and stays meaningfully
+// tighter than the 0.18 this was cut down from.
 //
 // SAFE TO RETUNE WITHOUT RE-BAKING THE VIDEO, and that is worth knowing: the
 // FLIGHT's zoom ramp comes from `data/intro-film.json` (`zSpan`), so it is
@@ -1163,7 +1182,7 @@ applyPin();
 // comes to rest — `sheetZoom` interpolates atlasStart.zoom -> atlasEnd.zoom —
 // and atlasStart is also from the record, so the handover is untouched.
 // `?pad=` to compare landings live.
-const PAD = (v => v === null ? 0.06 : +v)(new URLSearchParams(location.search).get('pad'));
+const PAD = (v => v === null ? 0.12 : +v)(new URLSearchParams(location.search).get('pad'));
 const atlasEnd = (() => {
     let w = 180, e = -180, s = 90, n = -90;
     natFeatures.forEach(f => {

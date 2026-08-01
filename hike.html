@@ -135,7 +135,12 @@
             <aside class="side" id="side-col">
                 <div id="fire-memorial" class="fire-memorial" style="display:none;"></div>
 
-                <section class="card ledger" id="almanac-section" style="display:none;">
+                <!-- Ruled and present from FIRST PAINT, not revealed when the
+                     data lands. It sits above four other cards, so appearing
+                     late shoved all of them down the sheet; holding its space
+                     means nothing below it ever moves. The values are engraved
+                     rules until `.written` inks them on. -->
+                <section class="card ledger" id="almanac-section">
                     <h2 class="k">Hike Almanac</h2>
                     <div class="alm-rows">
                         <div class="alm-row"><span class="lbl">Sunrise</span><span class="val" id="sunrise-time">--</span></div>
@@ -145,9 +150,12 @@
                         <div class="alm-row"><span class="lbl">Sunset</span><span class="val" id="sunset-time">--</span></div>
                         <div class="alm-note" id="sunset-weather-desc"></div>
                     </div>
-                    <!-- Only when the GPX was a real recording (has a clock) -->
-                    <div class="ontrail" id="ontrail-card" style="display:none;">
-                        <div class="alm-row"><span class="lbl">On the trail</span><span class="val ontrail-times" id="ontrail-times">--</span></div>
+                    <!-- Always present, so the ledger is one height whatever
+                         the day holds and nothing below it can be pushed. A
+                         track with a real clock fills it; one without says so
+                         in a line, which is better than an unexplained gap. -->
+                    <div class="ontrail" id="ontrail-card">
+                        <div class="alm-row"><span class="lbl">On the trail</span><span class="val ontrail-times" id="ontrail-times">&mdash;</span></div>
                         <div class="ontrail-ribbon" id="ontrail-ribbon"><div class="ontrail-band" id="ontrail-band"></div></div>
                         <div class="alm-note" id="ontrail-duration"></div>
                     </div>

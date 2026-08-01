@@ -138,39 +138,95 @@ document.addEventListener('DOMContentLoaded', async () => {
         return map[code] || 'Weather data unavailable';
     }
 
-    async function renderAlmanac(hike, trackPromise) {
-        const section = $('almanac-section');
-        section.style.display = 'none';
-        $('ontrail-card').style.display = 'none';
-        if (!hike.latitude || !hike.longitude || !hike.date_completed) return;
+    /**
+     * The day's weather, from `data/almanac.json`.
+     *
+     * BAKED, NOT FETCHED PER VISIT. The weather on a day in the past never
+     * changes, so it is derived data exactly like elevations.json — and asking
+     * Open-Meteo for it while the visitor watched cost five to ten seconds, in
+     * which the page had already landed without the card. `tools/build-almanac.py`
+     * writes it; 123 days is 26 KB, cached like every other Atlas fetch.
+     */
+    let almanacPromise = null;
+    function bakedAlmanac(trailId) {
+        if (!almanacPromise) {
+            almanacPromise = fetch('data/almanac.json')
+                .then(r => (r.ok ? r.json() : {}))
+                .catch(() => ({}));
+        }
+        return almanacPromise.then(all => all[trailId] || null);
+    }
 
+    /** The live API, kept as the fallback for a hike the bake hasn't seen yet. */
+    async function liveAlmanac(hike) {
         const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${hike.latitude}&longitude=${hike.longitude}` +
             `&start_date=${hike.date_completed}&end_date=${hike.date_completed}` +
             `&daily=temperature_2m_max,sunrise,sunset&hourly=weathercode,temperature_2m&temperature_unit=fahrenheit&timezone=auto`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Almanac request failed: ${res.status}`);
+        const d = await res.json();
+        if (!d.daily || !d.hourly || !d.daily.time.length) return null;
+        const hourOf = s => +s.split('T')[1].split(':')[0];
+        const sr = hourOf(d.daily.sunrise[0]), ss = hourOf(d.daily.sunset[0]);
+        return {
+            sunrise: d.daily.sunrise[0], sunset: d.daily.sunset[0],
+            sunrise_f: Math.round(d.hourly.temperature_2m[sr]), sunrise_code: d.hourly.weathercode[sr],
+            apex_f: Math.round(d.daily.temperature_2m_max[0]), apex_code: d.hourly.weathercode[13],
+            sunset_f: Math.round(d.hourly.temperature_2m[ss]), sunset_code: d.hourly.weathercode[ss],
+            utc_offset: d.utc_offset_seconds
+        };
+    }
+
+    /**
+     * THE CARD IS WRITTEN ONCE, AND IT NEVER MOVES THE PAGE.
+     *
+     * It used to be `display:none` until the network answered, and it sits
+     * ABOVE the trail notes, the flora and fauna slips and the logbook — so its
+     * arrival shoved four cards down the sheet. It did that TWICE, because the
+     * "On the trail" row waited on the GPX and landed separately.
+     *
+     * Now the ledger is ruled and present from first paint, holding its own
+     * space, and both sources are settled before a single value is written. The
+     * ink then fades on. Nothing below it ever moves.
+     */
+    async function renderAlmanac(hike, trackPromise) {
+        const section = $('almanac-section');
+        const clockRow = $('ontrail-card');
+        section.classList.remove('written');
+        clockRow.classList.remove('no-clock');
+        // A hike with no coordinates has no almanac to draw; take the whole
+        // ledger out rather than leaving a ruled card that can never be filled.
+        section.style.display =
+            (hike.latitude && hike.longitude && hike.date_completed) ? '' : 'none';
+        if (section.style.display === 'none') return;
 
         try {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`Almanac request failed: ${res.status}`);
-            const data = await res.json();
-            if (!data.daily || !data.hourly || !data.daily.time.length) return;
+            // THE CARD OWES NOTHING TO THE GPX. The track is the biggest file
+            // this page loads — several are over 400 KB — and an early version
+            // of this awaited it so the clock row could settle before anything
+            // was drawn. That was zero layout shift bought at the price of the
+            // whole card waiting on a quarter-megabyte of coordinates, which on
+            // a slow connection is worse than the fault it replaced. The window
+            // is two timestamps, and they are baked (see build-almanac.py).
+            const wx = await bakedAlmanac(hike.trail_id) || await liveAlmanac(hike);
+            if (!wx) return;
+            // Only a hike the bake has never seen falls back to the track.
+            const track = wx.on_trail === undefined ? await trackPromise : null;
 
-            const sunrise = new Date(data.daily.sunrise[0]);
-            const sunset = new Date(data.daily.sunset[0]);
-            const fmt = { hour: 'numeric', minute: '2-digit', hour12: true };
-
-            const sunriseCode = data.hourly.weathercode[sunrise.getHours()];
-            const sunsetCode = data.hourly.weathercode[sunset.getHours()];
-            const sunriseTemp = Math.round(data.hourly.temperature_2m[sunrise.getHours()]);
-            const sunsetTemp = Math.round(data.hourly.temperature_2m[sunset.getHours()]);
-
-            $('sunrise-time').textContent = sunrise.toLocaleTimeString('en-US', fmt);
-            $('sunrise-weather-desc').textContent = `${sunriseTemp}°F · ${weatherText(sunriseCode)}`;
-            $('sunset-time').textContent = sunset.toLocaleTimeString('en-US', fmt);
-            $('sunset-weather-desc').textContent = `${sunsetTemp}°F · ${weatherText(sunsetCode)}`;
-            $('peak-weather-temp').textContent = `${Math.round(data.daily.temperature_2m_max[0])}°F`;
-            $('peak-weather-desc').textContent = weatherText(data.hourly.weathercode[13]);  // conditions at 1 PM
-
-            section.style.display = 'block';
+            // The stamps are local wall-clock already ("2026-07-18T05:53"), so
+            // they are read as text rather than parsed into a Date — a Date
+            // would re-interpret them in the VISITOR's timezone, and the trail's
+            // own clock is the whole point.
+            const hhmm = s => {
+                const [h, m] = s.split('T')[1].split(':').map(Number);
+                return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+            };
+            $('sunrise-time').textContent = hhmm(wx.sunrise);
+            $('sunrise-weather-desc').textContent = `${wx.sunrise_f}°F · ${weatherText(wx.sunrise_code)}`;
+            $('sunset-time').textContent = hhmm(wx.sunset);
+            $('sunset-weather-desc').textContent = `${wx.sunset_f}°F · ${weatherText(wx.sunset_code)}`;
+            $('peak-weather-temp').textContent = `${wx.apex_f}°F`;
+            $('peak-weather-desc').textContent = weatherText(wx.apex_code);
 
             // The clock usually rides on the GPX, but a track can be replaced
             // (a recording that glitched, swapped for a clean route download)
@@ -183,14 +239,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             // AtlasShape.parseGpx, where the clock is read; the note there has
             // the measurements. `recorded_times` is deliberately NOT tested —
             // a hand-verified window is the truth by definition.
-            const track = await trackPromise;
-            const clock = hike.recorded_times
-                ? { startTime: new Date(hike.recorded_times.start), endTime: new Date(hike.recorded_times.end) }
+            const window_ = hike.recorded_times || wx.on_trail;
+            const clock = window_
+                ? { startTime: new Date(window_.start), endTime: new Date(window_.end) }
                 : (track && track.clockWalked ? track : null);
-            renderOnTrailCard(clock, data.utc_offset_seconds, sunrise, sunset);
+            renderOnTrailCard(clock, wx.utc_offset,
+                              minutesOfDay(wx.sunrise), minutesOfDay(wx.sunset));
+
+            // One class, one frame: every value inks on together.
+            section.classList.add('written');
         } catch (err) {
             console.error('Could not load the hike almanac:', err);
         }
+    }
+
+    /** "2026-07-18T05:53" -> 353. Minutes since local midnight, for the ribbon. */
+    function minutesOfDay(stamp) {
+        const [h, m] = stamp.split('T')[1].split(':').map(Number);
+        return h * 60 + m;
     }
 
     /**
@@ -201,16 +267,25 @@ document.addEventListener('DOMContentLoaded', async () => {
      * the walk, laid over that day's actual night-day-night — a band that
      * starts in the dark IS the alpine start.
      */
-    function renderOnTrailCard(track, utcOffsetSeconds, sunriseDate, sunsetDate) {
+    function renderOnTrailCard(track, utcOffsetSeconds, sunriseMin, sunsetMin) {
         const card = $('ontrail-card');
-        if (!track || !track.startTime || !track.endTime) return;
+        // A day with no usable clock says so, rather than leaving the ledger
+        // with a silent gap where its last entry should be. Forty-four tracks
+        // are AllTrails route downloads that never carried timestamps, and a
+        // handful more had a clock that described a pace nobody walks.
+        const withoutClock = () => {
+            card.classList.add('no-clock');
+            $('ontrail-times').innerHTML = '&mdash;';
+            $('ontrail-duration').textContent = 'This track carries no clock';
+        };
+        if (!track || !track.startTime || !track.endTime) return withoutClock();
 
         const durationMs = track.endTime - track.startTime;
         // A record longer than a waking day means a malformed track — stand
         // down. NaN is checked explicitly: an unparseable date is still a
         // truthy Date object, and every comparison against NaN is false, so
         // it would otherwise sail through and print "NaNh NaNm".
-        if (isNaN(durationMs) || durationMs <= 0 || durationMs > 16 * 3600 * 1000) return;
+        if (isNaN(durationMs) || durationMs <= 0 || durationMs > 16 * 3600 * 1000) return withoutClock();
 
         // GPX clocks are UTC. Shifting by the trail's offset (already fetched
         // with the weather) and reading with getUTC* yields the trail's wall
@@ -233,10 +308,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // one bar = that day, midnight to midnight
         const minuteOfDay = d => d.getUTCHours() * 60 + d.getUTCMinutes();
-        // sunrise/sunset arrived as local wall-clock strings (timezone=auto),
-        // so the local getters read their wall-clock components directly
-        const sunriseMin = sunriseDate.getHours() * 60 + sunriseDate.getMinutes();
-        const sunsetMin = sunsetDate.getHours() * 60 + sunsetDate.getMinutes();
+        // sunrise/sunset arrive already reduced to minutes past local midnight.
+        // IN AN ALASKAN JUNE THE SUN SETS AFTER MIDNIGHT — Savage Alpine's is
+        // stamped 00:21 the following day, which reduces to 21 and would draw a
+        // ribbon whose night begins before its dawn. On such a day the light
+        // simply does not run out, so the band runs to the end of the bar.
+        if (sunsetMin <= sunriseMin) sunsetMin = 1440;
         const pct = m => (m / 1440) * 100;
 
         $('ontrail-ribbon').style.background = `linear-gradient(90deg,
@@ -247,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const band = $('ontrail-band');
         band.style.left = `${pct(minuteOfDay(wallStart))}%`;
         band.style.width = `${Math.max(pct(minuteOfDay(wallEnd)) - pct(minuteOfDay(wallStart)), 0.8)}%`;
-        card.style.display = 'block';
+        card.classList.remove('no-clock');
     }
 
     /* ===================== the fire memorial ===================== */

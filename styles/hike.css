@@ -585,6 +585,27 @@ body.sheet-full .tab { border-bottom: 1px solid var(--lt-paper-edge); border-rad
 .alm-row .lbl { color: var(--lt-stone); font-style: italic; }
 .alm-row .val { font-weight: 700; color: var(--lt-charcoal); white-space: nowrap; }
 .alm-note { font-size: 11px; color: var(--lt-gravel); margin: 3px 0 7px; }
+
+/* --- the ledger before it is written ---------------------------------------
+   The card holds its full space from the first paint, so the sheet never jumps
+   when the day's weather arrives. Until then the labels stand on a ruled but
+   unwritten page and the values are engraved dashes — which is what a survey
+   ledger actually looks like before it is filled in, and is why this is not the
+   spinner the Atlas doesn't own. (config.js's no-placeholder rule governs the
+   LIGHTBOX photo flip; the slides' developing sheen sets the same precedent.)
+   `.alm-note` reserves its line whether or not it has words yet. */
+.alm-row .val, .alm-note { transition: opacity 0.5s ease, filter 0.5s ease; }
+#almanac-section:not(.written) .alm-row .val { opacity: 0.28; filter: blur(0.4px); }
+#almanac-section:not(.written) .alm-note { opacity: 0; }
+#almanac-section .alm-note:empty::before { content: '\00a0'; }
+
+/* A day whose track never carried a clock. The row keeps its place so the
+   ledger is one height whatever the day holds — 44 of the tracks are AllTrails
+   route downloads with no timestamps at all — and the ribbon, which would
+   otherwise be an empty trough, stands down in favour of the line that says so. */
+.ontrail.no-clock .ontrail-ribbon { visibility: hidden; }
+.ontrail.no-clock .ontrail-times { color: var(--lt-gravel); font-weight: 400; }
+.ontrail.no-clock .alm-note { font-style: italic; }
 .ontrail { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--lt-paper-edge); }
 .ontrail-times .ontrail-arrow { color: var(--lt-gravel); margin: 0 3px; }
 .ontrail-ribbon {

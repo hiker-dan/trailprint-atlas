@@ -677,6 +677,93 @@ like a different website.
 
 **Mockups stay local** (not committed), per the standing rule.
 
+### D1 — ✅ **BUILT, 31 July.** Three working mockups, on real data
+
+| concept | file |
+|---|---|
+| A — The Front Matter | `mockups/home-a-front-matter.html` |
+| B — The Open Volume | `mockups/home-b-open-volume.html` |
+| C — The Survey Desk | `mockups/home-c-survey-desk.html` |
+
+All three show the same slice — the seam under the film, the Abstract, Threads, the Effort
+Field, Territories, the paired square panels, the record crowns — so the comparison is of
+the *language*, not the content. All three pull live from `hikes.json`, and all three are
+**already built to D2's four rules**, so the mockups double as the wide-screen proof.
+
+Each is `<base href="../">`'d onto the repo root, because `atlas-data.js` fetches
+`data/hikes.json` relative to the document and a page in `mockups/` would otherwise ask for
+`mockups/data/hikes.json`. Any future mockup that wants real data needs the same line.
+
+**Measured sweep, 1280 / 1920 / 2560 / 3840, all three concepts:**
+`scrollWidth === clientWidth` at every width — no horizontal scrollbar, nothing clipped,
+and no panel grew taller with the viewport. R4's assertion passes on all three.
+
+What the mockups taught, beyond the drawings:
+
+- **Territories' divider trick doesn't survive a partial row.** Drawing the rules as a
+  1 px grid `gap` over a coloured container background paints the last row's empty tail as
+  a solid tan block. The rules belong on the tiles (`border-right`/`border-bottom`), not on
+  the container.
+- **Concept B needs a sticky verso.** Facing leaves are never the same length — the
+  Observatory's plate is four times the height of its lede — so a static left leaf leaves a
+  tall column of blank paper. `position: sticky` on the verso's inner box fixes it and is
+  also what a facing page *does* in a book you hold. Without it, B looks half-empty at
+  2560 and worse at 3840.
+- **B's left leaf costs real estate.** At 2560 the descriptive leaf is ~40% of the volume's
+  width and carries three lines of text. That is the honest price of the spread device.
+
+### D1b — Danny's verdict, 31 July: **B, refined — plus one open concept**
+
+He leans to **B (The Open Volume)** and named its one real fault: *"a lot of the screen wasted
+on a bit of text."* He asked for B to be developed further **and** for a fourth, free concept
+to be pitched against it.
+
+**B, refined** (`mockups/home-b-open-volume.html`):
+1. The verso narrows from `0.82fr` to `minmax(230px, 0.52fr)` — a descriptive leaf in a
+   printed atlas is a column, not a half.
+2. It carries a real **descriptive apparatus** (`.leaf-key`): a ruled list of the facts that
+   belong *beside* a plate rather than printed on it. Blank paper was never the concept, it
+   was the gap.
+3. The binding moved from 50% to **26%**, which is where the columns actually divide. Left at
+   50% it ran down the middle of the facing plate and stopped reading as a book.
+4. Four crowns now resolve to four **different** trails — the PCT leg holds both distance and
+   climb, and printing it twice reads as a bug.
+
+**Concept D — THE KEY MAP** (`mockups/home-d-key-map.html`) — the pitch:
+
+Every bound atlas opens with a key map: the whole territory at small scale, each plate
+outlined on it. That IS front matter, and it is what the left leaf should be. So the leaf
+holds a live Leaflet plate of every trailprint, sticky, riding alongside the reader; the
+right leaf holds the plates; and every item on the right is **cross-lit** to the land on the
+left — hover a milestone, a dot in the Effort Field, a territory tile or a record crown and
+the country answers. That is the crew Service Record's proven device, at the volume's scale.
+
+Two things it must do that were not obvious until it was built:
+
+- **The mark, not the shape.** At continental scale a 12-mile trail is a third of a pixel, so
+  123 polylines produced a page that looked *empty*. Each outing is one dot in its year's ink;
+  the geometry still sets the frame.
+- **The detail plate.** A key map answers *where*; it can never answer *what*. Printed atlases
+  set a detail plate beside the key, so this does too — it CUTS to whatever is lit, never
+  flies, and the cut is **buffered 220 ms** because running a cursor down 113 dots would
+  otherwise ask the tile server for a new region 113 times.
+
+Two bugs found in the building, both worth keeping in the real port:
+- `.spread` must be `align-items: stretch`, not `start`. A grid item sized to its own content
+  is only as tall as the map, and `sticky` can only travel inside its own containing block —
+  so the map rode along for 700 px and then scrolled away for three plates.
+- The plate observer and the cursor fought. Scroll-then-point happens in that order but the
+  observer's callback lands a frame *later*, so it reset the readout after the hover had set
+  it: the map said "the whole Atlas" while the detail plate stood on Alaska. A `pointing`
+  flag lets the more specific instruction win.
+
+**Sweep re-run, all four concepts, 1280 / 1600 / 1920 / 2560 / 3440 / 3840:**
+`scrollWidth === clientWidth` everywhere; no element escapes the viewport. (`IMG.leaflet-tile`
+reports as out-of-bounds on D at three widths — that is Leaflet's normal tile apron inside an
+`overflow: hidden` container, not a real overflow, and the page width proves it.) D's page is
+also the **shortest** of the four at every width above 1600 — 3,018 px against B's 3,326 —
+because the key map absorbs height the other concepts spend on stacked panels.
+
 ## D2 — The fluid-width rules, designed in from the start
 
 Four rules, in order of importance. These are the answer to "grow sideways, not down, and

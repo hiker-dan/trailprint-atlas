@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept D — The Key Map</title>
+<base href="../">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<link rel="stylesheet" href="styles/base.css">
+<style>
+/* ============================================================
+   CONCEPT D — THE KEY MAP
+   ------------------------------------------------------------
+   Concept B was right that the home page is a volume lying open.
+   It was wrong about what goes on the left leaf.
+
+   Every bound atlas ever printed opens with a KEY MAP: the whole
+   territory at small scale, on which every plate in the book is
+   outlined and numbered. It is the one page that tells you what
+   the volume contains and where each part of it lives. It is,
+   precisely, front matter.
+
+   So the left leaf is not three lines of text. It is the Atlas —
+   every trailprint Danny has ever walked, inked on real ground —
+   and it RIDES ALONGSIDE the front matter as you read. The right
+   leaf holds the plates. Everything on the right is keyed to the
+   land on the left, both ways:
+
+     hover a milestone   -> its benchmark lights on the country
+     hover a hike        -> its trailprint lights
+     hover a territory   -> that whole territory lights
+     hover a record      -> the crowned trail lights
+
+   THE CAMERA NEVER MOVES. Not once, not by a pixel. Roaming
+   belongs to map.html; this is a plate, not a vehicle — the same
+   rule hike.html, trip.html and the crew Service Record already
+   keep. ALL MOTION BELONGS TO THE INK, which is map.js's own
+   founding law. That also makes it cheap: the tiles are fetched
+   once, at one zoom, and never fetched again.
+
+   And the seam under the film simply stops existing. The film
+   ends parked on the Atlas sheet showing the whole country. Scroll
+   one inch and the whole country is still there, on the left leaf,
+   for the rest of the page.
+   ============================================================ */
+
+:root {
+    --ink:      #24401f;
+    --ink-rule: #2f5c40;
+    --paper:    #fffdf6;
+    --leaf:     #f7f0dd;
+    --edge:     #d8ccae;
+    --muted:    #9a927c;
+    --stone2:   #6f6a58;
+    --brass-hi: #cfae6e;
+    --brass:    #a5854a;
+    --brass-lo: #7a5f36;
+    --measure:  min(96vw, 2280px);
+}
+
+body {
+    margin: 0; font-family: var(--font-body); color: #3d3a30;
+    background: #3b2d1d linear-gradient(15deg, rgba(0,0,0,0.42), rgba(255,220,160,0.05) 55%, rgba(0,0,0,0.36));
+    background-attachment: fixed;
+}
+
+.faux-film { height: 190px; display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 14px;
+    background: linear-gradient(180deg, #12212a 0%, #2b3b34 48%, #6d7a5e 78%, #cdbb98 100%); }
+.faux-film span { font-family: var(--font-display); color: rgba(255,253,246,0.55);
+    letter-spacing: 0.3em; font-size: 10px; text-transform: uppercase; }
+
+/* ============================================================
+   THE VOLUME
+   ============================================================ */
+.volume {
+    width: var(--measure); margin: 0 auto 80px; position: relative;
+    background: linear-gradient(90deg, #e6dcc0 0%, #f5eeda 5%, #f7f0dd 40%,
+                #e3d8ba 43.4%, #cfc2a0 44%, #e3d8ba 44.6%, #f7f0dd 49%, #f5eeda 95%, #e6dcc0 100%);
+    border: 1px solid #b9a87c;
+    box-shadow: 0 22px 64px rgba(0,0,0,0.6), inset 0 0 70px rgba(120,95,50,0.12);
+}
+/* align-items must NOT be `start` here. A grid item sized to its own content
+   is only as tall as the key map, and `position: sticky` can only travel
+   inside its own containing block — so the map would ride along for 700 px
+   and then scroll away for the remaining three plates. Stretching the leaf to
+   the row's full height is what lets it stay for the whole read. */
+.spread { display: grid; grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr); align-items: stretch; }
+
+/* ---- the left leaf: the key map, riding along ---- */
+.keyleaf { padding: 26px 26px 26px 30px; }
+.keyleaf-in { position: sticky; top: 18px; }
+
+.keyframe {
+    position: relative; background: var(--paper); border: 1px solid var(--edge);
+    box-shadow: 0 6px 24px rgba(60,45,20,0.28); padding: 0 12px 10px;
+}
+/* the plate's own title block, engraved like every other collar in the Atlas */
+.kf-collar {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+    padding: 12px 2px 7px; border-bottom: 1.5px solid var(--ink-rule);
+}
+.kf-kicker { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--muted); }
+.kf-title { font-family: var(--font-display); font-weight: 700; margin: 5px 0 0;
+    font-size: clamp(15px, 1.25vw, 20px); letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--ink); }
+.kf-right { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--muted); text-align: right; white-space: nowrap; }
+
+/* the map itself. A fixed, generous height — it is the tallest thing on the
+   page and it never changes height, so nothing below it can ever be pushed. */
+#keymap {
+    height: clamp(300px, calc(100vh - 470px), 500px);
+    margin-top: 10px; background: #e9e0c8; position: relative; z-index: 0;
+}
+
+/* ---- THE DETAIL PLATE ----
+   The other half of the device, and the half that makes it work. A key map
+   answers WHERE; at continental scale it can never answer WHAT — 12 miles of
+   trail is a third of a pixel wide from Canada to Mexico. Printed atlases
+   solved this centuries ago by setting a detail plate beside the key, and so
+   does this: whatever the key map is pointing at, the detail plate is already
+   standing on.
+
+   It CUTS, it never flies — map.js's rule, and trip.js's. And a cut is
+   BUFFERED (see settleDetail): running a cursor down 113 dots would otherwise
+   ask the tile server for a new region 113 times. */
+.detail-k {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-top: 11px; padding-bottom: 5px; border-bottom: 1px solid var(--edge);
+}
+.detail-k .l { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.26em;
+    text-transform: uppercase; color: var(--muted); }
+.detail-k .r { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--ink); font-weight: 700; text-align: right;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#detailplate {
+    height: clamp(150px, calc(100vh - 780px), 250px); min-height: 150px;
+    margin-top: 7px; background: #e9e0c8; position: relative; z-index: 0;
+}
+.parchment-wash { position: absolute; inset: 0; z-index: 250; pointer-events: none;
+    background: #d9c8a0; mix-blend-mode: multiply; opacity: 0.42; }
+.hillshade-multiply { mix-blend-mode: multiply; }
+.atlas-labels { opacity: 0.55; }
+/* the map is a plate: it wears a printed border, not a browser frame */
+.keyframe .leaflet-container { border: 1px solid #b6a67e; }
+.leaflet-control-attribution { font-size: 8px !important; background: rgba(255,253,246,0.65) !important; }
+
+/* the readout beneath the map — what the ink is currently saying */
+.kf-foot {
+    display: flex; justify-content: space-between; align-items: center; gap: 14px;
+    margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--edge);
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--muted); min-height: 15px;
+}
+.kf-foot .lit { color: var(--ink); font-weight: 700; letter-spacing: 0.12em;
+    transition: color 0.25s ease; }
+.scale-bar { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.scale-bar .bar { display: flex; border: 1px solid var(--muted); height: 6px; }
+.scale-bar .bar i { width: 17px; height: 100%; display: block; }
+.scale-bar .bar i:nth-child(odd) { background: var(--muted); }
+
+/* the door out into the land, the Atlas's own component */
+.keydoor {
+    display: flex; align-items: center; gap: 10px; margin-top: 11px;
+    padding: 9px 13px; text-decoration: none; color: var(--ink);
+    background: linear-gradient(#fdf8ea, #f5eed9); border: 1px solid var(--brass);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6); transition: background 0.18s ease, transform 0.18s ease;
+}
+.keydoor:hover { background: #fffdf6; transform: translateX(2px); }
+.keydoor svg { width: 19px; height: 19px; fill: none; stroke: var(--brass-lo); stroke-width: 1.4;
+    stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.keydoor span { font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.22em;
+    text-transform: uppercase; flex: 1; }
+
+/* ---- the right leaf: the front matter ---- */
+.matter { padding: 26px 30px 40px 26px; }
+
+.plate { padding: 30px 0 34px; border-bottom: 1px solid rgba(160,140,100,0.42); }
+.plate:first-child { padding-top: 8px; }
+.plate:last-child { border-bottom: none; }
+.p-collar { display: flex; align-items: flex-end; gap: 18px; padding-bottom: 8px;
+    border-bottom: 1.5px solid var(--ink-rule); }
+.p-no { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--muted); white-space: nowrap; padding-bottom: 4px; }
+.p-title { font-family: var(--font-display); font-weight: 700; margin: 0;
+    font-size: clamp(18px, 1.7vw, 26px); letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink); line-height: 1.1; }
+.p-rule { flex: 1; height: 0; border-bottom: 1px solid var(--edge); margin-bottom: 8px; }
+.p-note { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--muted); white-space: nowrap; padding-bottom: 4px; }
+.p-lede { max-width: 62ch; margin: 13px 0 0; color: var(--stone2); font-size: 1.04em; line-height: 1.6; }
+
+/* the abstract, as a ruled vitals band */
+.ab-vitals { display: flex; margin-top: 20px; background: var(--paper);
+    border: 1px solid var(--edge); box-shadow: 0 3px 12px rgba(60,45,20,0.12); }
+.ab-cell { flex: 1; min-width: 0; text-align: center; padding: 22px 10px 18px;
+    border-left: 1px solid var(--edge); }
+.ab-cell:first-child { border-left: none; }
+.ab-v { font-family: var(--font-display); font-weight: 700; font-size: clamp(27px, 2.7vw, 46px);
+    line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.ab-v .sm { font-size: 0.42em; color: var(--muted); margin-left: 3px; letter-spacing: 0.1em; }
+.ab-l { margin-top: 8px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
+
+/* ---- the milestones, as a ledger keyed to the land ---- */
+.miles { margin-top: 20px; background: var(--paper); border: 1px solid var(--edge);
+    box-shadow: 0 3px 12px rgba(60,45,20,0.12); }
+.ms-row { display: flex; align-items: center; gap: 14px; padding: 11px 15px;
+    border-top: 1px solid #ece2c8; cursor: default; transition: background 0.16s ease; }
+.ms-row:first-child { border-top: none; }
+.ms-row:hover { background: #fbf5e4; }
+.ms-disk { flex: 0 0 auto; width: 26px; height: 26px; border-radius: 50%;
+    background: radial-gradient(circle at 37% 30%, #e2c583 0%, #c2a25c 46%, #9a7b3f 78%, #7d6231 100%);
+    box-shadow: inset 0 0 0 1.5px rgba(120,95,50,0.5), 0 1px 3px rgba(60,45,20,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 9px; font-weight: 700; color: #4a3a1c; }
+.ms-body { flex: 1; min-width: 0; }
+.ms-k { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--muted); }
+.ms-t { font-size: 0.98em; color: var(--ink); margin-top: 2px; }
+.ms-d { flex: 0 0 auto; font-family: var(--font-display); font-size: 9px;
+    letter-spacing: 0.14em; color: var(--muted); }
+
+/* ---- observatory bits ---- */
+.pane { margin-top: 20px; background: var(--paper); border: 1px solid var(--edge);
+    box-shadow: 0 3px 12px rgba(60,45,20,0.12); padding: 13px 16px 15px; }
+.pane-k { display: flex; justify-content: space-between; align-items: baseline; gap: 14px;
+    padding-bottom: 7px; margin-bottom: 12px; border-bottom: 1px solid var(--edge); }
+.pane-k h3 { margin: 0; font-family: var(--font-display); font-weight: 700; font-size: 12.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); }
+.pane-k .s { font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); text-align: right; }
+#effort { display: block; width: 100%; }
+#effort circle { cursor: pointer; }
+
+.terr { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    border-top: 1px solid var(--edge); border-left: 1px solid var(--edge); }
+.tt { padding: 12px 6px 10px; text-align: center; cursor: default;
+      border-right: 1px solid var(--edge); border-bottom: 1px solid var(--edge);
+      transition: background 0.16s ease; }
+.tt:hover { background: #fbf5e4; }
+.tt .n { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: var(--ink); }
+.tt .l { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.tt .b { height: 3px; margin: 7px auto 0; width: 28px; }
+
+.pair { display: grid; grid-template-columns: 1fr; gap: 20px; }
+@media (min-width: 1700px) { .pair { grid-template-columns: 1fr 1fr; } }
+.square-demo { display: flex; align-items: center; justify-content: center; height: 240px;
+    color: var(--muted); font-family: var(--font-display); font-size: 9px; letter-spacing: 0.24em;
+    text-transform: uppercase; border: 1px dashed var(--edge); }
+
+/* ---- the crowns as paper mounts ---- */
+.crowns { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-top: 20px; }
+.mount { background: linear-gradient(#fbf6e6, #f2ead4); border: 1px solid #cdbf9c;
+    padding: 8px 8px 0; box-shadow: 0 2px 9px rgba(60,45,20,0.16);
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 0.18s ease, box-shadow 0.18s ease; }
+.mount:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(60,45,20,0.26); }
+.mount .win { aspect-ratio: 4/3; overflow: hidden; background: #cfc6ac;
+    border: 1px solid rgba(90,72,40,0.35); }
+.mount .win img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mount .cap { padding: 9px 2px 11px; }
+.mount .ck { font-family: var(--font-display); font-size: 8px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: var(--muted); }
+.mount .cv { font-family: var(--font-display); font-weight: 700; font-size: 22px;
+    color: var(--ink); line-height: 1.05; margin-top: 3px; }
+.mount .cv .u { font-size: 0.44em; color: var(--muted); margin-left: 3px; }
+.mount .cn { font-size: 0.88em; color: var(--stone2); margin-top: 4px; line-height: 1.3; }
+
+/* below the breakpoint the book closes: the key map becomes a band on top */
+@media (max-width: 1180px) {
+    .spread { grid-template-columns: 1fr; }
+    .volume { background: #f7f0dd; }
+    .keyleaf-in { position: static; }
+    #keymap { height: 420px; }
+    .matter { padding-top: 0; }
+}
+
+.note { width: var(--measure); margin: 0 auto 70px; padding: 14px 18px;
+    border: 1px dashed var(--brass); font-size: 0.92em; color: #e8dcc0; background: rgba(0,0,0,0.24); }
+.note b { color: #f0e2bb; }
+</style>
+</head>
+<body>
+
+<div class="faux-film"><span>— the film ends here, parked on the whole country —</span></div>
+
+<div class="volume">
+<div class="spread">
+
+    <!-- ================= THE LEFT LEAF: THE KEY MAP ================= -->
+    <div class="keyleaf">
+      <div class="keyleaf-in">
+        <div class="keyframe">
+            <div class="kf-collar">
+                <div>
+                    <div class="kf-kicker">The Trailprint Atlas</div>
+                    <h2 class="kf-title">Key Map</h2>
+                </div>
+                <div class="kf-right" id="kf-right">Every trailprint</div>
+            </div>
+            <div id="keymap"></div>
+            <div class="detail-k">
+                <span class="l">Detail plate</span>
+                <span class="r" id="detail-name">The home ground</span>
+            </div>
+            <div id="detailplate"></div>
+            <div class="kf-foot">
+                <span class="lit" id="kf-lit">The whole Atlas</span>
+                <div class="scale-bar"><div class="bar"><i></i><i></i><i></i><i></i></div><span id="kf-scale">0 — 500 mi</span></div>
+            </div>
+            <a class="keydoor" href="map.html">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+                <span>Walk into the land</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+            </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= THE RIGHT LEAF: THE FRONT MATTER ================= -->
+    <div class="matter">
+
+        <!-- PLATE I -->
+        <section class="plate" data-plate="all">
+            <div class="p-collar">
+                <div class="p-no">Plate&nbsp;I</div>
+                <h2 class="p-title">The Abstract</h2>
+                <div class="p-rule"></div>
+                <div class="p-note" id="ab-range">2022 — Present</div>
+            </div>
+            <p class="p-lede">The whole of it, in four numbers — and the shape of those numbers is
+               already beside you, inked on the country to the left.</p>
+            <div class="ab-vitals" id="ab-vitals"></div>
+        </section>
+
+        <!-- PLATE II -->
+        <section class="plate" data-plate="milestones">
+            <div class="p-collar">
+                <div class="p-no">Plate&nbsp;II</div>
+                <h2 class="p-title">Threads of the Trail</h2>
+                <div class="p-rule"></div>
+                <div class="p-note">The journey so far</div>
+            </div>
+            <p class="p-lede">Not a scoreboard, a journey. Every milestone below was earned on a
+               particular day, on particular ground — so it is planted there. Run your eye down the
+               ledger and watch the benchmarks light on the key map.</p>
+            <div class="miles" id="miles"></div>
+        </section>
+
+        <!-- PLATE III -->
+        <section class="plate" data-plate="all">
+            <div class="p-collar">
+                <div class="p-no">Plate&nbsp;III</div>
+                <h2 class="p-title">The Observatory</h2>
+                <div class="p-rule"></div>
+                <div class="p-note">By the numbers</div>
+            </div>
+            <p class="p-lede">Five years of trails, turned over and examined from every angle. Every
+               dot in the field below is a real day on the ground — point at one and it lights where
+               it happened.</p>
+
+            <div class="pane">
+                <div class="pane-k"><h3>The Effort Field</h3>
+                    <div class="s">Distance × climb · up-and-right is the hard corner</div></div>
+                <div id="effort-holder"></div>
+            </div>
+
+            <div class="pane">
+                <div class="pane-k"><h3>Territories</h3><div class="s" id="terr-count"></div></div>
+                <div class="terr" id="terr"></div>
+            </div>
+
+            <div class="pair" style="margin-top:20px;">
+                <div class="pane" style="margin-top:0;">
+                    <div class="pane-k"><h3>The Cadence</h3><div class="s">The seasons, answered</div></div>
+                    <div class="square-demo">— the year-wheel, capped —</div>
+                </div>
+                <div class="pane" style="margin-top:0;">
+                    <div class="pane-k"><h3>The Specimen Drawer</h3><div class="s">Ten kinds of country</div></div>
+                    <div class="square-demo">— the cabinet, capped —</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PLATE IV -->
+        <section class="plate" data-plate="records">
+            <div class="p-collar">
+                <div class="p-no">Plate&nbsp;IV</div>
+                <h2 class="p-title">The Record Books</h2>
+                <div class="p-rule"></div>
+                <div class="p-note">The standing records</div>
+            </div>
+            <p class="p-lede">The four trails that hold a crown. They are already marked on the key
+               map — point at one to find it.</p>
+            <div class="crowns" id="crowns"></div>
+        </section>
+
+    </div>
+</div>
+</div>
+
+<div class="note">
+    <b>Concept D — The Key Map.</b> Every bound atlas opens with a key map: the whole territory at
+    small scale, with each plate outlined on it. That is exactly what front matter is for, and it is
+    what the left leaf should be — not three lines of text. Hover a milestone, a dot in the Effort
+    Field, a territory tile or a record crown and watch the country answer. <b>The camera never
+    moves</b>: the tiles are fetched once, at one zoom, and never again — all motion belongs to
+    the ink, which is <i>map.js</i>'s own founding law.
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="scripts/config.js"></script>
+<script src="scripts/atlas-data.js"></script>
+<script>
+const YR = ATLAS_CONFIG.COLOR_MAP;
+const ink = h => YR[hikeYear(h)] || '#777';
+
+/* every trail's drawn layers, keyed by trail_id — the cross-light's index */
+const inkLayers = {};
+let keymap, detail, geo = {}, allHikes = [], realHikes = [];
+const litEl = document.getElementById('kf-lit');
+const rightEl = document.getElementById('kf-right');
+const detailNameEl = document.getElementById('detail-name');
+
+(async function () {
+    const [hikes, geometries] = await Promise.all([fetchHikes(), fetchTrailGeometries()]);
+    allHikes = hikes;
+    geo = geometries;
+    realHikes = hikes.filter(h => !isViewpoint(h));
+
+    buildKeyMap(hikes, geometries);
+    buildDetail(hikes);
+    buildAbstract();
+    buildMilestones();
+    buildEffort();
+    buildTerritories();
+    buildCrowns();
+    watchPlates();
+})();
+
+/* ============================================================
+   THE KEY MAP — drawn once, framed once, never moved again.
+   ============================================================ */
+function buildKeyMap(hikes, geometries) {
+    const VOYAGER = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+    const HILLSHADE = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
+    const LABELS = 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png';
+
+    // A PLATE, NOT A VEHICLE — every way of moving the camera is off, the same
+    // way hike.html, trip.html and the crew Service Record build theirs.
+    keymap = L.map('keymap', {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, boxZoom: false, keyboard: false, zoomSnap: 0.25
+    });
+    keymap.getContainer().style.cursor = 'default';
+
+    L.tileLayer(VOYAGER, { subdomains: 'abcd', maxZoom: 18, attribution: '&copy; CARTO' }).addTo(keymap);
+    L.tileLayer(HILLSHADE, { maxNativeZoom: 16, maxZoom: 18, className: 'hillshade-multiply', attribution: 'Esri' }).addTo(keymap);
+    L.tileLayer(LABELS, { subdomains: 'abcd', maxZoom: 18, className: 'atlas-labels' }).addTo(keymap);
+    const wash = document.createElement('div');
+    wash.className = 'parchment-wash';
+    keymap.getContainer().appendChild(wash);
+
+    /* THE MARK, NOT THE SHAPE.
+       At the scale a key map works at, a trail HAS no shape: 12 miles measures
+       a third of a pixel from Canada to Mexico, and drawing 123 sub-pixel
+       polylines produced a page that looked empty. A real key map has always
+       marked WHERE, and left WHAT to the plate it points at. So each outing is
+       one dot in its year's ink, at a size that actually reads, and the detail
+       plate below carries the shape. */
+    const bounds = L.latLngBounds([]);
+    hikes.forEach(h => {
+        const mark = L.circleMarker([h.latitude, h.longitude], {
+            radius: 4.2, color: '#fffdf6', weight: 1.1,
+            fillColor: ink(h), fillOpacity: 0.95
+        }).addTo(keymap);
+        bounds.extend(mark.getLatLng());
+        // the trail's real geometry still sets the frame, so the plate is
+        // honestly bounded by ground walked and not by trailheads alone
+        (geometries[h.trail_id] || []).forEach(seg => seg.forEach(p => bounds.extend(p)));
+        inkLayers[h.trail_id] = [mark];
+        mark.on('mouseover', () => lightOnly([h.trail_id], h.trail_name, h));
+        mark.on('mouseout', () => lightAll());
+        mark.on('click', () => location.href = `hike.html?id=${h.trail_id}`);
+        const el = mark.getElement && mark.getElement();
+        if (el) el.style.cursor = 'pointer';
+    });
+
+    /* PIXEL padding, never a geographic pad() — the printed collar around this
+       plate does not scale with the latitude span, and Alaska stretching the
+       bounds would otherwise push the southern hikes under the frame's edge.
+       Same lesson map.js's ATLAS_FRAME already learned. */
+    const frame = () => keymap.fitBounds(bounds, { paddingTopLeft: [18, 14], paddingBottomRight: [18, 14], animate: false });
+    frame();
+    // one re-fit after the sticky column has settled its real height
+    setTimeout(frame, 250);
+    // the leaf's height is viewport-derived, so a resize re-frames — this is the
+    // ONLY thing that ever moves the camera, and it is a layout event, not a gesture
+    let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(frame, 180); });
+}
+
+/* ============================================================
+   THE DETAIL PLATE — the same tile stack, standing on whatever
+   the key map is pointing at. It CUTS; it never flies.
+   ============================================================ */
+let detailInk = [];          // the layers currently drawn on the detail plate
+let detailTimer = null;      // the settle buffer
+let detailShowing = null;    // what it is standing on, so a re-hover is free
+
+function buildDetail(hikes) {
+    const VOYAGER = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+    const HILLSHADE = 'https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}';
+    const LABELS = 'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png';
+    detail = L.map('detailplate', {
+        zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        touchZoom: false, boxZoom: false, keyboard: false, zoomSnap: 0.25, attributionControl: false
+    });
+    detail.getContainer().style.cursor = 'default';
+    L.tileLayer(VOYAGER, { subdomains: 'abcd', maxZoom: 18 }).addTo(detail);
+    L.tileLayer(HILLSHADE, { maxNativeZoom: 16, maxZoom: 18, className: 'hillshade-multiply' }).addTo(detail);
+    L.tileLayer(LABELS, { subdomains: 'abcd', maxZoom: 18, className: 'atlas-labels' }).addTo(detail);
+    const wash = document.createElement('div');
+    wash.className = 'parchment-wash';
+    detail.getContainer().appendChild(wash);
+    // at rest it stands on the home ground — where 97 of 123 outings are
+    const home = hikes.filter(h => territoryKey(h) === 'CA');
+    showDetail(home.map(h => h.trail_id), 'The home ground', 'home');
+}
+
+/* the cut itself. Buffered, because running a cursor down 113 dots would
+   otherwise ask the tile server for a new region 113 times — the same lesson
+   map.js learned when a rapid step had to settle before it framed. */
+function settleDetail(ids, label, key) {
+    if (key === detailShowing) return;
+    clearTimeout(detailTimer);
+    detailTimer = setTimeout(() => showDetail(ids, label, key), 220);
+}
+
+function showDetail(ids, label, key) {
+    if (!detail) return;
+    detailShowing = key;
+    detailInk.forEach(l => detail.removeLayer(l));
+    detailInk = [];
+    const bounds = L.latLngBounds([]);
+    ids.forEach(id => {
+        const h = allHikes.find(x => x.trail_id === id);
+        if (!h) return;
+        const segs = geo[id];
+        if (segs && segs.length) {
+            segs.forEach(seg => {
+                const line = L.polyline(seg, { color: ink(h), weight: 3.4, opacity: 0.95, lineCap: 'round' }).addTo(detail);
+                detailInk.push(line);
+                bounds.extend(line.getBounds());
+            });
+        }
+        const dot = L.circleMarker([h.latitude, h.longitude], {
+            radius: 3.6, color: '#fffdf6', weight: 1.2, fillColor: ink(h), fillOpacity: 1
+        }).addTo(detail);
+        detailInk.push(dot);
+        bounds.extend(dot.getLatLng());
+    });
+    if (bounds.isValid()) {
+        detail.fitBounds(bounds, { padding: [16, 16], maxZoom: 14, animate: false });
+    }
+    detailNameEl.textContent = label;
+}
+
+/* ---- the cross-light: the one gesture that binds the two leaves ----
+   `pointing` exists because the plate observer and the reader's cursor were
+   fighting. Scrolling to a panel and pointing at something inside it happen in
+   that order, but the observer's callback lands a frame LATER — so it reset the
+   readout to the plate's own caption a moment after the hover had set it, and
+   the map said "the whole Atlas" while the detail plate stood on Alaska. The
+   cursor is the more specific instruction, so it wins until it leaves. */
+let pointing = false;
+
+function lightOnly(ids, label) {
+    pointing = true;
+    const keep = new Set(ids);
+    Object.entries(inkLayers).forEach(([id, layers]) => {
+        const on = keep.has(id);
+        layers.forEach(l => l.setStyle({
+            radius: on ? 7 : 2.6,
+            opacity: on ? 1 : 0.16,
+            fillOpacity: on ? 1 : 0.16
+        }));
+        if (on) layers.forEach(l => l.bringToFront && l.bringToFront());
+    });
+    if (label) litEl.textContent = label;
+    settleDetail(ids, label || 'Detail', ids.join(','));
+}
+function lightAll(label) {
+    pointing = false;
+    Object.values(inkLayers).forEach(layers => layers.forEach(l =>
+        l.setStyle({ radius: 4.2, opacity: 1, fillOpacity: 0.95 })));
+    litEl.textContent = label || currentPlateLabel;
+}
+
+/* the benchmarks: planted where each milestone was actually earned */
+let benchmarks = {};
+function plantBenchmark(key, hike, n) {
+    const m = L.marker([hike.latitude, hike.longitude], {
+        icon: L.divIcon({
+            className: '', iconSize: [22, 22], iconAnchor: [11, 11],
+            html: `<div style="width:22px;height:22px;border-radius:50%;
+              background:radial-gradient(circle at 37% 30%,#e2c583,#c2a25c 46%,#9a7b3f 78%,#7d6231);
+              box-shadow:inset 0 0 0 1.4px rgba(120,95,50,.55),0 1px 4px rgba(60,45,20,.5);
+              display:flex;align-items:center;justify-content:center;
+              font-family:var(--font-display);font-size:9px;font-weight:700;color:#4a3a1c;
+              opacity:0;transition:opacity .3s ease,transform .3s ease;transform:scale(.6)">${n}</div>`
+        }), interactive: false
+    }).addTo(keymap);
+    benchmarks[key] = m;
+}
+function showBenchmarks(on, only) {
+    Object.entries(benchmarks).forEach(([k, m]) => {
+        const el = m.getElement() && m.getElement().firstChild;
+        if (!el) return;
+        const vis = on && (!only || only === k);
+        el.style.opacity = vis ? 1 : 0;
+        el.style.transform = vis ? 'scale(1)' : 'scale(.6)';
+    });
+}
+
+/* ============================================================
+   PLATE I — the abstract
+   ============================================================ */
+function buildAbstract() {
+    const stats = [
+        ['Hikes',         realHikes.length, ''],
+        ['Miles walked',  realHikes.reduce((s, h) => s + h.miles, 0).toFixed(1), 'mi'],
+        ['Feet climbed',  realHikes.reduce((s, h) => s + h.elevation_gain, 0).toLocaleString(), 'ft'],
+        ['Unique trails', new Set(realHikes.map(h => h.trail_name)).size, '']
+    ];
+    document.getElementById('ab-vitals').innerHTML = stats.map(([l, v, u]) =>
+        `<div class="ab-cell"><div class="ab-v">${v}${u ? `<span class="sm">${u}</span>` : ''}</div>
+         <div class="ab-l">${l}</div></div>`).join('');
+    const yrs = [...new Set(allHikes.map(hikeYear))].sort();
+    document.getElementById('ab-range').textContent = `${yrs[0]} — Present`;
+    rightEl.textContent = `${allHikes.length} trailprints`;
+}
+
+/* ============================================================
+   PLATE II — the milestones, each keyed to its ground
+   ============================================================ */
+function buildMilestones() {
+    const chrono = [...allHikes].sort(compareHikesChrono);
+    const rows = [];
+    const push = (k, t, h) => rows.push({ k, t, h });
+
+    push('The first entry', chrono[0].trail_name, chrono[0]);
+
+    let mi = 0, hundred = null;
+    chrono.forEach(h => { if (mi < 100 && mi + h.miles >= 100) hundred = h; mi += h.miles; });
+    if (hundred) push('The hundredth mile', hundred.trail_name, hundred);
+
+    const firstSummit = chrono.find(h => h.summit_trail);
+    if (firstSummit) push('The first summit', summitLabel(firstSummit), firstSummit);
+
+    const firstPack = chrono.find(h => h.hike_type === 'Backpacking');
+    if (firstPack) push('The first night out', firstPack.trail_name, firstPack);
+
+    const seen = new Set();
+    let firstAway = null;
+    chrono.forEach(h => {
+        const k = territoryKey(h);
+        if (!seen.size) { seen.add(k); return; }
+        if (!seen.has(k) && !firstAway) firstAway = h;
+        seen.add(k);
+    });
+    if (firstAway) push('A second territory', territoryName(territoryKey(firstAway)), firstAway);
+
+    const highest = allHikes.filter(h => h.summit_elevation)
+        .reduce((a, b) => b.summit_elevation > a.summit_elevation ? b : a);
+    push('The highest ground', `${summitLabel(highest)} · ${highest.summit_elevation.toLocaleString()} ft`, highest);
+
+    const abroad = chrono.find(h => hikeCountry(h) !== 'United States');
+    if (abroad) push('Out of the country', territoryName(territoryKey(abroad)), abroad);
+
+    document.getElementById('miles').innerHTML = rows.map((r, i) => `
+        <div class="ms-row" data-i="${i}" data-id="${r.h.trail_id}">
+          <div class="ms-disk">${i + 1}</div>
+          <div class="ms-body"><div class="ms-k">${r.k}</div><div class="ms-t">${r.t}</div></div>
+          <div class="ms-d">${formatHikeDate(r.h.date_completed, { year: "numeric", month: "short" })}</div>
+        </div>`).join('');
+
+    rows.forEach((r, i) => plantBenchmark(String(i), r.h, i + 1));
+
+    document.querySelectorAll('.ms-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            lightOnly([row.dataset.id], row.querySelector('.ms-t').textContent);
+            showBenchmarks(true, row.dataset.i);
+        });
+        row.addEventListener('mouseleave', () => { lightAll(); showBenchmarks(true); });
+        row.addEventListener('click', () => location.href = `hike.html?id=${row.dataset.id}`);
+        row.style.cursor = 'pointer';
+    });
+}
+
+/* ============================================================
+   PLATE III — the Effort Field, keyed to the land
+   R2: measured at the container's REAL width, fixed height.
+   ============================================================ */
+function buildEffort() {
+    const holder = document.getElementById('effort-holder');
+    const H = 400, PL = 56, PR = 18, PT = 14, PB = 40;
+    const render = () => {
+        const W = Math.max(420, holder.clientWidth);
+        const maxX = Math.ceil(Math.max(...realHikes.map(h => h.miles)) / 2) * 2;
+        const maxY = Math.ceil(Math.max(...realHikes.map(h => h.elevation_gain)) / 500) * 500;
+        const x = v => PL + (v / maxX) * (W - PL - PR);
+        const y = v => H - PB - (v / maxY) * (H - PT - PB);
+        let s = `<svg id="effort" viewBox="0 0 ${W} ${H}" width="100%" height="${H}">`;
+        for (let g = 0; g <= maxY; g += 500)
+            s += `<line x1="${PL}" y1="${y(g)}" x2="${W - PR}" y2="${y(g)}" stroke="#e7dcc0"/>
+                  <text x="${PL - 8}" y="${y(g) + 4}" text-anchor="end" font-family="var(--font-display)"
+                   font-size="8.5" fill="#9a927c">${g.toLocaleString()}</text>`;
+        for (let g = 0; g <= maxX; g += 2)
+            s += `<text x="${x(g)}" y="${H - PB + 16}" text-anchor="middle" font-family="var(--font-display)"
+                   font-size="8.5" fill="#9a927c">${g}</text>`;
+        s += `<line x1="${PL}" y1="${H - PB}" x2="${W - PR}" y2="${H - PB}" stroke="#2f5c40" stroke-width="1.2"/>
+              <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${H - PB}" stroke="#2f5c40" stroke-width="1.2"/>`;
+        realHikes.forEach(h => {
+            s += `<circle data-id="${h.trail_id}" data-name="${h.trail_name.replace(/"/g, '&quot;')}"
+                   cx="${x(h.miles)}" cy="${y(h.elevation_gain)}" r="5" fill="${ink(h)}"
+                   ${h.summit_trail ? 'stroke="#24401f" stroke-width="1.5"' : 'stroke="rgba(255,253,246,.6)" stroke-width="0.8"'}/>`;
+        });
+        s += `<text x="${PL + (W - PL - PR) / 2}" y="${H - 6}" text-anchor="middle"
+               font-family="var(--font-display)" font-size="8.5" letter-spacing="0.22em"
+               fill="#9a927c">DISTANCE (MILES)</text></svg>`;
+        holder.innerHTML = s;
+        holder.querySelectorAll('circle').forEach(c => {
+            c.addEventListener('mouseenter', () => {
+                lightOnly([c.dataset.id], c.dataset.name);
+                c.setAttribute('r', 8);
+            });
+            c.addEventListener('mouseleave', () => { lightAll(); c.setAttribute('r', 5); });
+            c.addEventListener('click', () => location.href = `hike.html?id=${c.dataset.id}`);
+        });
+    };
+    render();
+    let t; addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 160); });
+}
+
+/* ============================================================
+   PLATE III — Territories, keyed to the land
+   ============================================================ */
+function buildTerritories() {
+    const terr = {};
+    allHikes.forEach(h => { const k = territoryKey(h); (terr[k] = terr[k] || []).push(h); });
+    const keys = Object.keys(terr).sort((a, b) => terr[b].length - terr[a].length);
+    document.getElementById('terr-count').textContent = `${keys.length} collected`;
+    document.getElementById('terr').innerHTML = keys.map(k => {
+        const newest = Math.max(...terr[k].map(hikeYear));
+        return `<div class="tt" data-k="${k}"><div class="n">${terr[k].length}</div>
+          <div class="l">${territoryName(k)}</div>
+          <div class="b" style="background:${YR[newest]}"></div></div>`;
+    }).join('');
+    document.querySelectorAll('.tt').forEach(tile => {
+        const k = tile.dataset.k;
+        tile.addEventListener('mouseenter', () =>
+            lightOnly(terr[k].map(h => h.trail_id), territoryName(k)));
+        tile.addEventListener('mouseleave', () => lightAll());
+    });
+}
+
+/* ============================================================
+   PLATE IV — the crowns, keyed to the land
+   ============================================================ */
+function buildCrowns() {
+    const w = realHikes.filter(h => h.images && h.images.length);
+    /* four crowns, four DIFFERENT trails. One day can top two boards — the PCT
+       leg holds both distance and climb — and printing it twice reads as a bug,
+       so a trail that already wears a crown steps aside for the next best. */
+    const taken = new Set();
+    const crown = (label, rank, fmt, unit) => {
+        const pool = w.filter(h => !taken.has(h.trail_id) && rank(h) != null);
+        const win = pool.reduce((a, b) => rank(b) > rank(a) ? b : a);
+        taken.add(win.trail_id);
+        return [label, win, fmt, unit];
+    };
+    const picks = [
+        crown('Longest hike',   h => h.miles,            h => h.miles.toFixed(1), 'mi'),
+        crown('Biggest climb',  h => h.elevation_gain,   h => h.elevation_gain.toLocaleString(), 'ft'),
+        crown('Highest summit', h => h.summit_elevation, h => h.summit_elevation.toLocaleString(), 'ft'),
+        crown('Steepest grade', h => h.elevation_gain / h.miles, h => Math.round(h.elevation_gain / h.miles), 'ft/mi')
+    ];
+    document.getElementById('crowns').innerHTML = picks.map(([k, h, f, u]) => `
+        <a class="mount" data-id="${h.trail_id}" data-name="${h.trail_name.replace(/"/g, '&quot;')}"
+           href="hike.html?id=${h.trail_id}">
+          <div class="win"><img src="${cloudinaryUrl(h.images[0], 'w_460,h_345,c_fill,q_auto,f_auto')}" alt=""></div>
+          <div class="cap"><div class="ck">${k}</div>
+            <div class="cv">${f(h)}<span class="u">${u}</span></div>
+            <div class="cn">${h.trail_name}</div></div>
+        </a>`).join('');
+    window.__crownIds = picks.map(([, h]) => h.trail_id);
+    document.querySelectorAll('.mount').forEach(m => {
+        m.addEventListener('mouseenter', () => lightOnly([m.dataset.id], m.dataset.name));
+        m.addEventListener('mouseleave', () => lightAll());
+    });
+}
+
+/* ============================================================
+   The plate the reader is standing on sets what the key map says.
+   Nothing here moves the camera — only the ink and the caption.
+   ============================================================ */
+let currentPlateLabel = 'The whole Atlas';
+function watchPlates() {
+    const io = new IntersectionObserver(entries => {
+        entries.forEach(e => {
+            if (!e.isIntersecting) return;
+            const mode = e.target.dataset.plate;
+            if (mode === 'milestones') {
+                currentPlateLabel = 'Seven milestones, where they were earned';
+                showBenchmarks(true);
+            } else if (mode === 'records') {
+                currentPlateLabel = 'The four crowned trails';
+                showBenchmarks(false);
+            } else {
+                currentPlateLabel = 'The whole Atlas';
+                showBenchmarks(false);
+            }
+            // the cursor outranks the scroll position — see `pointing`
+            if (pointing) return;
+            if (mode === 'records') {
+                lightOnly(window.__crownIds || [], currentPlateLabel);
+                pointing = false;                  // it is the plate speaking, not a cursor
+            } else {
+                lightAll();
+            }
+        });
+    }, { rootMargin: '-45% 0px -45% 0px' });
+    document.querySelectorAll('.plate').forEach(p => io.observe(p));
+}
+</script>
+</body>
+</html>

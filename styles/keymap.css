@@ -1,0 +1,334 @@
+/* =============================================================================
+   THE KEY MAP — the home page as the Atlas's own front matter
+   -----------------------------------------------------------------------------
+   Every bound atlas ever printed opens with a key map: the whole territory at
+   small scale, with each plate in the book outlined on it. That is exactly what
+   front matter is for, so the home page is a volume lying open — the left leaf
+   a live key map of every trailprint, the right leaf the plates, and everything
+   on the right cross-lit to the land on the left.
+
+   THE CAMERA NEVER MOVES. Roaming belongs to map.html; this is a plate, not a
+   vehicle — the same rule hike.html, trip.html and the crew Service Record keep.
+   All motion belongs to the ink. That is also what makes the mix-blend-mode
+   wash below affordable: a blend over a MOVING map forces a backdrop readback
+   every frame and was half of the hero film's jitter. It is safe here only
+   because this map is still. If anything ever animates the key map, the
+   parchment wash must come off first.
+
+   Section owner: scripts/keymap.js. No other script on this page may touch
+   Leaflet — they all speak to window.AtlasKeyMap instead.
+   ============================================================================= */
+
+.volume-board {
+    /* The board the open volume rests on. This is a WRAPPER rather than a body
+       background because the hero film, the nav and the footer above and below
+       must keep the backgrounds they already have — the film especially, which
+       is not to change in any respect. */
+    background: #3b2d1d linear-gradient(15deg, rgba(0, 0, 0, 0.42),
+                rgba(255, 220, 160, 0.05) 55%, rgba(0, 0, 0, 0.36));
+    padding: 46px 0 70px;
+}
+
+.volume {
+    /* R1 — text keeps a measure, but the PAGE takes the screen. At 3840 the
+       left leaf is not empty margin getting wider, it is more country. */
+    --measure: min(96vw, 2280px);
+    width: var(--measure);
+    margin: 0 auto;
+    position: relative;
+    /* The binding gradient must sit where the columns ACTUALLY divide. The
+       spread splits 0.88fr / 1.12fr, so the gutter is at 44% — left at 50% it
+       runs down the middle of the facing plate and stops reading as a book. */
+    background: linear-gradient(90deg, #e6dcc0 0%, #f5eeda 5%, #f7f0dd 40%,
+                #e3d8ba 43.4%, #cfc2a0 44%, #e3d8ba 44.6%, #f7f0dd 49%,
+                #f5eeda 95%, #e6dcc0 100%);
+    border: 1px solid #b9a87c;
+    box-shadow: 0 22px 64px rgba(0, 0, 0, 0.6), inset 0 0 70px rgba(120, 95, 50, 0.12);
+}
+
+/* align-items must NOT be `start`. A grid item sized to its own content is only
+   as tall as the key map, and position:sticky can only travel inside its own
+   containing block — so the map would ride along for ~700 px and then scroll
+   away for the remaining three plates. Stretching the leaf to the row's full
+   height is what lets it stay for the whole read. Looks like a sticky bug. */
+.spread {
+    display: grid;
+    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+    align-items: stretch;
+}
+
+/* =============================================================================
+   THE LEFT LEAF — the key map, riding along
+   ============================================================================= */
+.keyleaf { padding: 26px 26px 26px 30px; }
+.keyleaf-in { position: sticky; top: var(--leaf-top); }
+
+.keyframe {
+    position: relative;
+    background: #fffdf6;
+    border: 1px solid #d8ccae;
+    box-shadow: 0 6px 24px rgba(60, 45, 20, 0.28);
+    /* EVEN MARGINS ON ALL FOUR SIDES. This was `0 12px 10px`, so the imagery
+       butted against the frame's top edge while the other three sides kept a
+       clear border — the sheet read as a photograph cropped off at the top
+       rather than as a plate printed inside its neatline. */
+    padding: 10px 12px;
+}
+
+/* --- the head rule ---
+   Names the sheet and points north, and says nothing else. Both facts are
+   permanently true of this plate, which is what keeps the head from becoming a
+   second changing caption competing with the collar below the image — the
+   three-answers-in-three-corners problem that moved the title down there. */
+.kf-head { display: flex; align-items: center; gap: 10px; padding: 0 2px 7px; }
+.kf-h-name {
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.28em;
+    text-transform: uppercase; color: #9a927c;
+}
+.kf-h-rule { flex: 1; height: 0; border-bottom: 1px solid #d8ccae; }
+.kf-h-north {
+    display: flex; align-items: center; gap: 4px;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #9a927c;
+}
+/* a surveyor's needle: the north half inked, the south half left open */
+.kf-h-north svg { width: 11px; height: 11px; display: block; }
+.kf-h-north .n-hi { fill: #7d6231; }
+.kf-h-north .n-lo { fill: #cdc0a0; }
+
+/* --- the plate and its veil --- */
+.kf-plate-wrap { position: relative; }
+
+/* THE VEIL. Cutting to a new subject used to show the trail's ink drawn onto
+   the plate's bare dark backing for the second or two the imagery took to
+   arrive — a black box with a green squiggle in it, several times a minute.
+   So the cut happens behind parchment, exactly as every expedition cut on
+   map.html does, and the veil lifts only when the tiles report themselves
+   loaded. Same gradient as map.css's, deliberately: one visual language. */
+.kf-veil {
+    position: absolute; inset: 0; z-index: 500; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 45%, rgba(240, 231, 207, 0.98) 0%, rgba(228, 214, 180, 0.99) 100%);
+    opacity: 0; transition: opacity 0.26s ease;
+}
+.kf-veil.on { opacity: 1; transition-duration: 0.13s; }
+
+/* =============================================================================
+   THE LOWER COLLAR — the plate's instruments
+   -----------------------------------------------------------------------------
+   The index diagram used to sit in the title block as a bordered thumbnail with
+   a gap beside it, and it read as a widget pasted onto the page rather than as
+   part of the print. A printed sheet carries its instruments in a collar BELOW
+   the image — hike.html's sheet already ends in one — so that is where these
+   go: the index, the place in words, and the scale, as one band.
+
+   No element floats over the imagery to achieve it, and a short subject name
+   can no longer open a hole in the header.
+   ============================================================================= */
+.kf-plinth {
+    display: flex; align-items: stretch; gap: 14px;
+    margin-top: 10px; padding-top: 10px;
+    border-top: 1px solid #d8ccae;
+}
+
+/* ---- THE INDEX DIAGRAM ----
+   The demoted key map. Engraved rather than photographed, and small on purpose:
+   at this size it reads as a printed index, which is the one thing that cannot
+   compete with the hero film's whole-country flyover. It costs no tiles.
+   Geometry + projection: assets/atlas-frame.json, built by build-countries.py. */
+.kf-index {
+    flex: 0 0 auto; width: clamp(96px, 8.6vw, 126px);
+    display: flex; align-items: center;
+}
+#atlas-index { display: block; width: 100%; height: auto; overflow: visible; }
+/* Engraved onto the paper itself — no card, no border, no fill panel. A hairline
+   coast and a warm land tone is what a printed index diagram is, and it stops
+   the thing reading as a screenshot of another map. */
+#atlas-index .ai-land {
+    fill: #e3d7b6; stroke: #8d7c55; stroke-width: 0.7;
+    stroke-linejoin: round; vector-effect: non-scaling-stroke;
+}
+#atlas-index .ai-dot { opacity: 0.5; transition: opacity 0.2s ease, r 0.2s ease; }
+#atlas-index .ai-dot.is-lit {
+    opacity: 1; stroke: #fffdf6; stroke-width: 0.9; vector-effect: non-scaling-stroke;
+}
+
+/* ---- everything the plate has to say, in one column ---- */
+.kf-readout {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+}
+.kf-r-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+/* The subject's name. It reserves two lines whether or not it needs them, so a
+   long trail name arriving on a cut cannot change the collar's height — the map
+   deck's .lg-name learned this first. */
+.kf-title {
+    margin: 0; min-width: 0;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(14px, 1.15vw, 18px); letter-spacing: 0.07em;
+    text-transform: uppercase; color: #24401f;
+    line-height: 1.25; height: 2.5em; overflow: hidden;
+    display: flex; align-items: center;
+}
+.kf-count {
+    flex: 0 0 auto; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: #9a927c; white-space: nowrap;
+}
+.kf-r-place {
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #6f6a58; line-height: 1.4;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The measurements. They used to live in a tooltip beside the Effort Field's
+   dots; a floating card repeating what the leaf was already answering is two
+   answers to one question, so the numbers come here and the chart just lights
+   the dot you are pointing at. */
+.kf-r-vitals {
+    font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: #a5854a; min-height: 1.3em;
+}
+/* the milestone benchmarks, planted on the index at their real coordinates */
+#atlas-index .ai-bm { opacity: 0; transition: opacity 0.3s ease; pointer-events: none; }
+#atlas-index .ai-bm.is-on { opacity: 1; }
+#atlas-index .ai-bm-disk { fill: #c2a25c; stroke: #7d6231; stroke-width: 0.6; vector-effect: non-scaling-stroke; }
+#atlas-index .ai-bm text {
+    font-family: var(--font-display); font-size: 3.4px; font-weight: 700; fill: #4a3a1c;
+}
+
+/* -----------------------------------------------------------------------------
+   THE PLATE — satellite, and the reason this leaf exists.
+
+   The leaf is sticky, which means the whole leaf must FIT INSIDE the viewport.
+   Everything around the plate (collar with its index diagram, the readout, the
+   door, every padding and the sticky offset) measures 268 px; the plate takes
+   whatever the viewport has left. On a 950 px laptop that is ~682 px — against
+   the 170 px it had when a continental key map sat above it, which is the whole
+   reason the imagery finally looks like imagery.
+
+   The floor keeps a short viewport legible; the ceiling stops a very tall
+   monitor from turning the leaf into a second hero film.
+   -------------------------------------------------------------------------- */
+.keyleaf-in {
+    --leaf-top: 18px;
+    /* Measured, not guessed: the collar, the door, every padding, the sticky
+       offset, and 16 px of deliberate slack — without the slack the leaf lands
+       flush to the pixel on a 950 px viewport and a browser with taller chrome
+       starts clipping the door. Dropped from 296 when the title block moved
+       down into the collar, which is 83 px the plate now gets instead; 30 of
+       those went back when the head rule and the top margin closed the frame. */
+    --leaf-chrome: 262px;
+}
+#detailplate {
+    height: clamp(300px, calc(100vh - var(--leaf-chrome)), 820px);
+    /* Dark backing, and it is load-bearing. Imagery is dark; the plate's paper
+       is cream; at fractional zoom the hairline between two tiles let that
+       cream through and printed a white lattice over the forest. The plate is
+       pinned to whole zoom levels in keymap.js so the seam does not open in the
+       first place, and this backing means any residual one reads as shadow
+       rather than as a scratch on the print. */
+    background: #22261f;
+    position: relative; z-index: 0;
+}
+
+/* a plate wears a printed border, not a browser frame */
+.keyframe .leaflet-container { border: 1px solid #b6a67e; background: transparent; }
+.keyframe .leaflet-control-attribution {
+    font-size: 8px !important; background: rgba(255, 253, 246, 0.65) !important;
+}
+
+/* the bar takes what it needs and no more, so the place name keeps the rest */
+.scale-bar {
+    display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #9a927c;
+}
+.scale-bar .bar { display: flex; border: 1px solid #9a927c; height: 6px; }
+.scale-bar .bar i { width: 17px; height: 100%; display: block; }
+.scale-bar .bar i:nth-child(odd) { background: #9a927c; }
+
+/* The door out into the land — base.css's shared component, sized only. This is
+   ordinary navigation from the front matter, not a fourth kind of crossing, so
+   it must not be restyled here beyond its width. */
+.keyframe .atlas-door {
+    display: flex; width: auto; margin-top: 11px;
+}
+.keyframe .atlas-door span { flex: 1; }
+
+/* =============================================================================
+   THE RIGHT LEAF — the front matter
+   In Stage 1 the four existing sections move in wearing their own old skin.
+   Their plate collars and re-set panels arrive in Stages 2-6.
+   ============================================================================= */
+.matter { padding: 26px 30px 40px 26px; }
+
+/* -----------------------------------------------------------------------------
+   THE PLATE COLLAR — the front matter's one divider, on all four plates.
+
+   Plate number, the title in engraved display capitals, a hairline running out
+   to a right-hand note. It is the map deck's and the trip sheet's own device,
+   which is the point: the volume's front matter should be divided the same way
+   its chapters are.
+
+   R1 — text keeps a measure, panels take the page: the lede stays readable at
+   62ch while the plate itself grows with the leaf.
+   -------------------------------------------------------------------------- */
+.plate { padding: 34px 0 38px; border-bottom: 1px solid rgba(160, 140, 100, 0.42); }
+.plate:first-child { padding-top: 6px; }
+.plate:last-child { border-bottom: none; }
+
+.p-collar {
+    display: flex; align-items: flex-end; gap: 18px;
+    padding-bottom: 8px; border-bottom: 1.5px solid #2f5c40;
+}
+.p-no {
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.3em;
+    text-transform: uppercase; color: #9a927c; white-space: nowrap; padding-bottom: 4px;
+}
+.p-title {
+    font-family: var(--font-display); font-weight: 700; margin: 0;
+    font-size: clamp(18px, 1.7vw, 26px); letter-spacing: 0.08em;
+    text-transform: uppercase; color: #24401f; line-height: 1.1;
+}
+.p-rule { flex: 1; height: 0; border-bottom: 1px solid #d8ccae; margin-bottom: 8px; }
+.p-note {
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.22em;
+    text-transform: uppercase; color: #9a927c; white-space: nowrap; padding-bottom: 4px;
+}
+/* THE LEDE GROWS WITH THE LEAF. It used to be `62ch` at a fixed 1.04em, which
+   resolved to the same 545 px at every screen size — so on a wide monitor a
+   short stub of type sat under a plate collar three times its width while
+   everything else on the page had grown. R1 said "text keeps a measure", and
+   that is still true: the measure is kept in CHARACTERS, and the characters
+   themselves get bigger. `ch` is relative to font-size, so a lede set in vw
+   holds its line length automatically as it scales — the paragraph gets
+   larger, not longer. The percentage is the second bound, so the line can
+   never run the full width of a very wide leaf. */
+.p-lede {
+    max-width: min(88%, 86ch); margin: 15px 0 0;
+    color: #6f6a58; line-height: 1.55;
+    font-size: clamp(16px, 1.02vw, 23px);
+}
+
+/* THE FOUR BANDS ARE GONE. Each plate used to be a full-bleed gradient in its
+   own near-identical cream, which was the fault the July audit condemned; inside
+   the volume they were worse than that, because a band is a rectangle of one
+   tone with the leaf's paper showing on either side of it, and any panel sitting
+   on the band became a lighter rectangle inside a darker one. Two unrelated
+   surfaces where there should be one page. The leaf's paper is the background
+   for all four plates now, and a panel only appears where something genuinely
+   sits ON the page — a drawer, a card. */
+.matter .plate {
+    background: none;
+    padding-left: 0; padding-right: 0;
+    text-align: left;
+}
+
+/* Below the breakpoint the book simply closes: the key map becomes a band on
+   top and the front matter runs full width beneath it. Desktop is the brief;
+   this exists so a narrow window is never broken, not as mobile design. */
+@media (max-width: 1180px) {
+    .spread { grid-template-columns: 1fr; }
+    .volume { background: #f7f0dd; }
+    .keyleaf-in { position: static; }
+    #detailplate { height: 420px; }
+    .matter { padding-top: 0; }
+}

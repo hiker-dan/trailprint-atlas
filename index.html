@@ -26,11 +26,17 @@
     <style>html { background: #ece3ce; }</style>
     <link rel="preconnect" href="https://server.arcgisonline.com">
     <link rel="preconnect" href="https://res.cloudinary.com">
+    <link rel="preconnect" href="https://basemaps.cartocdn.com">
+    <!-- The key map on the left leaf is Leaflet, like every other static plate
+         in the Atlas. (The hero film is MapLibre and stays MapLibre.) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+          integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <link rel="stylesheet" href="styles/base.css"/>
     <link rel="stylesheet" href="styles/threads.css"/>
     <link rel="stylesheet" href="styles/observatory.css"/>
     <link rel="stylesheet" href="styles/records.css"/>
     <link rel="stylesheet" href="styles/home.css"/>
+    <link rel="stylesheet" href="styles/keymap.css"/>
 </head>
 <body>
     <script>
@@ -65,41 +71,163 @@
         <button class="film-btn" id="film-btn" type="button">Skip</button>
     </section>
 
-    <!-- ===== THE ODOMETER (the key stats, as rolling mile-counter reels) ===== -->
-    <section class="odo-section" id="odo-section">
-        <div class="odo-inner">
-            <div class="odo-eyebrow">The Trailprint Atlas &middot; by the numbers</div>
-            <div class="odo-grid" id="odo-grid"><!-- reels injected by home.js --></div>
-            <p class="odo-tagline">The miles keep turning over &middot; <span id="odo-range">....</span> &ndash; Present<span id="odo-extra"></span></p>
+    <!-- ===== THE VOLUME =====
+         The three scales of place are taken (the land, the chapter, the day)
+         and crew is the people page — so the home page is the VOLUME ITSELF,
+         and its front matter. Every bound atlas opens with a key map: the whole
+         territory at small scale, with each plate in the book marked on it.
+         So the page is a volume lying open — the left leaf a live key map that
+         rides alongside the reader for the whole scroll, the right leaf the
+         plates, and everything on the right cross-lit to the land on the left.
+         Owner: scripts/keymap.js + styles/keymap.css. -->
+    <div class="volume-board">
+    <div class="volume">
+    <div class="spread">
+
+        <!-- ---------- THE LEFT LEAF: THE PLATE ----------
+             A printed atlas page is a big detail plate with a small key beside
+             it. The plate is satellite and takes the whole leaf; the key is the
+             engraved index diagram in the title block, which costs no tiles.
+             NOTHING HERE IS INTERACTIVE except the door — you act on the right
+             leaf and the land answers. -->
+        <aside class="keyleaf">
+          <div class="keyleaf-in">
+            <div class="keyframe">
+                <!-- THE HEAD RULE. A printed plate is enclosed on all four
+                     sides; with the title block moved down into the collar the
+                     imagery ran straight into the frame's top edge, with clear
+                     margins on the other three, and read as a picture cropped
+                     rather than a sheet. This says only what is permanently
+                     true of the plate — what it is, and which way is up — so it
+                     can never become a second changing answer to the collar's
+                     question. -->
+                <div class="kf-head">
+                    <span class="kf-h-name">Detail Plate</span>
+                    <span class="kf-h-rule"></span>
+                    <span class="kf-h-north">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path class="n-hi" d="M12 2.5 15.1 13 12 11.1 8.9 13Z"/>
+                            <path class="n-lo" d="M12 21.5 8.9 13 12 14.9 15.1 13Z"/>
+                        </svg>
+                        <span>N</span>
+                    </span>
+                </div>
+                <div class="kf-plate-wrap">
+                    <div id="detailplate"><!-- the close-up: cuts, never flies --></div>
+                    <!-- the veil: every cut happens behind it, and it lifts only
+                         once the imagery reports itself loaded. Same device and
+                         same parchment as map.html's expedition cuts. -->
+                    <div class="kf-veil" id="kf-veil"></div>
+                </div>
+                <!-- THE COLLAR. Everything the plate has to say is here, in one
+                     place, below the image: what you are looking at, where in
+                     the Atlas it is, its measurements and the scale. The title
+                     used to sit ABOVE the map with the place below it, which on
+                     a tall screen put three answers to one question in three
+                     different corners of the leaf. -->
+                <div class="kf-plinth">
+                    <div class="kf-index">
+                        <svg id="atlas-index" viewBox="0 0 100 73" aria-hidden="true">
+                            <!-- silhouette + dots drawn by keymap.js from
+                                 assets/atlas-frame.json -->
+                        </svg>
+                    </div>
+                    <div class="kf-readout">
+                        <div class="kf-r-head">
+                            <h2 class="kf-title" id="kf-title">The home ground</h2>
+                            <span class="kf-count" id="kf-count">&nbsp;</span>
+                        </div>
+                        <div class="kf-r-place" id="kf-place">&nbsp;</div>
+                        <div class="kf-r-vitals" id="kf-vitals"></div>
+                        <div class="scale-bar">
+                            <div class="bar" id="kf-scale-bar"><i></i><i></i><i></i><i></i></div>
+                            <span id="kf-scale">&nbsp;</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- ordinary navigation from the front matter into the land,
+                     wearing base.css's shared door component (sizes only) -->
+                <a class="atlas-door" href="map.html">
+                    <svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z"/><path d="M9 4v14M15 6v14"/></svg>
+                    <span>Walk into the land</span>
+                    <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+                </a>
+            </div>
+          </div>
+        </aside>
+
+        <!-- ---------- THE RIGHT LEAF: THE FRONT MATTER ----------
+             Stage 1 moves all four sections in wearing their own old skin;
+             they are re-set plate by plate in the stages that follow. -->
+        <div class="matter">
+
+    <!-- ===== PLATE I — THE ABSTRACT =====
+         The Odometer, re-set as the volume's title page. The rolling reels are
+         unchanged (home.js still builds them); the dark green enamel they used
+         to sit in is gone, and the figures are now engraved into a double-ruled
+         band with a survey mark on its head rule. Keeps id="odo-section" —
+         home.js watches it to fire the roll. -->
+    <section class="plate odo-section" id="odo-section" data-plate="all">
+        <div class="p-collar">
+            <div class="p-no">Plate&nbsp;I</div>
+            <h2 class="p-title">The Abstract</h2>
+            <div class="p-rule"></div>
+            <div class="p-note">By the numbers</div>
         </div>
+        <p class="p-lede">The whole of it, in four numbers — every mile walked and every
+           foot climbed since the first entry in the logbook.</p>
+        <div class="ab-band">
+            <svg class="ab-mark" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="6.4"/>
+                <path d="M12 1.6v3.4M12 19v3.4M1.6 12h3.4M19 12h3.4"/>
+                <circle class="dot" cx="12" cy="12" r="1.5"/>
+            </svg>
+            <div class="odo-grid" id="odo-grid"><!-- reels injected by home.js --></div>
+        </div>
+        <!-- The tagline that used to close this plate ("The miles keep turning
+             over · 2022 – Present · plus 10 scenic viewpoints") is gone, struck
+             August 2026: the four figures are the statement, and a line telling
+             the reader how to feel about them undercut it. -->
     </section>
 
-    <!-- ===== THREADS OF THE TRAIL (milestone narrative) ===== -->
-    <section class="threads-section">
-        <div class="threads-inner">
-            <div class="threads-header">
-                <div class="threads-eyebrow">The Journey So Far</div>
-                <h2 class="threads-title">Threads of the Trail</h2>
-                <p class="threads-lede">Not a scoreboard, a journey. Every marker below is a milestone
-                   surveyed onto the map the day it was earned. Hover a benchmark to open its story.</p>
-            </div>
-            <div class="field-sheet" id="threads-sheet"><!-- SVG quadrangle + benchmark disks injected by threads.js --></div>
+    <!-- ===== PLATE II — THREADS OF THE TRAIL (milestone narrative) =====
+         The procedural USGS quadrangle retired July 2026: it planted the
+         benchmarks on invented ground, and this plate now sits inches from a
+         photograph of real ground. The milestone ENGINE is unchanged — the
+         benchmarks are simply planted at their real coordinates on the index
+         diagram instead, and the ledger below is how you read them. -->
+    <section class="plate threads-section" data-plate="milestones">
+        <div class="p-collar">
+            <div class="p-no">Plate&nbsp;II</div>
+            <h2 class="p-title">Threads of the Trail</h2>
+            <div class="p-rule"></div>
+            <div class="p-note" id="threads-count">The journey so far</div>
         </div>
+        <p class="p-lede">Not a scoreboard, a journey. Every milestone below was earned on a
+           particular day, on particular ground — so it is planted there. Run your eye down the
+           ledger and the plate stands on where each one happened; open a line to read the day.</p>
+        <div class="threads-ledger" id="threads-ledger"><!-- rows injected by threads.js --></div>
     </section>
-    <div id="threads-tip"><!-- milestone hover card --></div>
 
     <!-- ===== THE OBSERVATORY (deep-data exploration) ===== -->
-    <section class="obs-section" id="observatory">
+    <section class="plate obs-section" id="observatory" data-plate="all">
+        <div class="p-collar">
+            <div class="p-no">Plate&nbsp;III</div>
+            <h2 class="p-title">The Observatory</h2>
+            <div class="p-rule"></div>
+            <div class="p-note">Turned over, every angle</div>
+        </div>
         <div class="obs-inner">
             <div class="obs-header">
-                <div class="obs-eyebrow">By the Numbers</div>
-                <h2 class="obs-title">The Observatory</h2>
-                <p class="obs-lede">Five years of trails, turned over and examined from every angle —
+                <p class="p-lede">Five years of trails, turned over and examined from every angle —
                    where you roam, how hard you climb, and when you answer the call outside.</p>
             </div>
 
-            <!-- Auto-written profile line (replaces the old radar) -->
-            <p class="obs-profile" id="obs-profile"></p>
+            <!-- The auto-written profile line ("You're a desert-loving,
+                 duo-hiking explorer who has climbed 15.1 vertical miles…")
+                 was struck here in August 2026. It told the reader what to
+                 conclude, in a voice that is not Danny's, above a whole plate
+                 built to let them conclude it themselves. -->
 
             <!-- Panel: The Effort Field (distance × climb scatter) -->
             <div class="obs-panel" id="obs-effort">
@@ -131,6 +259,15 @@
                 <div class="asc-card" id="asc-card"><!-- field card: whole-range facts at rest, per-peak on hover --></div>
             </div>
 
+            <!-- R3 — A SQUARE PANEL MUST NOT GROW; IT MUST PAIR. The Cadence
+                 is a wheel and the Network is a ring: neither gets better at
+                 1,200 px across, they just get absurd, and the plate gets
+                 longer for nothing. So past the pairing width these two stand
+                 side by side, each capped. The wide charts above them do the
+                 opposite — they take the width as plot area (R2) — so the
+                 plate reads wide at the top and square at the foot. -->
+            <div class="obs-pair">
+
             <!-- Panel: The Cadence (seasonal rhythm, as a radial year-wheel) -->
             <div class="obs-panel" id="obs-cadence">
                 <div class="obs-panel-head">
@@ -141,10 +278,38 @@
                     <div id="cadence"><!-- svg injected --></div>
                     <div class="cad-side">
                         <p class="cad-caption" id="cad-caption"></p>
+                        <!-- The month readout. It replaces the tooltip that used
+                             to follow the cursor over the wheel: a fixed place
+                             for the answer, which is also how the True Ascents'
+                             field card works, and what the whole Observatory
+                             does now. -->
+                        <div class="cad-readout" id="cad-readout">
+                            <div class="cad-ro-month" id="cad-ro-month">The whole year</div>
+                            <div class="cad-ro-sub" id="cad-ro-sub">Point at a ring to read that month</div>
+                        </div>
                         <div id="cad-legend"><!-- year key injected --></div>
                     </div>
                 </div>
             </div>
+
+            <!-- Panel: The Triangulation Network — the Atlas's one PEOPLE
+                 chart, and the crew arc's last owed piece (mockups/crew-network.html).
+                 Every companion is a station; every pair who has walked
+                 together is joined by a measured baseline. It lives here rather
+                 than on crew.html because it is about GROUND SHARED, not people
+                 listed — so it belongs where the land answers. -->
+            <div class="obs-panel" id="obs-network">
+                <div class="obs-panel-head">
+                    <h3>The Triangulation Network</h3>
+                    <span class="obs-panel-sub" id="net-count"></span>
+                </div>
+                <div class="net-wrap">
+                    <div id="net-plot"><svg id="net-svg"></svg></div>
+                    <div class="net-readout" id="net-readout"><!-- injected --></div>
+                </div>
+            </div>
+
+            </div><!-- /.obs-pair -->
 
             <!-- Panel: The Specimen Drawer (biomes as a naturalist's cabinet) -->
             <div class="obs-panel" id="obs-biomes">
@@ -157,45 +322,64 @@
             </div>
         </div>
     </section>
-    <div id="obs-tip"><!-- observatory chart tooltip --></div>
 
     <!-- ===== THE RECORD BOOKS (the closer: guideposts into the Atlas) ===== -->
-    <section class="records-section" id="record-books">
+    <section class="plate records-section" id="record-books" data-plate="records">
+        <div class="p-collar">
+            <div class="p-no">Plate&nbsp;IV</div>
+            <h2 class="p-title">The Record Books</h2>
+            <div class="p-rule"></div>
+            <div class="p-note">The standing records</div>
+        </div>
+        <p class="p-lede">The trails that hold a standing record, and the expeditions that covered the
+           most ground. Point at any of them and the plate stands on it; open one and it opens its own
+           chapter of the Atlas.</p>
+
         <div class="records-inner">
-            <div class="records-header">
-                <div class="records-eyebrow">The Standing Records</div>
-                <h2 class="records-title">The Record Books</h2>
-                <p class="records-lede">The trails that hold a crown and the expeditions that went farthest.
-                   Every card opens its own chapter of the Atlas.</p>
-            </div>
-
             <div class="rb-block">
-                <h3 class="rb-board-title">The Records</h3>
-                <p class="rb-board-blurb">Four crowns — the trail that went farthest, the one that climbed
-                   hardest, the highest summit reached, and the steepest grade earned.</p>
-                <div class="crowns-grid" id="board-records"><!-- injected --></div>
-                <div class="rb-more-wrap">
-                    <a class="board-more" id="records-more" href="hike.html">Into the logbook <span class="arw">&rarr;</span></a>
+                <!-- the Observatory's sub-collar, because a plate should divide
+                     its own sections the same way wherever you are in the book -->
+                <div class="rb-head">
+                    <h3>The Crowns</h3>
+                    <span class="rb-head-sub" id="records-sub"></span>
                 </div>
+                <div class="crowns-grid" id="board-records"><!-- injected --></div>
             </div>
 
             <div class="rb-block">
-                <h3 class="rb-board-title">The Expeditions</h3>
-                <p class="rb-board-blurb">The multi-day trips that covered the most ground. Step onto the podium.</p>
+                <div class="rb-head">
+                    <h3>The Expeditions</h3>
+                    <span class="rb-head-sub" id="expeditions-note"></span>
+                </div>
                 <div class="podium" id="board-expeditions"><!-- injected --></div>
-                <p class="board-note" id="expeditions-note"></p>
             </div>
         </div>
     </section>
+
+        </div><!-- /.matter -->
+    </div><!-- /.spread -->
+    </div><!-- /.volume -->
+    </div><!-- /.volume-board -->
+
+    <!-- NOTHING FLOATS ON THIS PAGE ANY MORE. The Observatory's shared tooltip
+         stood here until August 2026, position:fixed and following the cursor
+         over three charts; Threads' hover card went earlier, with the
+         quadrangle. Every panel answers on the left leaf now, or in a fixed
+         readout of its own. -->
 
     <!-- (State map + seasonal chart removed in the July 2026 redesign — their
          data returns inside the Observatory section. Echoes of the Trail
          moved to echoes.html.) -->
 
-    <!-- Leaflet is NOT loaded here any more. The old SVG hero film used it for
-         projection only (no tiles, no layers); the film is MapLibre now, which
-         projects for itself, and nothing else on this page ever used it.
-         trail-renderer.js went with it — no homepage section calls it. -->
+    <!-- LEAFLET IS LOADED HERE AGAIN (July 2026, the Key Map redesign).
+         It was removed when the hero film became MapLibre — the old SVG film
+         used Leaflet for projection only, and no other homepage section touched
+         it. The left leaf's key map brings it back, because every static plate
+         in the Atlas is Leaflet (hike.html, trip.html, the crew Service Record)
+         and this is one more of them. The film remains MapLibre and is
+         unchanged. Two map libraries on one page is a real payload cost, paid
+         knowingly: Leaflet is ~43 KB gzipped against MapLibre's ~230 KB, it
+         loads after the film's own scripts, and it draws below the fold. -->
 
    <!-- Shared Atlas config + data layer (must load before other Atlas scripts) -->
    <script src="scripts/config.js"></script>
@@ -208,6 +392,14 @@
         first because the film coordinates its skip through AtlasIntro. -->
    <script src="https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js"></script>
    <script src="scripts/intro-film.js"></script>
+
+   <!-- The Key Map: the volume's left leaf. Loads after the film's scripts so
+        the film owns the network for its own first seconds, and publishes
+        window.AtlasKeyMap — the ONE way the front matter talks to the land.
+        No other script on this page may reference Leaflet. -->
+   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+           integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+   <script src="scripts/keymap.js"></script>
 
    <!-- Threads of the Trail: the milestone quadrangle (home redesign, July 2026) -->
    <script src="scripts/threads.js"></script>

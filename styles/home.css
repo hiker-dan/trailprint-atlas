@@ -294,27 +294,108 @@ h1 {
     transition: background-color 0.2s ease, transform 0.2s ease; }
 .film-btn:hover { background: #fffdf6; transform: translateY(-1px); }
 
-/* --- The Odometer: the key stats as rolling mile-counter reels --- */
-.odo-section { background: linear-gradient(180deg, #efe7d5 0%, #e6dabd 100%); padding: 96px 24px 110px; text-align: center; }
-.odo-inner { max-width: 1080px; margin: 0 auto; }
-.odo-eyebrow { text-transform: uppercase; letter-spacing: 0.22em; font-weight: 700; font-size: 0.8em; color: var(--trail-green); margin-bottom: 40px; }
-.odo-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
-.odo-stat { display: flex; flex-direction: column; align-items: center; }
-/* the enamel park-sign plate the reels sit in */
-.odo-plate { background: linear-gradient(180deg, #2f5c40 0%, #274c35 100%); border-radius: 12px;
-    padding: 16px 14px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.35), 0 4px 14px rgba(40,60,45,0.3);
-    border: 1px solid #23402e; display: flex; align-items: center; justify-content: center; gap: 1px; min-width: 0; }
-.odo-reel { display: inline-block; height: 62px; overflow: hidden; vertical-align: bottom;
-    box-shadow: inset 0 6px 8px -6px rgba(0,0,0,0.7), inset 0 -6px 8px -6px rgba(0,0,0,0.7); }
+/* =============================================================================
+   PLATE I — THE ABSTRACT (the Odometer, re-set as the volume's title page)
+   -----------------------------------------------------------------------------
+   This must not read as the hike sheet's vitals band moved to a new address.
+   Same family, different job entirely: a hike sheet states four measurements
+   about ONE day; this states the accumulation of every day there has ever been,
+   and it is the first thing a reader meets. It has to carry that weight.
+
+   So it borrows the engraver's TITLE-PAGE devices, none of which appear
+   anywhere else in the Atlas:
+     * a DOUBLE rule closing the band top and bottom — every other collar in the
+       codebase is a single rule, so a double one reads as frontispiece;
+     * a surveyor's station mark struck into the head rule, the way a printed
+       title page carries a device at its centre;
+     * bays divided by hairlines that STOP SHORT of the frame, a printer's
+       detail, so the four figures read as one engraved table rather than as
+       four cards sitting next to each other;
+     * numerals far larger than any other type on the page, because the
+       accumulation IS the point.
+
+   THE REELS ARE UNTOUCHED. home.js still builds and rolls them, and it measures
+   digit height rather than assuming it, so the type can grow freely here. What
+   went is the dark green enamel they used to sit in: the loudest remnant of the
+   old skin, and nothing else in the volume wears it.
+   ============================================================================= */
+.ab-band {
+    position: relative;
+    margin-top: 30px; padding: 34px 0 26px;
+    border-top: 3px double #2f5c40;
+    border-bottom: 3px double #2f5c40;
+}
+
+/* the device on the head rule — a survey station, drawn not typed */
+.ab-mark {
+    position: absolute; top: -12px; left: 50%; margin-left: -13px;
+    width: 26px; height: 26px; padding: 0 4px;
+    background: var(--paper-bg, #f7f0dd);
+    fill: none; stroke: #2f5c40; stroke-width: 1.3; stroke-linecap: round;
+}
+.ab-mark .dot { fill: #2f5c40; stroke: none; }
+
+.odo-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.odo-stat { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 8px; }
+/* the bay rules, stopping short at both ends */
+.odo-stat + .odo-stat::before {
+    content: ''; position: absolute; left: 0; top: 8%; bottom: 8%;
+    width: 1px; background: #ddd0aa;
+}
+
+/* the reels: no enamel, no radius, no shadow — engraved figures on paper */
+.odo-plate { display: flex; align-items: flex-end; justify-content: center; gap: 2px; min-width: 0; }
+/* The window the strip travels behind.
+
+   This used to carry inset shadows top and bottom to suggest a mechanical
+   drum. On enamel they read as depth; on paper they read as a grey box drawn
+   round every single digit, and four numbers became sixteen little tiles.
+
+   A soft MASK does the same job honestly: the strip fades out as it reaches
+   the window's edge, so a digit arrives and leaves the way ink comes off a
+   roller instead of being guillotined. It costs nothing when the reel is at
+   rest, because at rest there is nothing at the edges to fade. */
+.odo-reel {
+    display: inline-block; height: clamp(46px, 4.6vw, 82px); overflow: hidden; vertical-align: bottom;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
+            mask-image: linear-gradient(to bottom, transparent 0, #000 16%, #000 84%, transparent 100%);
+}
 .odo-strip { display: flex; flex-direction: column; transform: translateY(0); }
 .odo-strip.rolling { transition: transform 1.9s cubic-bezier(0.16, 1, 0.3, 1); }
-.odo-digit { height: 62px; line-height: 62px; width: 0.62em; text-align: center;
-    font-family: var(--font-display); font-size: 50px; color: #f3e8cd; }
-.odo-sep { font-family: var(--font-display); font-size: 50px; color: #b7cbb8; align-self: flex-end; padding: 0 1px 4px; }
-.odo-label { margin-top: 14px; font-size: 0.92em; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--stone); }
-.odo-tagline { margin-top: 44px; font-family: var(--font-body); font-style: italic; color: var(--gravel); font-size: 1.05em; }
+.odo-digit {
+    height: clamp(46px, 4.6vw, 82px); line-height: clamp(46px, 4.6vw, 82px);
+    width: 0.62em; text-align: center;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(38px, 3.8vw, 68px); color: #24401f;
+    font-variant-numeric: tabular-nums;
+}
+/* The thousands comma sits in the same box as a digit rather than hanging below
+   it on its own padding — that padding was taller than the reels, so the one
+   figure carrying a comma pushed its label out of line with the other three. */
+.odo-sep {
+    font-family: var(--font-display); font-weight: 700;
+    /* smaller and quieter than the figures it separates: at full size the
+       display face's comma is a heavy enough mark to read as a smudge */
+    font-size: clamp(28px, 2.8vw, 50px); color: #7d8a72;
+    height: clamp(46px, 4.6vw, 82px); line-height: clamp(46px, 4.6vw, 82px);
+    padding: 0 1px;
+}
+/* a short leader rule between the figure and its name, as a printed table sets it */
+.odo-label {
+    position: relative; margin-top: 16px; padding-top: 11px;
+    font-family: var(--font-display); font-size: 8.5px; font-weight: 700;
+    letter-spacing: 0.24em; text-transform: uppercase; color: #9a927c; text-align: center;
+}
+.odo-label::before {
+    content: ''; position: absolute; top: 0; left: 50%; margin-left: -13px;
+    width: 26px; height: 1px; background: #c9b98f;
+}
+.odo-tagline {
+    margin: 18px 0 0; font-family: var(--font-body); font-style: italic;
+    color: #9a927c; font-size: 0.97em;
+}
 
 @media (max-width: 820px) {
-    .odo-grid { grid-template-columns: repeat(2, 1fr); gap: 34px 22px; }
-    .odo-digit, .odo-sep { font-size: 40px; } .odo-reel { height: 50px; } .odo-digit { height: 50px; line-height: 50px; }
+    .odo-grid { grid-template-columns: repeat(2, 1fr); row-gap: 30px; }
+    .odo-stat:nth-child(3)::before { display: none; }
 }

@@ -66,15 +66,15 @@ const AtlasIntro = {
 // relief. Retired July 2026. Its story is in git.)
 
 // ===== The Odometer: the key stats as rolling mile-counter reels =====
+// Two 0-9 cycles per strip, so a reel spins a full extra turn before it lands.
+// The landing is expressed as a fraction of this, never in pixels — see roll().
+const STRIP_DIGITS = 20;
 (function () {
     fetchHikes().then(hikes => {
         const stats = getAtlasStats(hikes);
-        const startYear = hikes.reduce((min, h) => Math.min(min, hikeYear(h)), new Date().getUTCFullYear());
-        document.getElementById('odo-range').textContent = startYear;
-        // viewpoints don't ride the reels — they're not hikes — but they get their line
-        const extra = document.getElementById('odo-extra');
-        if (extra && stats.totalViewpoints) extra.textContent = ` · plus ${stats.totalViewpoints} scenic viewpoints`;
-
+        // The plate's closing tagline was struck in August 2026 (see index.html),
+        // so there is no #odo-range or #odo-extra to fill any more. The reels are
+        // the whole statement.
         const odoDefs = [
             { value: stats.totalHikes, label: 'Hikes' },
             { value: Math.round(stats.totalMiles), label: 'Miles' },
@@ -92,7 +92,7 @@ const AtlasIntro = {
                 const reel = document.createElement('span'); reel.className = 'odo-reel';
                 const strip = document.createElement('span'); strip.className = 'odo-strip';
                 // two 0-9 cycles so the reel spins a full extra turn before landing
-                strip.innerHTML = Array.from({ length: 20 }, (_, k) => `<span class="odo-digit">${k % 10}</span>`).join('');
+                strip.innerHTML = Array.from({ length: STRIP_DIGITS }, (_, k) => `<span class="odo-digit">${k % 10}</span>`).join('');
                 reel.appendChild(strip); plate.appendChild(reel);
                 strips.push({ strip, digit: +ch });
             }
@@ -106,12 +106,20 @@ const AtlasIntro = {
         function roll() {
             if (rolled) return; rolled = true;
             built.forEach(strips => strips.forEach((s, i) => {
-                // Measure the digit height instead of assuming it — keeps the
-                // reels honest if a media query resizes them.
-                const h = s.strip.firstChild.offsetHeight;
                 setTimeout(() => {
                     s.strip.classList.add('rolling');
-                    s.strip.style.transform = `translateY(${-(10 + s.digit) * h}px)`;
+                    // A PERCENTAGE of the strip, never a pixel measurement.
+                    // The landing used to be computed from the digit's measured
+                    // height at the moment it rolled, which is correct exactly
+                    // once: the numerals are sized in vw, so dragging the window
+                    // changed the digit height while the transform stayed frozen
+                    // in the old pixels, and every reel stuck mid-spin showing
+                    // two half digits. A percentage refers to the strip's own
+                    // height, so it re-resolves on every resize for free — and
+                    // resizing can't retrigger the transition, because the
+                    // declared value never changes.
+                    const stop = ((10 + s.digit) / STRIP_DIGITS) * 100;
+                    s.strip.style.transform = `translateY(-${stop}%)`;
                 }, i * 90);
             }));
         }

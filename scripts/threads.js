@@ -1,362 +1,60 @@
 /**
- * Threads of the Trail — the homepage milestone narrative.
+ * Threads of the Trail — Plate II of the home page's front matter.
  *
- * Renders a vintage USGS-style quadrangle ("The Field Sheet"): procedural
- * contour terrain (a seeded height field run through marching squares),
- * woodland tint, water, and an authentic collar (neatline, declination
- * diagram, bar scale, tick marks). The milestones themselves are computed
- * live from hikes.json and planted along a fixed wandering trail as brass
- * benchmark disks — "firsts" get an engraved glyph, recurring/numeric ones
- * a stamped value. New milestones join automatically as the Atlas grows.
+ * THE MILESTONE LEDGER. Every milestone the Atlas has earned, in the order it
+ * was earned, each one a brass benchmark disk carrying its category's engraved
+ * glyph. Milestones are computed live from hikes.json, so new ones join by
+ * themselves as the Atlas grows.
  *
- * Requires config.js + atlas-data.js. Added July 2026 (home redesign).
+ * WHAT USED TO BE HERE, AND WHY IT ISN'T (July 2026). This file drew a vintage
+ * USGS quadrangle — a seeded height field run through marching squares for the
+ * contours, a woodland tint, an invented lake, a full collar with neatline,
+ * declination diagram and bar scale — and planted the benchmarks along a fixed
+ * wandering spine on it. About 450 lines of genuinely good procedural
+ * cartography, and it still had to go: the redesigned page sets this plate
+ * inches from a leaf showing REAL ground, photographed from orbit at zoom 17,
+ * and invented contours cannot share a spread with a satellite image. The
+ * section's own claim — every marker is a milestone surveyed onto the map the
+ * day it was earned — is only TRUE now, because the benchmarks stand at each
+ * hike's real coordinates on the index diagram and the plate cuts to the actual
+ * ground the milestone happened on.
+ *
+ * THE ENGINE IS UNTOUCHED: the same priorities, the same cumulative crossings,
+ * the same dedupe by trail_id, the same chronological sort, the same glyphs,
+ * the same notes. Nothing this section SAYS has changed.
+ *
+ * The hover card went with the sheet, folded into the row it used to describe.
+ * A row has room for its own note, and one fewer floating element is the
+ * standing preference here.
+ *
+ * WHY THE DRAWER IS OPENED BY A CLICK (August 2026, after two rebuilds). It was
+ * opened by SCROLLING first, and it never once felt right. The reason is
+ * structural, not a tuning problem: a drawer lives between its entry and the
+ * next, so opening one MOVES every entry below it — and the scroll position is
+ * what was choosing which entry to open. The choice fed its own input. Every
+ * remedy was a patch on that loop (measure the layout as if all drawers were
+ * shut, damp the switch by 30 px, lock out challenges for 260 ms, compensate
+ * the scroll), each one true and none of them enough, because a reader dragging
+ * a scrollbar is still moving the thing being measured.
+ *
+ * Pointing failed for a cousin of the same reason: the drawer opening under the
+ * cursor changes what the cursor is over, and passing a cursor across a ledger
+ * is not a decision anyway — it is how you read one.
+ *
+ * So the ledger now works the way a ledger works. HOVER LIGHTS THE LAND: it
+ * costs no layout at all, so it cannot fight anything, and it is the whole
+ * point of a cross-lit spread. CLICK OPENS THE DRAWER: the layout change is
+ * asked for, expected, and attributable, which is exactly what it was never
+ * allowed to be before. Nothing is open when the page loads.
+ *
+ * Talks to the land only through window.AtlasKeyMap — this file knows nothing
+ * about Leaflet. Requires config.js + atlas-data.js.
  */
 (function () {
     'use strict';
 
-    const mount = document.getElementById('threads-sheet');
+    const mount = document.getElementById('threads-ledger');
     if (!mount) return;
-
-    const SVGNS = 'http://www.w3.org/2000/svg';
-    const svgEl = (tag, attrs) => {
-        const n = document.createElementNS(SVGNS, tag);
-        for (const k in attrs) n.setAttribute(k, attrs[k]);
-        return n;
-    };
-
-    // ---- Sheet geometry (SVG user units) ----
-    const W = 1080, H = 760;
-    const M = 34;                       // collar margin
-    const NEAT = { x: M, y: M, w: W - 2 * M, h: H - 2 * M - 46 }; // body; extra bottom band for collar text
-    const BX = NEAT.x, BY = NEAT.y, BW = NEAT.w, BH = NEAT.h;
-
-    // ---- Seeded RNG (mulberry32) so the map is stable across visits ----
-    function mulberry32(seed) {
-        return function () {
-            seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-            let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-            t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-            return ((t ^ t >>> 14) >>> 0) / 4294967296;
-        };
-    }
-    const rand = mulberry32(20220108); // the Atlas's first-hike date, as a seed
-
-    const svg = svgEl('svg', { class: 'sheet-art', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'xMidYMid meet' });
-
-    // Paper + a soft aged vignette / foxing
-    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: '#f2ead2' }));
-    const defs = svgEl('defs', {});
-    defs.innerHTML = `
-        <radialGradient id="foxing" cx="50%" cy="46%" r="65%">
-            <stop offset="0%" stop-color="#f7f0da" stop-opacity="1"/>
-            <stop offset="72%" stop-color="#f2ead2" stop-opacity="0"/>
-            <stop offset="100%" stop-color="#e4d9b6" stop-opacity="0.55"/>
-        </radialGradient>
-        <radialGradient id="wood" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stop-color="#8fb08a" stop-opacity="0.42"/>
-            <stop offset="70%" stop-color="#8fb08a" stop-opacity="0.24"/>
-            <stop offset="100%" stop-color="#8fb08a" stop-opacity="0"/>
-        </radialGradient>`;
-    svg.appendChild(defs);
-    svg.appendChild(svgEl('rect', { x: 0, y: 0, width: W, height: H, fill: 'url(#foxing)' }));
-
-    // A clip so terrain never spills past the neatline
-    const clip = svgEl('clipPath', { id: 'bodyClip' });
-    clip.appendChild(svgEl('rect', { x: BX, y: BY, width: BW, height: BH }));
-    defs.appendChild(clip);
-    const body = svgEl('g', { 'clip-path': 'url(#bodyClip)' });
-    svg.appendChild(body);
-
-    // ================= 1. HEIGHT FIELD =================
-    // A handful of seeded peaks/basins + low-frequency ripple → organic terrain.
-    const peaks = [
-        { x: 0.20, y: 0.28, amp: 1.00, sig: 0.15 },
-        { x: 0.70, y: 0.22, amp: 0.86, sig: 0.16 },
-        { x: 0.84, y: 0.60, amp: 0.72, sig: 0.13 },
-        { x: 0.45, y: 0.52, amp: 0.60, sig: 0.19 },
-        { x: 0.30, y: 0.78, amp: 0.62, sig: 0.13 },
-        { x: 0.14, y: 0.84, amp: -0.55, sig: 0.12 }, // basin → lake (lower-left corner, clear of the trail)
-        { x: 0.62, y: 0.74, amp: -0.24, sig: 0.10 },
-        { x: 0.92, y: 0.30, amp: 0.40, sig: 0.10 },
-    ];
-    // small seeded phase offsets keep the ripple from looking mechanical
-    const ph = [rand() * 6.28, rand() * 6.28, rand() * 6.28];
-    function heightAt(u, v) {
-        let h = 0;
-        for (const p of peaks) {
-            const dx = u - p.x, dy = v - p.y;
-            h += p.amp * Math.exp(-(dx * dx + dy * dy) / (2 * p.sig * p.sig));
-        }
-        // ridged low-frequency detail
-        h += 0.06 * Math.sin(u * 7.0 + v * 3.0 + ph[0]);
-        h += 0.045 * Math.sin(u * 12.5 - v * 9.0 + ph[1]);
-        h += 0.03 * Math.sin(u * 20.0 + v * 15.0 + ph[2]);
-        return h;
-    }
-
-    const COLS = 88, ROWS = 60;
-    const field = [];
-    let hMin = Infinity, hMax = -Infinity;
-    for (let j = 0; j <= ROWS; j++) {
-        const row = [];
-        for (let i = 0; i <= COLS; i++) {
-            const val = heightAt(i / COLS, j / ROWS);
-            row.push(val);
-            if (val < hMin) hMin = val;
-            if (val > hMax) hMax = val;
-        }
-        field.push(row);
-    }
-    const cw = BW / COLS, ch = BH / ROWS;
-    const gx = i => BX + i * cw;
-    const gy = j => BY + j * ch;
-
-    // ================= 2. WOODLAND TINT =================
-    // Forested highlands: soft green wash around the positive massifs.
-    peaks.filter(p => p.amp > 0.45).forEach(p => {
-        const r = p.sig * BW * 1.6;
-        body.appendChild(svgEl('ellipse', {
-            cx: BX + p.x * BW, cy: BY + p.y * BH,
-            rx: r, ry: r * (0.8 + rand() * 0.3),
-            fill: 'url(#wood)'
-        }));
-    });
-
-    // ================= 3. CONTOURS (marching squares) =================
-    const contourColor = '#9c6b3f';   // USGS brown
-    const indexColor = '#7c4f28';
-    const NLEVELS = 16;               // ~25% fewer minor contours → calmer, still organic
-    const lo = hMin + (hMax - hMin) * 0.06;
-    const hi = hMax - (hMax - hMin) * 0.03;
-    const step = (hi - lo) / NLEVELS;
-
-    function marchLevel(level) {
-        let d = '';
-        for (let j = 0; j < ROWS; j++) {
-            for (let i = 0; i < COLS; i++) {
-                const a = field[j][i], b = field[j][i + 1], c = field[j + 1][i + 1], dd = field[j + 1][i];
-                let idx = 0;
-                if (a > level) idx |= 8;
-                if (b > level) idx |= 4;
-                if (c > level) idx |= 2;
-                if (dd > level) idx |= 1;
-                if (idx === 0 || idx === 15) continue;
-                // edge crossing points (linear)
-                const top = () => [gx(i + (level - a) / (b - a)), gy(j)];
-                const right = () => [gx(i + 1), gy(j + (level - b) / (c - b))];
-                const bottom = () => [gx(i + (level - dd) / (c - dd)), gy(j + 1)];
-                const left = () => [gx(i), gy(j + (level - a) / (dd - a))];
-                const seg = (p, q) => { d += `M${p[0].toFixed(1)},${p[1].toFixed(1)}L${q[0].toFixed(1)},${q[1].toFixed(1)}`; };
-                switch (idx) {
-                    case 1: case 14: seg(left(), bottom()); break;
-                    case 2: case 13: seg(bottom(), right()); break;
-                    case 3: case 12: seg(left(), right()); break;
-                    case 4: case 11: seg(top(), right()); break;
-                    case 5: seg(left(), top()); seg(bottom(), right()); break;
-                    case 6: case 9: seg(top(), bottom()); break;
-                    case 7: case 8: seg(left(), top()); break;
-                    case 10: seg(left(), bottom()); seg(top(), right()); break;
-                }
-            }
-        }
-        return d;
-    }
-
-    const contourGroup = svgEl('g', {});
-    body.appendChild(contourGroup);
-    const labelPts = []; // sampled points on index contours for elevation labels
-    for (let n = 0; n < NLEVELS; n++) {
-        const level = lo + n * step;
-        const d = marchLevel(level);
-        if (!d) continue;
-        const isIndex = n % 5 === 0;
-        contourGroup.appendChild(svgEl('path', {
-            d, fill: 'none',
-            stroke: isIndex ? indexColor : contourColor,
-            'stroke-width': isIndex ? 1.4 : 0.75,
-            'stroke-opacity': isIndex ? 0.8 : 0.42,   // lighter minor lines → easier to read labels over
-            'stroke-linecap': 'round', 'stroke-linejoin': 'round'
-        }));
-        // grab a couple of label anchor points from index contours
-        if (isIndex && n > 0) {
-            const m = d.match(/M([\d.]+),([\d.]+)/g);
-            if (m && m.length > 8) {
-                const elev = 1000 + n * 120; // decorative elevation values
-                [Math.floor(m.length * 0.28), Math.floor(m.length * 0.7)].forEach(k => {
-                    const mm = m[k].match(/M([\d.]+),([\d.]+)/);
-                    labelPts.push({ x: +mm[1], y: +mm[2], elev });
-                });
-            }
-        }
-    }
-
-    // Elevation labels are rendered later (in the milestone callback) so they can
-    // dodge the marker disks and their text — candidates are just collected here.
-    const elevGroup = svgEl('g', {});
-    body.appendChild(elevGroup);
-    function renderElevationLabels(avoidRects) {
-        const inset = 46;
-        const overlapsAny = r => avoidRects.some(a => !(r.x1 < a.x0 || r.x0 > a.x1 || r.y1 < a.y0 || r.y0 > a.y1));
-        let drawn = 0;
-        for (const lp of labelPts) {
-            if (drawn >= 6) break;
-            if (lp.x < BX + inset || lp.x > BX + BW - inset || lp.y < BY + inset || lp.y > BY + BH - inset) continue;
-            const rect = { x0: lp.x - 22, y0: lp.y - 9, x1: lp.x + 22, y1: lp.y + 5 };
-            if (overlapsAny(rect)) continue;
-            avoidRects.push(rect);
-            const halo = svgEl('text', { x: lp.x, y: lp.y, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 9, fill: '#f2ead2', stroke: '#f2ead2', 'stroke-width': 3, 'paint-order': 'stroke' });
-            halo.textContent = lp.elev; elevGroup.appendChild(halo);
-            const t = svgEl('text', { x: lp.x, y: lp.y, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 9, fill: indexColor, 'font-style': 'italic' });
-            t.textContent = lp.elev; elevGroup.appendChild(t);
-            drawn++;
-        }
-    }
-
-    // ================= 4. WATER =================
-    const waterColor = '#6f97b3';     // USGS water blue (a touch softer, aged)
-    const waterEdge = '#4f7998';
-    // Helper: a smooth closed shape (Catmull-Rom → cubic bezier) through points
-    function smoothClosed(pts) {
-        const n = pts.length;
-        let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
-        for (let i = 0; i < n; i++) {
-            const p0 = pts[(i - 1 + n) % n], p1 = pts[i], p2 = pts[(i + 1) % n], p3 = pts[(i + 2) % n];
-            const c1x = p1[0] + (p2[0] - p0[0]) / 6, c1y = p1[1] + (p2[1] - p0[1]) / 6;
-            const c2x = p2[0] - (p3[0] - p1[0]) / 6, c2y = p2[1] - (p3[1] - p1[1]) / 6;
-            d += `C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
-        }
-        return d + 'Z';
-    }
-    // A lake in the lower-left basin: a natural, gently irregular shoreline
-    const lakeCx = BX + 0.15 * BW, lakeCy = BY + 0.83 * BH;
-    const lakePts = [];
-    const lobes = 11;
-    // fixed-but-organic radii so the outline undulates without spiking
-    const lakeR = [1.0, 1.14, 0.9, 1.05, 0.82, 1.1, 0.95, 1.18, 0.86, 1.02, 0.92];
-    for (let k = 0; k < lobes; k++) {
-        const a = (k / lobes) * Math.PI * 2 + 0.3;
-        const rr = 0.072 * BW * lakeR[k];
-        lakePts.push([lakeCx + Math.cos(a) * rr * 1.18, lakeCy + Math.sin(a) * rr * 0.72]);
-    }
-    const lakeD = smoothClosed(lakePts);
-    // Authentic topo behavior: contours STOP at the shoreline (a lake is one flat
-    // water elevation). Mask the contour layer out wherever the lake sits.
-    const lakeMask = svgEl('mask', { id: 'lakeMask' });
-    lakeMask.appendChild(svgEl('rect', { x: BX, y: BY, width: BW, height: BH, fill: 'white' }));
-    lakeMask.appendChild(svgEl('path', { d: lakeD, fill: 'black' }));
-    defs.appendChild(lakeMask);
-    contourGroup.setAttribute('mask', 'url(#lakeMask)');
-
-    body.appendChild(svgEl('path', { d: lakeD, fill: waterColor, 'fill-opacity': 0.5, stroke: waterEdge, 'stroke-width': 1.3, 'stroke-opacity': 0.9, 'stroke-linejoin': 'round' }));
-    // faint inner "depth" ring, like a topo lake's first depth contour
-    body.appendChild(svgEl('path', { d: smoothClosed(lakePts.map(p => [lakeCx + (p[0] - lakeCx) * 0.72, lakeCy + (p[1] - lakeCy) * 0.72])), fill: 'none', stroke: waterEdge, 'stroke-width': 0.7, 'stroke-opacity': 0.45 }));
-    const lakeLbl = svgEl('text', { x: lakeCx, y: lakeCy + 3, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-style': 'italic', 'font-size': 10, fill: waterEdge, 'fill-opacity': 0.9 });
-    lakeLbl.textContent = 'Mirror Lake'; body.appendChild(lakeLbl);
-    // (Stream removed July 2026 — it didn't read naturally into the lake.)
-
-    // ================= 5. COLLAR (neatline, ticks, declination, scale, title) =================
-    const collar = svgEl('g', {});
-    svg.appendChild(collar);
-    // Double neatline
-    collar.appendChild(svgEl('rect', { x: BX, y: BY, width: BW, height: BH, fill: 'none', stroke: '#2c2418', 'stroke-width': 1.6 }));
-    collar.appendChild(svgEl('rect', { x: BX - 4, y: BY - 4, width: BW + 8, height: BH + 8, fill: 'none', stroke: '#2c2418', 'stroke-width': 0.8 }));
-
-    // UTM-style tick marks + tiny numbers along top & bottom
-    for (let k = 1; k < 8; k++) {
-        const x = BX + (BW / 8) * k;
-        [BY, BY + BH].forEach((yy, edge) => {
-            collar.appendChild(svgEl('line', { x1: x, y1: yy, x2: x, y2: yy + (edge ? 6 : -6), stroke: '#2c2418', 'stroke-width': 1 }));
-        });
-        const lab = svgEl('text', { x: x, y: BY - 9, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#5b4a2c' });
-        lab.textContent = `${370 + k}`; collar.appendChild(lab);
-    }
-    for (let k = 1; k < 6; k++) {
-        const y = BY + (BH / 6) * k;
-        [BX, BX + BW].forEach((xx, edge) => {
-            collar.appendChild(svgEl('line', { x1: xx, y1: y, x2: xx + (edge ? 6 : -6), y2: y, stroke: '#2c2418', 'stroke-width': 1 }));
-        });
-    }
-    // Decorative corner coordinates
-    const corner = (x, y, txt, anchor) => {
-        const t = svgEl('text', { x, y, 'text-anchor': anchor, 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 9, fill: '#5b4a2c' });
-        t.textContent = txt; collar.appendChild(t);
-    };
-    corner(BX - 6, BY - 10, '34°30′', 'start');
-    corner(BX + BW + 6, BY - 10, '118°15′', 'end');
-
-    // ---- Bottom collar band: declination + scale + title ----
-    const bandY = BY + BH + 24;
-
-    // Declination diagram (three norths), in the bottom collar band (fully below the neatline)
-    const decl = svgEl('g', { transform: `translate(${BX + 26}, ${bandY + 27})` });
-    decl.appendChild(svgEl('line', { x1: 0, y1: 8, x2: 0, y2: -26, stroke: '#2c2418', 'stroke-width': 1.2 })); // true north
-    decl.appendChild(svgEl('path', { d: 'M0,-30 l3.4,7 l-3.4,-2.4 l-3.4,2.4 Z', fill: '#2c2418' }));           // star point
-    const starTxt = svgEl('text', { x: 0, y: -34, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#2c2418', 'font-weight': 700 }); starTxt.textContent = '★'; decl.appendChild(starTxt);
-    decl.appendChild(svgEl('line', { x1: 0, y1: 8, x2: 8, y2: -24, stroke: '#7c4f28', 'stroke-width': 1 }));       // magnetic north
-    const mn = svgEl('text', { x: 12, y: -20, 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#7c4f28' }); mn.textContent = 'MN 12°'; decl.appendChild(mn);
-    decl.appendChild(svgEl('line', { x1: 0, y1: 8, x2: -7, y2: -24, stroke: '#5c86a3', 'stroke-width': 1 }));      // grid north
-    const gn = svgEl('text', { x: -26, y: -20, 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#5c86a3' }); gn.textContent = 'GN'; decl.appendChild(gn);
-    collar.appendChild(decl);
-
-    // Bar scale, bottom-center
-    const scaleG = svgEl('g', { transform: `translate(${BX + BW / 2 - 90}, ${bandY - 2})` });
-    const segW = 30;
-    for (let k = 0; k < 6; k++) {
-        scaleG.appendChild(svgEl('rect', { x: k * segW, y: 0, width: segW, height: 6, fill: k % 2 ? '#f2ead2' : '#2c2418', stroke: '#2c2418', 'stroke-width': 0.8 }));
-    }
-    for (let k = 0; k <= 6; k++) {
-        const t = svgEl('text', { x: k * segW, y: -4, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#2c2418' });
-        t.textContent = k; scaleG.appendChild(t);
-    }
-    const miLbl = svgEl('text', { x: 3 * segW, y: 18, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#5b4a2c', 'letter-spacing': '0.08em' });
-    miLbl.textContent = 'MILES'; scaleG.appendChild(miLbl);
-    const ci = svgEl('text', { x: 3 * segW, y: 30, 'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 8, fill: '#7c4f28', 'letter-spacing': '0.05em', 'font-style': 'italic' });
-    ci.textContent = 'CONTOUR INTERVAL — ONE MILESTONE'; scaleG.appendChild(ci);
-    collar.appendChild(scaleG);
-
-    // Title block, bottom-right
-    const title = svgEl('g', { transform: `translate(${BX + BW - 8}, ${bandY})` });
-    const t1 = svgEl('text', { x: 0, y: 0, 'text-anchor': 'end', 'font-family': "'National Park', sans-serif", 'font-size': 15, fill: '#2c3e50', 'letter-spacing': '0.06em' }); t1.textContent = 'THREADS OF THE TRAIL QUADRANGLE'; title.appendChild(t1);
-    const t2 = svgEl('text', { x: 0, y: 14, 'text-anchor': 'end', 'font-family': "'Alegreya Sans', sans-serif", 'font-size': 9, fill: '#5b4a2c', 'letter-spacing': '0.14em' }); t2.textContent = 'THE TRAILPRINT ATLAS — PROVISIONAL EDITION'; title.appendChild(t2);
-    collar.appendChild(title);
-
-    mount.appendChild(svg);
-
-    // ================= 6. MILESTONES (live from hikes.json) =================
-    // A fixed wandering trail across the sheet; stations distribute along it,
-    // so the map stays bounded and organic no matter how many milestones exist.
-    const spineCtrl = [
-        [0.07, 0.40], [0.17, 0.26], [0.30, 0.34], [0.42, 0.24], [0.55, 0.31], [0.68, 0.23], [0.80, 0.33],
-        [0.83, 0.50], [0.71, 0.585], [0.58, 0.53], [0.46, 0.60], [0.34, 0.55], [0.245, 0.65],
-        [0.34, 0.80], [0.49, 0.86], [0.63, 0.82], [0.75, 0.72]
-    ].map(([u, v]) => [BX + u * BW, BY + v * BH]);
-
-    // Catmull-Rom → dense polyline, then arc-length resample
-    function catmullRom(pts, samplesPer = 24) {
-        const out = [];
-        for (let i = 0; i < pts.length - 1; i++) {
-            const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
-            for (let s = 0; s < samplesPer; s++) {
-                const t = s / samplesPer, t2 = t * t, t3 = t2 * t;
-                const x = 0.5 * ((2 * p1[0]) + (-p0[0] + p2[0]) * t + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2 + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3);
-                const y = 0.5 * ((2 * p1[1]) + (-p0[1] + p2[1]) * t + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2 + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3);
-                out.push([x, y]);
-            }
-        }
-        out.push(pts[pts.length - 1]);
-        return out;
-    }
-    const spine = catmullRom(spineCtrl);
-    // cumulative arc length
-    const cum = [0];
-    for (let i = 1; i < spine.length; i++) cum.push(cum[i - 1] + Math.hypot(spine[i][0] - spine[i - 1][0], spine[i][1] - spine[i - 1][1]));
-    const totalLen = cum[cum.length - 1];
-    function pointAtLen(L) {
-        L = Math.max(0, Math.min(totalLen, L));
-        let i = 1; while (i < cum.length && cum[i] < L) i++;
-        const t = (L - cum[i - 1]) / (cum[i] - cum[i - 1] || 1);
-        return [spine[i - 1][0] + (spine[i][0] - spine[i - 1][0]) * t, spine[i - 1][1] + (spine[i][1] - spine[i - 1][1]) * t];
-    }
 
     // ---- Engraved glyphs (line art, sit in the brass). Each milestone CATEGORY
     // has its own glyph, so recurring markers are told apart by symbol, never by a
@@ -401,7 +99,7 @@
         push(5, G.border, 'Beyond the Border', 'Beyond Border', firstWhere(h => hikeCountry(h) !== 'United States'), null);
 
         // Recurring milestones — each CATEGORY has one glyph; the specific value
-        // lives on the label + hover card, so nothing is told apart by a number alone.
+        // lives on the label, so nothing is told apart by a number alone.
         for (let n = 50; n <= chrono.length; n += 50) {
             push(10, G.outings, `The ${ordinal(n)} Outing`, `${ordinal(n)} Outing`, chrono[n - 1], `Outing number ${n}. The Atlas keeps growing.`);
         }
@@ -425,154 +123,282 @@
         const stations = defs.filter(d => { if (seen.has(d.hike.trail_id)) return false; seen.add(d.hike.trail_id); return true; });
         stations.sort((a, b) => compareHikesChrono(a.hike, b.hike));
 
-        // Stations distribute along the fixed spine; the map stays bounded as it grows.
-        const N = stations.length;
-        const pad = totalLen * 0.05;
-        const positions = stations.map((_, i) => pointAtLen(pad + (totalLen - 2 * pad) * (N === 1 ? 0.5 : i / (N - 1))));
+        render(stations);
+        plantOnTheLand(stations);
 
-        // Route: faint solid underlay + dotted footpath through the stations
-        const startL = pad, endL = totalLen - pad;
-        let routeD = '';
-        for (let L = startL; L <= endL; L += 4) {
-            const p = pointAtLen(L);
-            routeD += (L === startL ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1);
-        }
-        body.insertBefore(svgEl('path', { d: routeD, fill: 'none', stroke: '#6b4a2a', 'stroke-width': 4, 'stroke-opacity': 0.12, 'stroke-linecap': 'round' }), contourGroup.nextSibling);
-        body.insertBefore(svgEl('path', { d: routeD, fill: 'none', stroke: '#6b4a2a', 'stroke-width': 2, 'stroke-dasharray': '0.1 9', 'stroke-linecap': 'round', 'stroke-opacity': 0.92 }), contourGroup.nextSibling);
-
-        // ---- "Survey in progress": the trail continues past the last benchmark,
-        // fading out, so the map reads as living and unfinished. ----
-        const lastP = positions[N - 1];
-        const before = pointAtLen(endL - 14);
-        let dirx = lastP[0] - before[0], diry = lastP[1] - before[1];
-        const dlen = Math.hypot(dirx, diry) || 1; dirx /= dlen; diry /= dlen;
-        const contDots = svgEl('g', {});
-        for (let k = 1; k <= 12; k++) {
-            const t = k / 12;
-            const cx = lastP[0] + dirx * 15 * k + Math.sin(k * 0.9) * 6 * diry;
-            const cy = lastP[1] + diry * 15 * k - Math.sin(k * 0.9) * 6 * dirx;
-            if (cx > BX + BW - 12 || cy > BY + BH - 12 || cy < BY + 12) break;
-            contDots.appendChild(svgEl('circle', { cx, cy, r: 1.7 * (1 - t * 0.5), fill: '#6b4a2a', 'fill-opacity': 0.85 * (1 - t) }));
-        }
-        body.insertBefore(contDots, contourGroup.nextSibling);
-        const contEnd = [lastP[0] + dirx * 15 * 8, lastP[1] + diry * 15 * 8];
-        const survTxt = svgEl('text', {
-            x: Math.min(contEnd[0], BX + BW - 20), y: Math.min(contEnd[1] + 16, BY + BH - 10),
-            'text-anchor': 'middle', 'font-family': "'Alegreya Sans', sans-serif", 'font-style': 'italic',
-            'font-size': 9.5, fill: '#6b4a2a', 'fill-opacity': 0.7, 'letter-spacing': '0.06em'
-        });
-        survTxt.textContent = 'survey in progress…';
-        body.appendChild(survTxt);
-
-        // ---- Hover card. Hovering fades the map into a calm "focus" state so the
-        // card never sits over live text, and the card itself is hoverable + clickable:
-        // a short close delay bridges the gap from disk to card, so you can move onto
-        // the card and click "Open this hike" (the whole card is a link). ----
-        const tip = document.getElementById('threads-tip');
-        let hideTimer = null, activeDisk = null;
-        const closeCard = () => {
-            mount.classList.remove('focus');
-            tip.classList.remove('show');
-            if (activeDisk) { activeDisk.classList.remove('active'); activeDisk = null; }
-        };
-        const scheduleClose = () => { clearTimeout(hideTimer); hideTimer = setTimeout(closeCard, 160); };
-        tip.addEventListener('mouseenter', () => clearTimeout(hideTimer));
-        tip.addEventListener('mouseleave', scheduleClose);
-        tip.addEventListener('click', () => { if (tip.dataset.href) window.location.href = tip.dataset.href; });
-
-        function bindTip(elm, m) {
-            elm.addEventListener('mouseenter', () => {
-                clearTimeout(hideTimer);
-                if (activeDisk && activeDisk !== elm) activeDisk.classList.remove('active');
-                mount.classList.add('focus');
-                elm.classList.add('active');
-                activeDisk = elm;
-                const h = m.hike;
-                const hasImg = h.images && h.images.length;
-                tip.dataset.href = `hike.html?id=${h.trail_id}`;
-                const img = hasImg ? `<img loading="lazy" src="${cloudinaryUrl(h.images[0], 'w_488,h_244,c_fill,g_auto,q_auto,f_auto')}" alt="">` : '';
-                tip.innerHTML = `${img}<div class="tip-body">
-                    <div class="tip-kicker">${m.kicker}</div>
-                    <div class="tip-hike">${h.trail_name}</div>
-                    <div class="tip-meta">${h.location} · ${formatHikeDate(h.date_completed)}</div>
-                    <div class="tip-note">${m.note || ''}</div>
-                    <div class="tip-cta">Open this hike →</div></div>`;
-                const r = elm.getBoundingClientRect();
-                // Offset the card to the side of the disk with the most room, so the
-                // disk itself stays visible and the card never straddles it.
-                const cardW = 244, cardH = hasImg ? 258 : 140, gap = 14;
-                let left = r.right + gap;
-                if (left + cardW > window.innerWidth - 8) left = r.left - gap - cardW;
-                left = Math.max(8, Math.min(left, window.innerWidth - cardW - 8));
-                let top = r.top + r.height / 2 - cardH / 2;
-                top = Math.max(8, Math.min(top, window.innerHeight - cardH - 8));
-                tip.style.left = left + 'px';
-                tip.style.top = top + 'px';
-                tip.classList.add('show');
-            });
-            elm.addEventListener('mouseleave', scheduleClose);
-        }
-
-        const pctX = x => (x / W * 100) + '%';
-        const pctY = y => (y / H * 100) + '%';
-
-        // ---- Label placement with simple collision avoidance ----
-        const R = 26, LW = 128, LH = 30;                       // disk radius, label box
-        const placed = positions.map(([px, py]) => ({ x0: px - R, y0: py - R, x1: px + R, y1: py + R }));
-        const overlaps = (a, b) => !(a.x1 < b.x0 || a.x0 > b.x1 || a.y1 < b.y0 || a.y0 > b.y1);
-        function labelRect(px, top) { return { x0: px - LW / 2, y0: top, x1: px + LW / 2, y1: top + LH }; }
-        function placeLabel(px, py) {
-            const belowFirst = py < BY + BH * 0.58;
-            for (const side of (belowFirst ? [1, -1] : [-1, 1])) {
-                let top = side === 1 ? py + R + 5 : py - R - 5 - LH;
-                for (let n = 0; n < 7; n++) {
-                    const rect = labelRect(px, top);
-                    if (rect.y0 > BY + 4 && rect.y1 < BY + BH - 4 && !placed.some(p => overlaps(rect, p))) {
-                        placed.push(rect); return top;
-                    }
-                    top += side * 7;
-                }
-            }
-            const fallback = py + R + 5; placed.push(labelRect(px, fallback)); return fallback;
-        }
-
-        stations.forEach((m, i) => {
-            const [px, py] = positions[i];
-
-            const disk = document.createElement('a');
-            disk.className = 'bm-disk';
-            disk.href = `hike.html?id=${m.hike.trail_id}`;
-            disk.style.left = pctX(px);
-            disk.style.top = pctY(py);
-            disk.innerHTML = m.glyph;
-            bindTip(disk, m);
-            mount.appendChild(disk);
-
-            const labelTop = placeLabel(px, py);
-            const label = document.createElement('div');
-            label.className = 'bm-label';
-            label.style.left = pctX(px);
-            label.style.top = pctY(labelTop);
-            label.innerHTML = `<div class="lk">${m.short}</div><div class="dt">${formatHikeDate(m.hike.date_completed, { year: 'numeric', month: 'short' })}</div>`;
-            mount.appendChild(label);
-        });
-
-        // Now place contour elevation labels in the gaps, avoiding every disk + label
-        // (and the lake, so a number never clips the shoreline).
-        const lxs = lakePts.map(p => p[0]), lys = lakePts.map(p => p[1]);
-        placed.push({ x0: Math.min(...lxs) - 12, y0: Math.min(...lys) - 12, x1: Math.max(...lxs) + 12, y1: Math.max(...lys) + 12 });
-        renderElevationLabels(placed);
+        // the plate's own note counts what it holds, rather than asserting a number
+        const note = document.getElementById('threads-count');
+        if (note) note.textContent = `${stations.length} milestones`;
     });
+
+    /* ---- The ledger ---------------------------------------------------------
+       One entry per milestone. THE ACCOMPLISHMENT IS THE HEADLINE — "The 50th
+       Outing", "250 Miles" — with the outing that earned it beneath. It used to
+       be the other way round, the achievement set in 8.5 px caps above a bold
+       trail name, and the thing the whole plate is about was the smallest type
+       in the row.
+
+       The row is a real <button>, because that is what it now is: it opens
+       something, it takes the keyboard, and a screen reader is told whether it
+       is open.
+
+       THE LINE NUMBER. On a wide leaf the ledger runs in TWO COLUMNS, and the
+       one thing a milestone list cannot afford to lose is the order things
+       happened in. The columns read left to right, then down — the drawer
+       spanning the pair makes any other reading impossible to draw — and every
+       entry carries its own engraved line number, so the sequence survives
+       whatever shape the page takes. (Not to be confused with the rule that a
+       recurring BENCHMARK is never told apart by a stamped number: that is
+       about identity, this is about sequence, and a ledger has numbered its
+       lines for four hundred years.) */
+    function render(stations) {
+        mount.innerHTML = stations.map((s, i) => `
+            <div class="ms-entry" data-i="${i}" data-id="${s.hike.trail_id}">
+                <button class="ms-row" type="button" aria-expanded="false" aria-controls="ms-drawer">
+                    <span class="ms-no">${String(i + 1).padStart(2, '0')}</span>
+                    <span class="ms-disk">${s.glyph}</span>
+                    <span class="ms-body">
+                        <span class="ms-k">${s.kicker}</span>
+                        <span class="ms-t">${s.hike.trail_name}</span>
+                    </span>
+                    <span class="ms-d">${formatHikeDate(s.hike.date_completed, { year: 'numeric', month: 'short' })}</span>
+                    <span class="ms-pull" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M6 9.5 12 15.5 18 9.5"/></svg>
+                    </span>
+                </button>
+            </div>`).join('');
+
+        entries = Array.from(mount.querySelectorAll('.ms-entry'));
+        cards = stations.map(cardHtml);
+
+        /* ONE DRAWER, WHICH MOVES. It used to live inside its own entry, which
+           only works while the ledger is a single column: in two columns a
+           drawer nested in the left-hand entry would open half-width, shoving
+           its own column down and tearing the two columns out of step with
+           each other. So there is one drawer element, it spans the full width
+           of the ledger, and it is inserted directly beneath the GRID ROW
+           holding whichever entry was opened. In one column that is the entry
+           itself, which is exactly the old behaviour — nothing had to be
+           special-cased for narrow screens. */
+        drawer = document.createElement('div');
+        drawer.className = 'ms-drawer';
+        drawer.id = 'ms-drawer';
+        drawer.innerHTML = '<div class="ms-drawer-in"></div>';
+
+        wire();
+    }
+
+    /* The preview card. Same facts the old hover card carried — the photograph,
+       the milestone, the hike, where and when, the note — laid out along the
+       drawer's width instead of stacked into a 244 px tooltip. The way into the
+       hike is base.css's shared door, because that is how every crossing in the
+       Atlas is drawn. */
+    function cardHtml(s) {
+        const h = s.hike;
+        const imgs = h.images || [];
+        const shot = (id, extra) => `<div class="ms-shot ${extra || ''}"><img loading="lazy" alt=""
+            src="${cloudinaryUrl(id, 'w_560,h_420,c_fill,g_auto,q_auto,f_auto')}"></div>`;
+        // A SECOND FRAME ON A WIDE LEAF. One photograph beside three short lines
+        // left most of a 4K card empty; the second slide is dropped by CSS below
+        // the width where it would start squeezing the text instead of filling
+        // space. It only ever appears when the hike actually has one.
+        const photos = imgs.length ? shot(imgs[0]) + (imgs[1] ? shot(imgs[1], 'is-extra') : '') : '';
+
+        // the measurements, which give the body something to hold besides a note
+        const vitals = [
+            [`${(h.miles || 0).toFixed(1)}`, 'mi'],
+            [`${(h.elevation_gain || 0).toLocaleString()}`, 'ft climbed'],
+            h.summit_trail && h.summit_elevation
+                ? [`${h.summit_elevation.toLocaleString()}`, 'ft summit']
+                : [h.hike_type, ''],
+        ].map(([v, l]) => `<div class="ms-v"><div class="ms-v-n">${v}</div><div class="ms-v-l">${l}</div></div>`).join('');
+
+        // The measurements and the way in share one footer row, so the card's
+        // whole width is used: stacked, they left the right third of a 1,200 px
+        // drawer empty under a one-line note.
+        return `<div class="ms-card">
+            ${photos}
+            <div class="ms-card-body">
+                <div class="ms-card-meta">${h.location} &middot; ${formatHikeDate(h.date_completed)}</div>
+                ${s.note ? `<p class="ms-card-note">${s.note}</p>` : ''}
+                <div class="ms-vitals">${vitals}
+                <a class="atlas-door" href="hike.html?id=${h.trail_id}">
+                    <svg class="ad-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7.2C10.6 6 8.7 5.4 6.2 5.4H3.2v12.2h3c2.5 0 4.4.6 5.8 1.8 1.4-1.2 3.3-1.8 5.8-1.8h3V5.4h-3c-2.5 0-4.4.6-5.8 1.8Z"/><path d="M12 7.2v12.2"/></svg>
+                    <span>Open the field log</span>
+                    <svg class="ad-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6l6 6-6 6"/><path d="M4 4v16"/></svg>
+                </a>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    /* ---- Reading the ledger -------------------------------------------------
+       Two gestures, deliberately kept apart, because the whole history of this
+       section is what happens when one gesture tries to do both jobs.
+
+         POINTING asks the land a question. It changes no layout whatsoever, so
+         a cursor can sweep the whole ledger and nothing under it moves.
+
+         CLICKING opens the drawer. One at a time, closed to start, and clicking
+         the open one shuts it again.
+
+       Nothing here reads the scroll position at all. */
+    let entries = [], cards = [], drawer = null, openIx = -1, lastLit = -1;
+
+    /* How many columns the ledger is currently in. Read from the resolved grid
+       rather than from a breakpoint kept in two places — CSS owns where the
+       second column appears, and this just asks what it decided. */
+    function columnCount() {
+        const t = getComputedStyle(mount).gridTemplateColumns;
+        return t && t !== 'none' ? t.split(' ').filter(Boolean).length : 1;
+    }
+
+    /* Beneath the whole grid row, never beneath the single entry: with two
+       columns the drawer belongs under the PAIR, so the other half of the row
+       is not pushed away from its neighbour. */
+    function placeDrawer(ix) {
+        const cols = columnCount();
+        const lastInRow = Math.min(entries.length - 1, Math.floor(ix / cols) * cols + cols - 1);
+        const after = entries[lastInRow + 1];
+        if (after) mount.insertBefore(drawer, after);
+        else mount.appendChild(drawer);
+    }
+
+    /* Light the left leaf on this entry's hike. Free of layout, so it is safe to
+       fire on every row the cursor crosses; keymap.js buffers the cut and holds
+       the last subject once the cursor leaves. */
+    function lightLand(el) {
+        if (!window.AtlasKeyMap) return;
+        lastLit = Number(el.dataset.i);
+        AtlasKeyMap.light([el.dataset.id], el.querySelector('.ms-k').textContent);
+        AtlasKeyMap.showBenchmarks(true, el.dataset.i);
+    }
+
+    /* THE ROW YOU CLICKED MUST NOT MOVE.
+
+       The drawer sits between grid rows, so opening one for an entry below the
+       currently open drawer removes a block of height H from ABOVE it — and the
+       row jumps out from under the cursor that just clicked it. Rather than
+       reason about which side of the change each row falls on (which got harder
+       the moment the drawer started moving between columns as well as rows),
+       the row's own position is measured before and after every DOM change and
+       the page is scrolled by exactly the difference. That is correct for any
+       layout, including ones this file has not been written for yet.
+
+       It only works because the outgoing drawer closes INSTANTLY rather than
+       animating: its height goes in one step, so the "after" measurement is the
+       final layout rather than a frame of a transition. */
+    function toggle(ix) {
+        /* Stop any smooth scroll still in flight from a previous open. The
+           whole correction below rests on `before` and `after` being read at
+           the same scroll position, and a reveal animating underneath makes
+           them measurements of two different pages — clicking a second row
+           while the first was still settling threw the ledger a full drawer's
+           height. Scrolling to where we already are cancels it. */
+        scrollTo({ top: scrollY, left: scrollX, behavior: 'instant' });
+
+        const row = entries[ix].querySelector('.ms-row');
+        const before = row.getBoundingClientRect().top;
+
+        if (openIx >= 0 && entries[openIx]) {
+            entries[openIx].classList.remove('is-active');
+            entries[openIx].querySelector('.ms-row').setAttribute('aria-expanded', 'false');
+            drawer.classList.add('no-anim');
+            drawer.classList.remove('is-open');
+            void drawer.offsetHeight;               // settle at the closed height
+            drawer.classList.remove('no-anim');
+        }
+
+        // clicking the open entry closes it and leaves the ledger flat
+        if (ix === openIx) { openIx = -1; drawer.remove(); return; }
+
+        openIx = ix;
+        drawer.querySelector('.ms-drawer-in').innerHTML = cards[ix];
+        placeDrawer(ix);
+        entries[ix].classList.add('is-active');
+        entries[ix].querySelector('.ms-row').setAttribute('aria-expanded', 'true');
+        // the drawer must be SEEN closed at its new home before it is told to
+        // open, or the browser has no start state to animate the height from
+        void drawer.offsetHeight;
+        drawer.classList.add('is-open');
+
+        const shift = row.getBoundingClientRect().top - before;
+        if (Math.abs(shift) > 0.5) scrollBy(0, shift);
+        lightLand(entries[ix]);
+        revealDrawer(ix);
+    }
+
+    /* A drawer that opens below the fold has opened where nobody can see it.
+       The card's full height is readable straight away — the drawer's grid track
+       is still animating, but the content inside it already has its own height —
+       so the shortfall can be measured before the motion finishes and corrected
+       in the same breath. Only ever scrolls DOWN, and only when it must. */
+    function revealDrawer(ix) {
+        const inner = drawer.querySelector('.ms-drawer-in');
+        const foot = entries[ix].getBoundingClientRect().bottom + inner.scrollHeight;
+        const over = foot - (innerHeight - 24);
+        if (over > 12) scrollBy({ top: over, behavior: 'smooth' });
+    }
+
+    function wire() {
+        entries.forEach((el, i) => {
+            const row = el.querySelector('.ms-row');
+            row.addEventListener('click', () => toggle(i));
+            /* mouseenter, not mouseover: one event per row entered, rather than
+               one per child element the cursor happens to pass over inside it */
+            row.addEventListener('mouseenter', () => lightLand(el));
+            row.addEventListener('focus', () => lightLand(el));
+        });
+
+        // crossing the two-column breakpoint moves which row the open drawer
+        // belongs under, so it is re-seated rather than left stranded mid-grid
+        let t;
+        addEventListener('resize', () => {
+            clearTimeout(t);
+            t = setTimeout(() => { if (openIx >= 0) placeDrawer(openIx); }, 160);
+        });
+    }
+
+    /* ---- The benchmarks, planted where they were actually earned ------------
+       This is the whole reason the invented quadrangle could go: the disks now
+       stand at each milestone hike's real latitude and longitude on the index
+       diagram. They show only while this plate is the one being read — a country
+       permanently studded with brass would say nothing about anything. */
+    function plantOnTheLand(stations) {
+        if (!window.AtlasKeyMap) return;
+        AtlasKeyMap.ready.then(() => {
+            AtlasKeyMap.benchmarks(stations.map((s, i) => ({
+                id: String(i), n: i + 1, trail_id: s.hike.trail_id
+            })));
+            const plate = mount.closest('.plate');
+            if (!plate) return;
+            /* All this decides is whether the brass is on the index diagram —
+               a country permanently studded with benchmarks says nothing about
+               anything, and sixteen numbered disks on a 126 px silhouette is a
+               smudge, not an index. So exactly one shows: the milestone the
+               reader last asked about, and only while this plate is on screen.
+
+               It deliberately does NOT close the drawer or send the plate home.
+               Scrolling away is not a decision, and a drawer that shuts itself
+               off-screen is a layout change nobody asked for, lying in wait for
+               the reader on the way back up. */
+            new IntersectionObserver(rows => rows.forEach(e => {
+                AtlasKeyMap.showBenchmarks(e.isIntersecting && lastLit >= 0, String(lastLit));
+            }), { rootMargin: '0px' }).observe(plate);
+        });
+    }
 
     function ordinal(n) {
         const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
         return n + (s[(v - 20) % 10] || s[v] || s[0]);
     }
 
-    // Reveal the sheet when it scrolls into view
+    // Reveal the plate when it scrolls into view (threads.css keeps the class)
     const section = document.querySelector('.threads-section');
-    const io = new IntersectionObserver((entries) => {
-        entries.forEach(e => { if (e.isIntersecting) { section.classList.add('in'); io.unobserve(e.target); } });
-    }, { threshold: 0.12 });
-    if (section) io.observe(section);
+    if (section) {
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(e => { if (e.isIntersecting) { section.classList.add('in'); io.unobserve(e.target); } });
+        }, { threshold: 0.12 });
+        io.observe(section);
+    }
 })();

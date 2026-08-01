@@ -1,98 +1,156 @@
 /* =====================================================================
-   The Trailprint Atlas — The Record Books
-   The homepage's closer: the four standing trail records (as photo cards)
-   and the longest expeditions (as a gold/silver/bronze podium). Every card
-   is also a bridge into a deeper page. Photos are the LAST image in each
-   hike's roster and lazy-load only when the section scrolls into view, so
-   the home page stays fast. Warm-paper, national-park lettering.
-   Added July 2026 (home redesign, Phase E).
+   The Trailprint Atlas — The Record Books (Plate IV)
+   ---------------------------------------------------------------------
+   The front matter's closer: the standing trail records, and the
+   expeditions that covered the most ground. Every mount is a bridge into
+   a deeper page. Photos are the LAST image in each hike's roster and
+   lazy-load only when the plate scrolls into view.
+
+   THE SCRIM IS GONE (August 2026). Each record used to be a photograph
+   filling a rounded card with a dark gradient poured over it and the
+   figures set in white on top, lifting 6 px on hover. It was the last
+   piece of the old skin on this page, and on a leaf of paper it was also
+   the only photograph in the whole Atlas not sitting in a mount — the
+   hike page's 35 mm slides, the trip frontispiece and the crew book's
+   portraits are all mounted. So the photograph goes behind a WINDOW and
+   the caption is printed on the paper below it.
    ===================================================================== */
 
-.records-section {
-    background: linear-gradient(180deg, #ece3ce 0%, #e4d8bd 100%);
-    padding: 100px 24px 120px;
+/* the band, the centred header and the 1120 px cap all retired with the
+   redesign: the plate collar divides this section and the leaf is the paper */
+.records-section { overflow: hidden; }
+.records-inner { max-width: none; margin: 0; }
+
+.rb-block { margin-top: 38px; }
+
+/* The sub-collar. Deliberately identical to the Observatory's .obs-panel-head:
+   a plate divides its own sections the same way wherever you are in the book,
+   and these two plates sit one after the other. */
+.rb-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    margin-bottom: 18px; border-bottom: 1px solid #d8ccae; padding-bottom: 8px;
 }
-.records-inner { max-width: 1120px; margin: 0 auto; }
-
-.records-header { text-align: center; margin-bottom: 50px; }
-.records-eyebrow { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; font-size: 0.82em; color: var(--trail-green); }
-.records-title { font-family: var(--font-display); font-size: 3.2em; line-height: 1; letter-spacing: 0.02em; color: var(--evergreen); margin: 8px 0 12px; }
-.records-lede { color: var(--stone); font-size: 1.15em; line-height: 1.55; max-width: 640px; margin: 0 auto; }
-
-/* --- A board block (a titled group of cards) --- */
-.rb-block { margin-top: 56px; }
-.rb-block:first-of-type { margin-top: 0; }
-.rb-board-title { text-align: center; font-family: var(--font-display); font-size: 1.95em; color: var(--evergreen); margin: 0 0 5px; letter-spacing: 0.01em; }
-.rb-board-blurb { text-align: center; color: var(--gravel); font-size: 1.02em; line-height: 1.5; max-width: 620px; margin: 0 auto 28px; }
-
-/* --- Shared photo card (crown + podium both use it) --- */
-.rb-card {
-    position: relative; overflow: hidden; border-radius: 14px;
-    text-decoration: none; color: #fff;
-    display: flex; flex-direction: column; justify-content: flex-end;
-    min-height: 210px; padding: 16px 18px;
-    box-shadow: 0 8px 22px rgba(50,40,20,0.16);
-    border: 1px solid rgba(255,255,255,0.14);
-    opacity: 0; transform: translateY(18px);
-    transition: opacity 0.6s ease, transform 0.3s ease, box-shadow 0.25s ease;
+.rb-head h3 {
+    font-family: var(--font-display); font-weight: 700; margin: 0;
+    font-size: clamp(12px, 1.05vw, 15px); letter-spacing: 0.16em;
+    text-transform: uppercase; color: #24401f;
 }
-.records-section.in .rb-card { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 0.06s); }
-.rb-card:hover { transform: translateY(-6px); box-shadow: 0 16px 34px rgba(50,40,20,0.28); }
-
-.rb-card .bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
-.rb-card .bg-fallback { position: absolute; inset: 0; z-index: 0; }
-.rb-card .scrim { position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(180deg, rgba(18,26,22,0.05) 0%, rgba(18,26,22,0.34) 46%, rgba(18,26,22,0.9) 100%); }
-.rb-card .body { position: relative; z-index: 2; }
-
-.rb-kicker { text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.7em; font-weight: 700; color: #f3e8cd; margin-bottom: 5px; text-shadow: 0 1px 3px rgba(0,0,0,0.45); }
-.rb-val { font-family: var(--font-display); font-size: 2.1em; line-height: 1; letter-spacing: 0.01em; text-shadow: 0 2px 6px rgba(0,0,0,0.45); }
-.rb-val small { font-size: 0.42em; font-weight: 400; opacity: 0.85; margin-left: 3px; letter-spacing: 0.02em; }
-
-/* A hike wearing more than one crown: labelled values side by side */
-.rb-crowns { display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-end; }
-.rb-crown .rb-kicker { margin-bottom: 3px; }
-.rb-val-sm { font-size: 1.55em; }
-.rb-cardname { font-weight: 700; font-size: 1.02em; margin-top: 5px; line-height: 1.18; text-shadow: 0 1px 4px rgba(0,0,0,0.5); }
-.rb-cardmeta { display: flex; align-items: center; gap: 6px; font-size: 0.8em; opacity: 0.92; margin-top: 3px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-.rb-cardmeta .yeardot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex: 0 0 auto; box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
-
-/* --- The Records: the crown cards (count varies as records collide/split) --- */
-.crowns-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; max-width: 940px; margin: 0 auto; }
-
-/* --- The Expeditions: a gold/silver/bronze podium --- */
-.podium { display: grid; grid-template-columns: 1fr 1.14fr 1fr; gap: 16px; align-items: end; max-width: 840px; margin: 0 auto; }
-.podium .rb-card.gold { min-height: 252px; }
-.podium .rb-card.gold .rb-val { font-size: 2.6em; }
-.medal {
-    position: absolute; top: 12px; left: 12px; z-index: 3;
-    width: 38px; height: 38px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-size: 1.2em; font-weight: 700;
-    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+.rb-head-sub {
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #9a927c; text-align: right; white-space: nowrap;
 }
-.medal-1 { background: linear-gradient(145deg, #f4d982, #c9a24b); color: #3a2f14; }
-.medal-2 { background: linear-gradient(145deg, #e8ebee, #9aa0a6); color: #3a3f45; }
-.medal-3 { background: linear-gradient(145deg, #e0a878, #a97142); color: #3a220f; }
 
-/* --- Bridge link + overflow note --- */
-.rb-more-wrap { text-align: center; margin-top: 24px; }
-.board-more {
-    font-size: 0.95em; font-weight: 700; color: var(--trail-green);
-    text-decoration: none; letter-spacing: 0.01em;
-    display: inline-flex; align-items: center; gap: 6px;
-    transition: color 0.16s ease;
+/* --- The paper mount (crowns and podium both use it) --- */
+/* A column, because the mounts are grid items of equal height and one of them
+   carries two records: without pinning the trail name to the foot, the taller
+   mount set the row and its three neighbours ended in 90 px of blank paper. */
+.rb-mount {
+    display: flex; flex-direction: column; text-decoration: none; color: inherit;
+    background: #fffdf6; border: 1px solid #d8ccae;
+    padding: 9px 9px 0;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 0.6s ease, transform 0.6s ease, border-color 0.2s ease, background-color 0.2s ease;
 }
-.board-more .arw { transition: transform 0.18s ease; }
-.board-more:hover { color: var(--evergreen); }
-.board-more:hover .arw { transform: translateX(4px); }
-.board-note { text-align: center; color: var(--gravel); font-size: 0.85em; font-style: italic; margin-top: 18px; }
+.records-section.in .rb-mount { opacity: 1; transform: none; transition-delay: calc(var(--i, 0) * 0.06s); }
+/* Pointed at, a mount is MARKED, not lifted — the same restraint the
+   Territories index keeps, and the reason nothing on this leaf throws a
+   shadow onto its neighbour. */
+.rb-mount:hover { border-color: #2f5c40; background: #fffefa; }
+
+.rb-win {
+    position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+    background: #e7e1d2; border: 1px solid #cdbf9c;
+}
+.rb-win img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.rb-nowin { position: absolute; inset: 0; }
+
+/* the podium rank, engraved on a brass plate in the window's corner —
+   it replaced three coloured medal discs, which were the one gloss-web
+   object left on the page */
+.rb-rank {
+    position: absolute; top: 8px; left: 8px;
+    min-width: 20px; padding: 2px 6px 3px; text-align: center;
+    background: #e2cf9c; border: 1px solid #8a7649;
+    box-shadow: inset 0 0 0 2px rgba(255, 253, 246, 0.45);
+    font-family: var(--font-display); font-weight: 700; font-size: 9px;
+    letter-spacing: 0.14em; color: #4c3d1e;
+}
+
+/* the caption rides UP over the window's lower edge, so the nameplate below is
+   seated on the frame rather than floating in the paper beneath it */
+.rb-cap {
+    padding: 0 3px 13px; margin-top: -16px; position: relative; z-index: 2;
+    flex: 1 1 auto; display: flex; flex-direction: column;
+}
+/* a trail can hold more than one record, and then it wears both */
+.rb-crowns { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; }
+.rb-crown { min-width: 0; }
+
+/* ---- THE NAMEPLATE ----
+   What the record IS was set in 8 px grey caps above the figure — the smallest,
+   quietest type on a plate whose entire subject is that this trail holds a
+   title. It is now an engraved brass nameplate, seated on the mount's frame:
+   the Atlas's own brass, the same metal as the milestone benchmarks, the crew
+   book's initial plates and the specimen drawers' labels, so it arrives as
+   something the reader has already met — just larger, and here it is the loud
+   thing. Ticks on either side, the way a plate's title cartouche is ruled. */
+.rb-cart {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 5px 12px 6px;
+    background: linear-gradient(180deg, #eeddaf 0%, #e2cf9c 55%, #d3bd85 100%);
+    border: 1px solid #8a7649;
+    box-shadow: inset 0 0 0 2px rgba(255, 253, 246, 0.5), 0 2px 6px rgba(60, 45, 20, 0.3);
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(9px, 0.7vw, 11.5px); letter-spacing: 0.22em;
+    text-transform: uppercase; color: #43310f; white-space: nowrap;
+    max-width: 100%;
+}
+.rb-cart span { overflow: hidden; text-overflow: ellipsis; }
+.rb-cart i { flex: 0 0 auto; width: 5px; height: 5px; border: 1px solid #8a7649; transform: rotate(45deg); }
+/* the podium's mounts name a rank in the window's corner, not a record — their
+   single "Ground covered" label would be a nameplate saying nothing */
+.podium .rb-cart { display: none; }
+.podium .rb-cap { margin-top: 0; padding-top: 10px; }
+
+.rb-v {
+    margin-top: 9px;
+    font-family: var(--font-display); font-weight: 700; color: #24401f;
+    font-size: clamp(19px, 1.7vw, 27px); line-height: 1;
+}
+.rb-v .u { font-size: 0.42em; font-weight: 400; color: #9a927c; margin-left: 3px; letter-spacing: 0.1em; }
+/* the trail and its year sit on the mount's floor, whatever the caption holds
+   above them — so four mounts of one row all end the same way */
+.rb-name {
+    margin-top: auto; padding-top: 12px; font-size: 0.95em; line-height: 1.3; color: #24401f;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.rb-meta {
+    display: flex; align-items: center; gap: 6px; margin-top: 5px;
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #9a927c;
+}
+.rb-meta .yeardot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: 0 0 auto; }
+
+/* --- The Crowns ---
+   R2: a wider leaf takes more columns at a capped mount size, rather than four
+   ever-growing mounts. The column count itself is set by records.js, which
+   knows how many mounts there are and so can keep the last row full. */
+.crowns-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));   /* replaced on first layout */
+    gap: 16px; max-width: 1180px;
+}
+
+/* --- The Expeditions: the podium ---
+   It grows moderately and stays capped, so the closer never turns into a
+   second hero. The winner is raised by taking a wider column, not by casting
+   a bigger shadow. */
+.podium {
+    display: grid; grid-template-columns: 1fr 1.16fr 1fr;
+    gap: 16px; align-items: end; max-width: 1000px;
+}
+.podium .rb-mount.gold .rb-v { font-size: clamp(22px, 2vw, 32px); }
 
 @media (max-width: 900px) {
-    .podium { grid-template-columns: 1fr; max-width: 400px; }
-    .podium .rb-card.gold { min-height: 210px; }
-    .podium .rb-card.gold .rb-val { font-size: 2.1em; }
-}
-@media (max-width: 720px) {
-    .records-title { font-size: 2.4em; }
+    .podium { grid-template-columns: 1fr; max-width: 420px; }
 }

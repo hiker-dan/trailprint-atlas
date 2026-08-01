@@ -1,164 +1,214 @@
 /* =====================================================================
-   The Trailprint Atlas — Threads of the Trail
-   The homepage milestone narrative, rendered as a vintage USGS-style
-   quadrangle ("The Field Sheet"). Procedural contour terrain lives in
-   an <svg>; the milestone markers are brass benchmark disks overlaid
-   as positioned HTML so they can be hovered and linked.
-   Added in the July 2026 home-page redesign.
+   The Trailprint Atlas — Threads of the Trail (Plate II)
+   ---------------------------------------------------------------------
+   THE MILESTONE LEDGER, and the drawer under each entry.
+
+   This file used to dress a procedural USGS quadrangle — aged paper,
+   absolutely-positioned benchmark disks over an SVG of invented
+   contours, leader labels, and a card that followed the cursor. All of
+   it retired in July 2026 with the sheet itself (threads.js says why).
+   The brass and the glyphs survive; they are in a ledger now, and the
+   benchmarks stand on the real country on the left leaf.
+
+   NO PANEL, NO BAND. The plate used to be a grey-green gradient band
+   with a white card of rows floating inside it — a lighter rectangle
+   inside a darker one, which read as two unrelated surfaces rather than
+   as a page. The ledger is now ruled straight onto the leaf's own paper,
+   and the only thing that gets a card is the drawer, because a drawer
+   is genuinely a separate object being pulled out of the page.
    ===================================================================== */
 
-.threads-section {
-    background: linear-gradient(180deg, #ece7dc 0%, #e7e1d2 100%);
-    padding: 100px 24px 110px;
-    overflow: hidden;
+.threads-section { overflow: hidden; }
+
+/* --- the ledger ----------------------------------------------------
+   TWO COLUMNS WHEN THERE IS ROOM. A milestone line is short — a disk, two lines
+   of type and a date — so on a wide leaf a single column left most of every row
+   as blank paper. The grid takes a second column at 1900 px, which is where the
+   right leaf is wide enough for two columns of ~510 px; below that the type
+   would be squeezed and one column is the honest answer.
+
+   Reading order is LEFT TO RIGHT, THEN DOWN, and three things say so: the
+   engraved line numbers, the dates ascending along each row, and the drawer
+   itself, which spans the full width beneath a PAIR and so cannot be read as
+   belonging to a column. */
+.threads-ledger {
+    display: grid;
+    grid-template-columns: 1fr;
+    column-gap: 44px;
+    margin-top: 24px;
+    border-top: 1px solid #d8ccae;
+    opacity: 0; transform: translateY(16px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+}
+@media (min-width: 1900px) {
+    .threads-ledger { grid-template-columns: 1fr 1fr; }
+    /* half the width means the accomplishment sets a step smaller, so the
+       longest of them ("First Night on the Trail") still lands on one line */
+    .ms-k { font-size: clamp(13px, 0.82vw, 17px); }
+    .ms-disk { width: 34px; height: 34px; }
+    .ms-disk svg { width: 19px; height: 19px; }
+}
+.threads-section.in .threads-ledger { opacity: 1; transform: none; }
+
+/* `display: grid` on the entry, and it is load-bearing. The row is a <button>,
+   and a button's `width: auto` is shrink-to-fit, not fill — so in an ordinary
+   block container every row ended where its text ended, ragged down the ledger,
+   with the date and the pull floating mid-line and the hover tint covering only
+   part of the row. A grid container stretches its item to the column. (The
+   alternative, `width: 100%`, would overhang by the row's own padding: there is
+   no global box-sizing:border-box in this codebase.) */
+.ms-entry { display: grid; min-width: 0; border-bottom: 1px solid #e4dabc; }
+
+/* the ledger's line number — what keeps the sequence unambiguous once the
+   entries stop being a single top-to-bottom list */
+.ms-no {
+    flex: 0 0 auto;
+    font-family: var(--font-display); font-size: 9.5px; letter-spacing: 0.12em;
+    color: #c3b48d; font-variant-numeric: tabular-nums;
 }
 
-.threads-inner { max-width: 1120px; margin: 0 auto; }
-
-.threads-header { text-align: center; margin-bottom: 40px; }
-.threads-eyebrow {
-    text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700;
-    font-size: 0.82em; color: var(--trail-green);
+/* The row is a real <button> — it opens a drawer, so it should be the element
+   that opens things. Everything a button brings with it has to be undone by
+   hand; note there is NO width here, because there is no global
+   box-sizing:border-box in this codebase and a padded `width:100%` button would
+   overhang the ledger. display:flex already fills the line. */
+.ms-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 15px 6px;
+    margin: 0; border: none; background: none; font: inherit; color: inherit;
+    text-align: left; cursor: pointer;
+    transition: background-color 0.25s ease;
 }
-.threads-title {
-    font-family: var(--font-display); font-size: 3.2em; line-height: 1;
-    letter-spacing: 0.02em; color: var(--evergreen); margin: 8px 0 12px;
-}
-.threads-lede {
-    color: var(--stone); font-size: 1.15em; line-height: 1.55;
-    max-width: 620px; margin: 0 auto;
-}
+.ms-row:hover { background: rgba(255, 253, 246, 0.55); }
+.ms-row:focus-visible { outline: 2px solid #2f5c40; outline-offset: -2px; }
+.ms-entry.is-active .ms-row { background: rgba(255, 253, 246, 0.72); }
 
-/* --- The field sheet (map) --- */
-.field-sheet {
-    position: relative;
-    /* Aged-paper base; the SVG paints the cartography on top. */
-    background: #f2ead2;
-    border-radius: 3px;
-    box-shadow:
-        0 2px 0 rgba(255,255,255,0.5) inset,
-        0 18px 44px rgba(60,50,30,0.28),
-        0 2px 6px rgba(60,50,30,0.2);
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.9s ease, transform 0.9s ease;
+/* the drawer pull. Says the row opens, and which way it currently stands. */
+.ms-pull {
+    flex: 0 0 auto; display: flex; align-items: center; color: #b3a886;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), color 0.25s ease;
 }
-.threads-section.in .field-sheet { opacity: 1; transform: none; }
-
-.field-sheet svg.sheet-art {
-    display: block; width: 100%; height: auto;
-    border-radius: 3px;
-    transition: opacity 0.25s ease;
+.ms-pull svg {
+    width: 15px; height: 15px; display: block;
+    fill: none; stroke: currentColor; stroke-width: 2;
+    stroke-linecap: round; stroke-linejoin: round;
 }
+.ms-row:hover .ms-pull { color: #7d6231; }
+.ms-entry.is-active .ms-pull { transform: rotate(180deg); color: #2f5c40; }
 
-/* Focus state: while a benchmark's card is open, calm the map so the card
-   never sits over live text — terrain dims, labels fade, other disks recede. */
-.field-sheet.focus svg.sheet-art { opacity: 0.5; }
-.field-sheet.focus .bm-label { opacity: 0.06; }
-.field-sheet.focus .bm-disk { opacity: 0.4; }
-.field-sheet.focus .bm-disk:hover,
-.field-sheet.focus .bm-disk.active { opacity: 1; }
-
-/* --- Brass benchmark disks (the milestone markers) --- */
-.bm-disk {
-    position: absolute;
-    width: 50px; height: 50px;
-    margin: -25px 0 0 -25px;           /* center on its point */
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    text-decoration: none;
-    /* Brass medallion: warm radial sheen + engraved rim */
+/* the brass benchmark disk, carried over from the retired sheet */
+.ms-disk {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%;
     background: radial-gradient(circle at 37% 30%, #e2c583 0%, #c2a25c 46%, #9a7b3f 78%, #7d6231 100%);
-    box-shadow:
-        0 3px 7px rgba(50,36,12,0.4),
-        inset 0 0 0 2px rgba(255,247,222,0.35),
-        inset 0 0 0 4px rgba(74,52,24,0.4),
-        inset 0 -3px 6px rgba(74,52,24,0.35),
-        inset 0 3px 5px rgba(255,247,222,0.3);
-    color: #43310f;
-    cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.25s ease;
-    z-index: 3;
+    box-shadow: inset 0 0 0 1.5px rgba(120, 95, 50, 0.5), 0 1px 3px rgba(60, 45, 20, 0.4);
+    display: flex; align-items: center; justify-content: center;
+    color: #4a3a1c;
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
 }
-.bm-disk:hover {
-    transform: translateY(-3px) scale(1.09);
-    box-shadow:
-        0 10px 20px rgba(50,36,12,0.45),
-        inset 0 0 0 2px rgba(255,247,222,0.4),
-        inset 0 0 0 4px rgba(74,52,24,0.45);
-    z-index: 8;
+.ms-entry.is-active .ms-disk {
+    transform: translateY(-1px) scale(1.05);
+    box-shadow: inset 0 0 0 1.5px rgba(120, 95, 50, 0.6), 0 4px 11px rgba(60, 45, 20, 0.45);
 }
-/* Engraved glyph (firsts) */
-.bm-disk svg { width: 24px; height: 24px; }
-.bm-disk svg path,
-.bm-disk svg polyline,
-.bm-disk svg line,
-.bm-disk svg circle {
-    /* subtle emboss: dark stroke sitting in the brass */
-    filter: drop-shadow(0 1px 0 rgba(255,247,222,0.45));
-}
-/* Stamped text (numeric milestones) */
-.bm-disk .stamp {
-    font-family: var(--font-display);
-    font-weight: 700;
-    line-height: 0.92;
-    text-align: center;
-    letter-spacing: 0.01em;
-    text-shadow: 0 1px 0 rgba(255,247,222,0.45);
-}
-.bm-disk .stamp .big { display: block; font-size: 18px; }
-.bm-disk .stamp .unit { display: block; font-size: 8px; letter-spacing: 0.08em; margin-top: 1px; }
+.ms-disk svg { width: 21px; height: 21px; display: block; }
 
-/* --- On-map station labels (terse, map-authentic) --- */
-.bm-label {
-    position: absolute;
-    width: 132px; margin-left: -66px;   /* centered under the point */
-    text-align: center;
-    pointer-events: none;
-    z-index: 2;
-    transition: opacity 0.25s ease;
+.ms-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+
+/* THE ACCOMPLISHMENT IS THE HEADLINE. This is what the plate is about, and
+   it used to be set in 8.5 px caps above the trail name — the smallest type
+   in a row about the biggest moments in the Atlas. */
+.ms-k {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(15px, 1.35vw, 21px); letter-spacing: 0.07em;
+    text-transform: uppercase; color: #24401f; line-height: 1.15;
 }
-.bm-label .lk {
-    font-family: var(--font-body);
-    font-weight: 700; font-size: 0.72rem;
-    text-transform: uppercase; letter-spacing: 0.06em;
-    color: #3a2f1a; line-height: 1.05;
-    /* parchment halo keeps text legible over contour lines */
-    text-shadow:
-        0 0 3px #f2ead2, 0 0 3px #f2ead2, 0 0 2px #f2ead2, 0 0 2px #f2ead2;
-}
-.bm-label .dt {
-    font-size: 0.62rem; font-weight: 600; letter-spacing: 0.05em;
-    color: #6b5836; margin-top: 1px;
-    text-shadow: 0 0 3px #f2ead2, 0 0 2px #f2ead2;
+.ms-t { font-size: 0.97em; color: #6f6a58; line-height: 1.35; }
+
+.ms-d {
+    flex: 0 0 auto;
+    font-family: var(--font-display); font-size: 9px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: #9a927c; white-space: nowrap;
 }
 
-/* --- Hover detail card (photo lazy-loads on first hover) --- */
-#threads-tip {
-    position: fixed; z-index: 60; width: 244px;
-    pointer-events: none;                 /* becomes auto once shown, so it's hoverable + clickable */
-    cursor: pointer;
-    background: #fffdf6;
-    border: 1px solid #d8cca8;
-    border-radius: 12px;
-    box-shadow: 0 16px 38px rgba(50,36,12,0.32);
-    overflow: hidden;
-    opacity: 0; transform: translateY(6px);
-    transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.18s ease;
+/* --- the drawer ----------------------------------------------------
+   Opened by clicking the row, and by nothing else — threads.js's header has the
+   long version of why scrolling and hovering both had to go. The 0fr -> 1fr
+   grid row is what makes the height animate without anyone measuring the card:
+   the track resolves to the content's own height, so a card with a photograph
+   and a card without one both open correctly and neither needs a hardcoded max. */
+.ms-drawer {
+    /* the full width of the ledger, whatever the column count — the drawer
+       belongs to the grid row, not to the entry (see threads.js) */
+    grid-column: 1 / -1;
+    display: grid; grid-template-rows: 0fr;
+    transition: grid-template-rows 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
-#threads-tip.show { opacity: 1; transform: none; pointer-events: auto; }
-#threads-tip.show:hover { box-shadow: 0 20px 46px rgba(50,36,12,0.4); }
-#threads-tip.show:hover .tip-cta { text-decoration: underline; }
-#threads-tip img { width: 100%; height: 122px; object-fit: cover; display: block; background: #e7e1d2; }
-#threads-tip .tip-body { padding: 11px 15px 13px; }
-#threads-tip .tip-kicker { font-family: var(--font-display); font-size: 1.2em; color: var(--trail-green); line-height: 1; }
-#threads-tip .tip-hike { font-size: 0.92em; font-weight: 700; color: var(--evergreen); margin-top: 4px; }
-#threads-tip .tip-meta { font-size: 0.78em; color: var(--gravel); margin-top: 2px; }
-#threads-tip .tip-note { font-size: 0.85em; color: var(--stone); line-height: 1.45; margin-top: 8px; }
-#threads-tip .tip-cta { font-size: 0.72em; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--trail-green); margin-top: 9px; }
+.ms-drawer.is-open { grid-template-rows: 1fr; }
+/* the outgoing drawer closes in one step so its height can be measured and
+   compensated for exactly — see setActive() in threads.js */
+.ms-drawer.no-anim { transition: none; }
+.ms-drawer-in { overflow: hidden; min-height: 0; }
 
-@media (max-width: 720px) {
-    .threads-title { font-size: 2.4em; }
-    /* Desktop-first project: labels shrink so the sheet stays legible if viewed narrow. */
-    .bm-label { width: 104px; margin-left: -52px; }
+.ms-card {
+    display: flex; gap: 0; align-items: stretch;
+    margin: 0 6px 18px;
+    background: #fffdf6; border: 1px solid #d8ccae;
+    box-shadow: 0 6px 20px rgba(60, 45, 20, 0.16);
+    opacity: 0; transform: translateY(-6px);
+    transition: opacity 0.4s ease 0.08s, transform 0.4s ease 0.08s;
+}
+.ms-drawer.is-open .ms-card { opacity: 1; transform: none; }
+
+/* The photographs take a SHARE of the card rather than a fixed slab, so a wide
+   leaf spends its extra width on the picture instead of on empty paper beside
+   three short lines. They still floor and ceiling, because a 500 px-tall photo
+   of one hike is its own kind of wrong. */
+.ms-shot {
+    flex: 1 1 0; min-width: 130px; max-width: 320px;
+    overflow: hidden; background: #e7e1d2; border-right: 1px solid #e4dabc;
+}
+.ms-shot img { width: 100%; height: 100%; object-fit: cover; display: block; min-height: 170px; }
+/* the second frame only exists where there is genuinely room for it */
+.ms-shot.is-extra { display: none; }
+@media (min-width: 1750px) { .ms-shot.is-extra { display: block; } }
+
+.ms-card-body {
+    flex: 1 1 auto; min-width: 0;
+    padding: 16px 20px 17px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+}
+.ms-card-meta {
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #9a927c;
+}
+/* R1 — the note keeps a measure even when the card is enormous */
+.ms-card-note { margin: 0; font-size: 0.97em; line-height: 1.55; color: #6f6a58; max-width: 58ch; }
+
+/* the day's measurements and the way in, sharing one footer band */
+.ms-vitals {
+    display: flex; gap: 26px; align-items: flex-end;
+    padding: 9px 0 2px; border-top: 1px solid #e4dabc; align-self: stretch;
+    margin-top: auto;
+}
+/* the door takes the far end of the band — never `width: 100%`, which on a
+   padded element without border-box would push it past the card */
+.ms-vitals .atlas-door { margin-left: auto; }
+.ms-v-n {
+    font-family: var(--font-display); font-weight: 700; color: #24401f;
+    font-size: clamp(15px, 1.15vw, 20px); line-height: 1;
+}
+.ms-v-l {
+    margin-top: 4px; font-family: var(--font-display); font-size: 8px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: #9a927c;
+}
+/* THE OPENED LINE, MARKED IN INK. With two columns the card sits beneath a
+   PAIR of entries, so the background tint alone no longer says which of the two
+   opened it — the rule under the active line carries that, and it points
+   straight down at the card. */
+.ms-entry.is-active { border-bottom-color: #2f5c40; border-bottom-width: 2px; }
+
+@media (max-width: 900px) {
+    .ms-row { gap: 12px; padding: 13px 4px; }
+    .ms-card { flex-direction: column; }
+    .ms-shot { max-width: none; height: 160px; border-right: none; border-bottom: 1px solid #e4dabc; }
+    .ms-vitals { gap: 18px; }
 }

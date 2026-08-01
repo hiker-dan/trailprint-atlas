@@ -4,26 +4,30 @@
    every angle. Photo-free by design. Added in the July 2026 redesign.
    ===================================================================== */
 
-.obs-section {
-    background: linear-gradient(180deg, #f4f1e8 0%, #efe9dc 100%);
-    padding: 100px 24px 110px;
-    overflow: hidden;
-}
-.obs-inner { max-width: 1120px; margin: 0 auto; }
+/* The band and the centred header retired July 2026 — the plate collar in
+   keymap.css divides this section now, and the volume's leaf is the paper. */
+.obs-section { overflow: hidden; }
+.obs-inner { max-width: none; margin: 0; }
 
-.obs-header { text-align: center; margin-bottom: 52px; }
-.obs-eyebrow { text-transform: uppercase; letter-spacing: 0.2em; font-weight: 700; font-size: 0.82em; color: var(--trail-green); }
-.obs-title { font-family: var(--font-display); font-size: 3.2em; line-height: 1; letter-spacing: 0.02em; color: var(--evergreen); margin: 8px 0 12px; }
-.obs-lede { color: var(--stone); font-size: 1.15em; line-height: 1.55; max-width: 620px; margin: 0 auto; }
+/* Plate III's lede is keymap.css's .p-lede like every other plate's — it
+   was a near-duplicate rule that then failed to grow with the others. */
+.obs-header { margin-bottom: 30px; }
 
-/* --- Panels --- */
+/* --- Panels ---
+   FRAMELESS, deliberately. These were white rounded cards with drop shadows on
+   a near-white band — the exact thing the July audit condemned in trip.html and
+   crew.html, both since rebuilt. Inside the volume a card is worse still: a
+   lighter rectangle sitting on a slightly darker one reads as two unrelated
+   surfaces rather than as one page.
+
+   So a panel is no longer an object. It is a section of the leaf, opened by an
+   engraved sub-collar — the plate collar's own device, one step down — with the
+   chart drawn straight onto the paper beneath it. The only things on this page
+   that still get a card are the ones genuinely lifted off it: a drawer, a
+   photograph in its mount. */
 .obs-panel {
-    background: #fffdf6;
-    border: 1px solid #e2d9c2;
-    border-radius: 16px;
-    padding: 30px 34px 34px;
-    box-shadow: 0 3px 14px rgba(60,50,30,0.07);
-    margin-bottom: 26px;
+    background: none; border: none; border-radius: 0; box-shadow: none;
+    padding: 0; margin-bottom: 40px;
     opacity: 0; transform: translateY(18px);
     transition: opacity 0.7s ease, transform 0.7s ease;
 }
@@ -31,89 +35,152 @@
 .obs-section.in .obs-panel:nth-of-type(2) { transition-delay: 0.08s; }
 .obs-section.in .obs-panel:nth-of-type(3) { transition-delay: 0.16s; }
 
-.obs-panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 24px; border-bottom: 1px solid #eee3cc; padding-bottom: 14px; }
-.obs-panel-head h3 { font-family: var(--font-display); font-size: 1.7em; color: var(--evergreen); margin: 0; letter-spacing: 0.01em; }
-.obs-panel-sub { font-size: 0.95em; color: var(--gravel); font-style: italic; text-align: right; }
+.obs-panel-head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    margin-bottom: 18px; border-bottom: 1px solid #d8ccae; padding-bottom: 8px;
+}
+.obs-panel-head h3 {
+    font-family: var(--font-display); font-weight: 700; margin: 0;
+    font-size: clamp(12px, 1.05vw, 15px); letter-spacing: 0.16em;
+    text-transform: uppercase; color: #24401f;
+}
+.obs-panel-sub {
+    font-family: var(--font-display); font-size: 8.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #9a927c; text-align: right; white-space: nowrap;
+}
 
-/* --- Territories: a growing grid of collected state/country tiles --- */
+/* --- Territories: the collection, printed on the leaf ---
+   These were rounded cards that lifted 4 px and dropped a shadow on hover — a
+   web widget's gesture, on a page that is a sheet of paper. A collected
+   territory is now an INDEX SQUARE: a hairline rule, the silhouette engraved
+   inside it, the tally beneath. Hovering does what the page does everywhere
+   else — it puts the ground on the left leaf — so the tile itself only needs
+   to say which one you are pointing at, and nothing has to leave the page to
+   say it. R2: the grid takes new columns as the leaf widens, never taller
+   tiles. */
+/* Columns and row height are set by observatory.js, because both depend on the
+   grid's measured width: the squares have to BE square for a 3x3 block to read
+   as a block, and no CSS length can name the grid's own width. */
 .terr-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-    gap: 16px;
+    grid-auto-flow: dense;          /* small tiles backfill the big blocks' holes */
+    background: #fbf7ea;
+    border: 1px solid #d8ccae;
 }
+/* The hairlines are OUTLINES, not gaps over a darker sheet. A 1 px gap needs a
+   backing colour to show through, and the last row is almost never full — so
+   the leftover cells printed as a solid block of that backing, a hole in the
+   corner of the index. An outline takes no layout, neighbours share the same
+   pixel, and an empty cell is simply blank paper. */
 .terr-tile {
     position: relative;
+    outline: 1px solid #e4dabc;
     background: #fbf7ea;
-    border: 1px solid #e7dcc0;
-    border-radius: 12px;
-    padding: 16px 12px 14px;
-    text-align: center;
+    padding: 10px;
     text-decoration: none;
     color: inherit;
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    transition: background-color 0.2s ease;
     overflow: hidden;
+    /* the silhouette takes the room left over, the caption sits on the floor —
+       so a 1x1 and a 3x3 are the same design at two sizes, not two designs */
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    text-align: center;
 }
-.terr-tile:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 22px rgba(60,50,30,0.13);
-    border-color: var(--trail-green);
+.terr-tile:hover { background: #fffdf6; z-index: 1; }
+
+/* A blank index square: paper, ruled, with a graticule tick at its centre.
+   These are what keep the block a complete rectangle however the collection
+   grows — an atlas prints the sheets it has not surveyed yet, it does not
+   leave the corner of the page torn off. */
+.terr-blank { pointer-events: none; }
+.terr-blank::before {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 9px; height: 9px; transform: translate(-50%, -50%);
+    background:
+        linear-gradient(#ddd2b4, #ddd2b4) center / 100% 1px no-repeat,
+        linear-gradient(#ddd2b4, #ddd2b4) center / 1px 100% no-repeat;
 }
+/* the pointed-at square is marked in the ink of the plate collar, not lifted */
+.terr-tile::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+    height: 2px; background: #2f5c40;
+    transform: scaleX(0); transition: transform 0.22s ease;
+}
+.terr-tile:hover::after { transform: scaleX(1); }
 .terr-silo {
-    height: 74px;
+    flex: 1 1 auto; min-height: 0; width: 100%;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 10px;
+    padding-bottom: 8px;
 }
-.terr-silo svg { max-height: 74px; max-width: 100%; height: auto; width: auto; overflow: visible; }
+.terr-silo svg { max-height: 100%; max-width: 100%; height: auto; width: auto; overflow: visible; }
 .terr-silo svg path { transition: fill 0.2s ease; }
-.terr-name { font-family: var(--font-display); font-size: 1.06em; color: var(--evergreen); line-height: 1.05; letter-spacing: 0.01em; }
-.terr-count { margin-top: 6px; font-size: 0.82em; color: var(--stone); }
-.terr-count b { font-weight: 700; color: var(--charcoal); }
+.terr-name {
+    flex: 0 0 auto;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 10.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: #24401f; line-height: 1.2;
+}
+.terr-count {
+    flex: 0 0 auto; margin-top: 5px; font-family: var(--font-display);
+    font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: #9a927c;
+    line-height: 1.35;
+}
+/* the bigger the claim, the bigger the plate reads — one design, three sizes */
+.terr-tile[data-span="2"] { padding: 14px; }
+.terr-tile[data-span="2"] .terr-name { font-size: 13px; }
+.terr-tile[data-span="2"] .terr-count { font-size: 8.5px; }
+.terr-tile[data-span="3"] { padding: 20px; }
+.terr-tile[data-span="3"] .terr-name { font-size: clamp(15px, 1.15vw, 19px); letter-spacing: 0.14em; }
+.terr-tile[data-span="3"] .terr-count { font-size: 9.5px; letter-spacing: 0.16em; }
+.terr-count b { font-weight: 700; color: #7d6231; }
 
 /* The density legend under the grid */
 .terr-legend {
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    margin-top: 22px; font-size: 0.8em; color: var(--gravel);
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 14px; font-family: var(--font-display);
+    font-size: 8.5px; letter-spacing: 0.18em; text-transform: uppercase; color: #9a927c;
 }
-.terr-legend .swatches { display: flex; gap: 3px; }
-.terr-legend .sw { width: 20px; height: 12px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.06); }
-
-/* --- Profile line (replaces the radar) --- */
-.obs-profile {
-    text-align: center;
-    max-width: 780px;
-    margin: -18px auto 46px;
-    font-size: 1.45em;
-    line-height: 1.55;
-    color: var(--stone);
-    font-weight: 400;
-}
-.obs-profile b { color: var(--trail-green); font-weight: 700; }
+.terr-legend .swatches { display: flex; gap: 2px; }
+.terr-legend .sw { width: 20px; height: 10px; border: 1px solid rgba(0,0,0,0.08); }
 
 /* --- The Effort Field (scatter) --- */
 .ef-svg { width: 100%; height: auto; display: block; }
 .ef-axis { font-family: var(--font-body); font-size: 11px; fill: var(--gravel); }
 .ef-title { font-family: var(--font-body); font-size: 12px; font-weight: 700; fill: var(--stone); }
 .ef-dot { cursor: pointer; transition: r 0.12s ease, opacity 0.2s ease; }
-#ef-legend { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+/* The year key. Engraved marks on the paper rather than rounded pills — the
+   Cadence's key beside it is built the same way, and they read as one legend
+   for the plate rather than two different widgets. */
+#ef-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 16px; }
 .ef-chip {
     display: inline-flex; align-items: center; gap: 7px;
-    background: #fbf7ea; border: 1px solid #e7dcc0; border-radius: 999px;
-    padding: 5px 13px; font-family: var(--font-body); font-size: 0.86em; font-weight: 600; color: var(--stone);
-    cursor: pointer; transition: all 0.16s ease;
+    background: none; border: none; border-bottom: 1.5px solid transparent;
+    padding: 3px 1px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #9a927c;
+    cursor: pointer; transition: color 0.16s ease, border-color 0.16s ease;
 }
-.ef-chip:hover { border-color: var(--trail-green); }
-.ef-chip.active { background: var(--evergreen); color: #fff; border-color: var(--evergreen); }
+.ef-chip:hover { color: #2f5c40; }
+.ef-chip.active { color: #24401f; border-bottom-color: #2f5c40; }
 .ef-chip-static { cursor: default; }
-.ef-sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.ef-sw { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
 .ef-sw-ring { background: #fffdf6; border: 2px solid #2c3e50; }
-.ef-note { text-align: center; color: var(--gravel); font-size: 0.85em; font-style: italic; margin-top: 10px; }
+.ef-note {
+    margin-top: 10px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #9a927c;
+}
 
 /* --- The True Ascents (summit climbs as their real GPX profiles) --- */
 /* The panorama sits in a thin frame so the dawn sky reads as a window, not a
    background. Hovering any ridge focuses the whole scene on it: the rest of
    the range and its annotations recede, and the ridge's own unhazed colours
    fade up from beneath (a second gradient layer, not a filter — crisper). */
-#skyline { border: 1px solid #d8ccae; border-radius: 12px; overflow: hidden; box-shadow: inset 0 1px 6px rgba(60,50,30,0.10); }
+/* A neatline, not a rounded frame with an inner shadow — the panorama is a
+   printed view on the sheet, and the plate on the facing leaf is enclosed the
+   same way. */
+#skyline { border: 1px solid #b6a67e; overflow: hidden; }
+/* The panorama is RE-DRAWN to the measured width (observatory.js) rather than
+   scaled to it, so viewBox and box always agree — width:100% simply confirms
+   what was measured, and height follows the fixed viewBox height. */
 .asc-svg { width: 100%; height: auto; display: block; }
 .asc-axis { font-family: var(--font-body); font-size: 11px; fill: #9c8a5e; }
 .asc-hit { cursor: pointer; }
@@ -130,121 +197,296 @@
    whichever climb is raised. */
 .asc-card {
     display: flex; align-items: center; justify-content: space-between; gap: 20px;
-    margin-top: 14px; padding: 13px 20px; min-height: 66px; box-sizing: border-box;
-    background: #fbf7ea; border: 1px solid #e7dcc0; border-radius: 10px;
-    border-left: 5px solid var(--accent, #b9a97f);
+    margin-top: 0; padding: 12px 4px 0; min-height: 62px; box-sizing: border-box;
+    /* the accent survives as an ink rule under the panorama, in the raised
+       climb's year colour — the card itself is no longer an object */
+    border-top: 2px solid var(--accent, #b9a97f);
     transition: border-color 0.25s ease;
 }
 .asc-card-lead { min-width: 0; }
-.asc-card-name { font-family: var(--font-display); font-size: 1.18em; color: var(--evergreen); line-height: 1.15; }
-.asc-card-meta { margin-top: 3px; font-size: 0.86em; color: var(--stone); line-height: 1.4; }
-.asc-card-hint { flex: 0 0 auto; font-size: 0.88em; font-style: italic; color: var(--gravel); text-align: right; max-width: 300px; }
-.asc-card-stats { display: flex; gap: 24px; flex: 0 0 auto; }
-.asc-stat-v { font-family: var(--font-display); font-size: 1.14em; color: var(--charcoal); text-align: center; white-space: nowrap; }
-.asc-stat-l { margin-top: 1px; font-size: 0.68em; text-transform: uppercase; letter-spacing: 0.09em; color: var(--gravel); text-align: center; }
+.asc-card-name {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(13px, 1.05vw, 17px); letter-spacing: 0.07em;
+    text-transform: uppercase; color: #24401f; line-height: 1.2;
+}
+.asc-card-meta { margin-top: 4px; font-size: 0.86em; color: #6f6a58; line-height: 1.45; max-width: 62ch; }
+.asc-card-hint {
+    flex: 0 0 auto; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #9a927c;
+    text-align: right; max-width: 260px; line-height: 1.6;
+}
+.asc-card-stats { display: flex; align-items: flex-end; gap: 26px; flex: 0 0 auto; }
+.asc-stat-v {
+    font-family: var(--font-display); font-weight: 700; color: #24401f;
+    font-size: clamp(14px, 1.1vw, 19px); text-align: center; white-space: nowrap; line-height: 1;
+}
+.asc-stat-l {
+    margin-top: 4px; font-family: var(--font-display); font-size: 8px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: #9a927c; text-align: center;
+}
+/* THE CLIMB IS THE POINT OF THIS PANEL, so it is not a third of four equal
+   figures. It takes the raised climb's own year ink (--accent, already set on
+   the card's rule), a step of size, and a ruled base — the emphasis the vitals
+   bands elsewhere in the Atlas use, not a colour or a weight invented here. */
+.asc-stat.is-climb { padding: 0 12px 5px; border-bottom: 2px solid var(--accent, #b9a97f); }
+.asc-stat.is-climb .asc-stat-v {
+    font-size: clamp(19px, 1.55vw, 27px); color: var(--accent, #24401f);
+}
+.asc-stat.is-climb .asc-stat-l { color: #6f6a58; }
 
-/* --- The Cadence (seasonal year-wheel) --- */
-.cad-wrap { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; justify-content: center; }
-.cad-wrap #cadence { flex: 0 0 auto; width: min(480px, 100%); }
+/* =============================================================================
+   R3 — THE PAIR. The Cadence and the Specimen Drawer are the plate's two
+   SQUARE-ISH panels: a year-wheel and a cabinet. Neither gets better with more
+   width — a 1,200 px wheel is absurd — so past the pairing width they stand
+   side by side instead of stacking.
+
+   Be honest about what this buys: NOT much height. Each panel's own two halves
+   have to stack once its column is under ~600 px, which gives back most of what
+   the pairing saves (measured at 2560: 958 px stacked against 845 px paired).
+   What it buys is that the plate stops ending in two full-bleed bands with a
+   capped instrument marooned in the middle of each — the shape R3 is actually
+   about. The wide charts above do the opposite and take the width as plot
+   area (R2), so the plate reads wide at the top and square at the foot.
+
+   The width is 1700 because that is where each column still clears ~430 px,
+   which is the narrowest either panel reads at once its own halves stack.
+   ========================================================================== */
+.obs-pair { display: block; }
+@media (min-width: 1700px) {
+    .obs-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0 44px; align-items: start; }
+    /* inside a column each panel stacks its own two halves — there is no room
+       for a wheel beside a caption, or a cabinet beside a specimen */
+    .obs-pair .cad-wrap { flex-direction: column; align-items: stretch; }
+    /* `flex: 1 1 380px` names the MAIN axis, which is vertical once the wrap
+       is a column — so the wheel was handed a 380 px HEIGHT, squashed to a
+       third of its aspect, and (being overflow:visible, as the month labels
+       need) painted straight over the caption beneath it. In a column the
+       wheel sizes itself and only its width is capped. */
+    .obs-pair .cad-wrap #cadence { flex: 0 0 auto; width: 100%; max-width: 520px; align-self: center; }
+    .obs-pair .cad-side { flex: 0 0 auto; max-width: none; }
+}
+
+/* --- The Cadence (seasonal year-wheel) ---
+   R2: the wheel takes a SHARE of the leaf and the reading column beside it
+   keeps its measure, so a wide leaf gives the instrument more room rather than
+   stranding it in the middle of a field of paper. */
+.cad-wrap { display: flex; align-items: center; gap: 34px; flex-wrap: wrap; }
+.cad-wrap #cadence { flex: 1 1 380px; max-width: 560px; }
 .cad-svg { width: 100%; height: auto; display: block; overflow: visible; }
-.cad-side { flex: 1 1 240px; min-width: 220px; max-width: 320px; }
+.cad-side { flex: 1 1 260px; min-width: 230px; max-width: 380px; }
 .cad-wedge { cursor: pointer; transition: filter 0.12s ease; }
 .cad-wedge:hover { filter: brightness(1.08); }
 .cad-month { font-family: var(--font-body); font-size: 12px; fill: var(--gravel); }
 .cad-month-peak { fill: var(--trail-green); font-weight: 700; }
 .cad-ring-label { font-family: var(--font-body); font-size: 9px; fill: #c3b48d; }
-.cad-caption { font-size: 1.05em; line-height: 1.55; color: var(--stone); margin: 0 0 18px; }
-.cad-caption b { color: var(--trail-green); font-weight: 700; }
-#cad-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.cad-key { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85em; color: var(--stone); font-weight: 600; }
-.cad-key-sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+.cad-caption { font-size: 1.02em; line-height: 1.55; color: #6f6a58; margin: 0 0 16px; }
+.cad-caption b { color: #2f5c40; font-weight: 700; }
+
+/* the month readout — a fixed place for the answer, where the tooltip was */
+.cad-readout {
+    border-top: 1px solid #d8ccae; border-bottom: 1px solid #d8ccae;
+    padding: 9px 0 10px; margin-bottom: 14px; min-height: 44px;
+}
+.cad-ro-month {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(13px, 1.05vw, 17px); letter-spacing: 0.08em;
+    text-transform: uppercase; color: #24401f; line-height: 1.2;
+}
+.cad-ro-sub {
+    margin-top: 3px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #9a927c;
+}
+#cad-legend { display: flex; flex-wrap: wrap; gap: 5px 14px; }
+.cad-key {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.16em; color: #9a927c;
+}
+.cad-key-sw { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+
+/* =============================================================================
+   THE TRIANGULATION NETWORK — companions as survey stations
+   -----------------------------------------------------------------------------
+   Ported from mockups/crew-network.html. The stations are HTML elements
+   absolutely positioned over the SVG rather than SVG circles, because a brass
+   benchmark disk is a stack of gradients and inset shadows that CSS draws in
+   one rule and SVG cannot draw at all. #net-plot is therefore the positioning
+   context and must stay position:relative.
+   ========================================================================== */
+.net-wrap { display: flex; flex-direction: column; gap: 14px; }
+#net-plot { position: relative; width: 100%; }
+#net-svg { display: block; width: 100%; height: auto; }
+
+.net-grat line { stroke: rgba(150, 130, 90, 0.14); stroke-width: 1; }
+.net-ring { fill: none; stroke: rgba(120, 100, 62, 0.34); stroke-width: 1; stroke-dasharray: 3 5; }
+.net-tick { stroke: rgba(120, 100, 62, 0.55); stroke-width: 1; }
+.net-sb { stroke: rgba(120, 100, 62, 0.55); stroke-width: 1; }
+.net-year {
+    font-family: var(--font-display); font-size: 8px; letter-spacing: 0.16em;
+    fill: #9a927c;
+}
+/* Danny is on every outing, so a ray to each station is a GIVEN — drawn as a
+   hairline that never competes with the baselines, which carry real news. */
+.net-ray { stroke: rgba(120, 100, 62, 0.3); stroke-width: 0.5; stroke-dasharray: 1.5 4; }
+
+.net-base { stroke: #6e6a4e; fill: none; stroke-linecap: round; transition: stroke 0.18s ease, opacity 0.18s ease; }
+.net-focus .net-base { opacity: 0.16; }
+.net-focus .net-base.lit { opacity: 1; stroke: #2f5c40; }
+.net-base-lab {
+    font-family: var(--font-display); font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em;
+    fill: #2f5c40; opacity: 0; transition: opacity 0.18s ease;
+    paint-order: stroke; stroke: #f7f0dd; stroke-width: 3px;
+}
+.net-base-lab.lit { opacity: 1; }
+
+/* the stations: the Atlas's own brass benchmark disk, from threads.css */
+.stn {
+    position: absolute; border-radius: 50%; cursor: pointer; text-decoration: none;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 37% 30%, #e2c583 0%, #c2a25c 46%, #9a7b3f 78%, #7d6231 100%);
+    box-shadow: 0 3px 7px rgba(50, 36, 12, 0.4),
+                inset 0 0 0 2px rgba(255, 247, 222, 0.35),
+                inset 0 0 0 4px rgba(74, 52, 24, 0.4);
+    color: #43310f; z-index: 4;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.22s ease;
+}
+.stn b { font-family: var(--font-display); font-weight: 700; line-height: 0.9; text-align: center;
+    text-shadow: 0 1px 0 rgba(255, 247, 222, 0.45); }
+.stn:hover, .stn.lit {
+    transform: translateY(-2px) scale(1.08); z-index: 9;
+    box-shadow: 0 9px 18px rgba(50, 36, 12, 0.46),
+                inset 0 0 0 2px rgba(255, 247, 222, 0.45), inset 0 0 0 4px rgba(74, 52, 24, 0.45);
+}
+.net-focus .stn { opacity: 0.34; }
+.net-focus .stn.lit, .net-focus .stn.near { opacity: 1; }
+/* the primary station: the surveyor's own mark, a triangle rather than a disk */
+.stn.primary {
+    background: radial-gradient(circle at 37% 30%, #f0e4c4 0%, #ded0a6 60%, #bfae7d 100%);
+    box-shadow: 0 4px 12px rgba(50, 36, 12, 0.4), inset 0 0 0 2px rgba(255, 253, 246, 0.6),
+                inset 0 0 0 3.5px rgba(74, 52, 24, 0.35);
+    cursor: default; pointer-events: none;
+}
+.stn.primary svg { width: 58%; height: 58%; }
+
+/* the readout — a fixed home for the answer, like the Cadence's and the True
+   Ascents'. Nothing on this plate follows the cursor. */
+.net-readout { border-top: 1px solid #d8ccae; padding-top: 11px; min-height: 132px; }
+.net-ro-name {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(13px, 1.05vw, 17px); letter-spacing: 0.08em;
+    text-transform: uppercase; color: #24401f; line-height: 1.2;
+}
+.net-ro-meta {
+    margin-top: 5px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #9a927c;
+}
+.net-ro-meta b { color: #7d6231; font-weight: 700; }
+.net-ro-note { margin: 6px 0 0; font-size: 0.95em; line-height: 1.5; color: #6f6a58; max-width: 62ch; }
+.net-stats { display: flex; gap: 24px; margin-top: 10px; flex-wrap: wrap; }
+.net-v { font-family: var(--font-display); font-weight: 700; color: #24401f;
+    font-size: clamp(14px, 1.1vw, 19px); line-height: 1; }
+.net-l { margin-top: 4px; font-family: var(--font-display); font-size: 8px;
+    letter-spacing: 0.2em; text-transform: uppercase; color: #9a927c; }
+.net-readout .atlas-door { display: flex; width: auto; margin-top: 12px; }
 
 /* --- The Specimen Drawer (biomes as a naturalist's cabinet) --- */
 /* The cabinet: nine wooden drawer fronts (brass label plate + pull), one per
    kind of country. Pulling a drawer lifts its specimen card onto the display
    shelf beside the cabinet — one at a time, photographs loading on demand. */
-.spec-cabinet-wrap { display: flex; gap: 26px; align-items: center; }
+/* THE MAHOGANY IS GONE. The cabinet was rendered in dark wood — three layered
+   gradients, a plank texture and four inset shadows — which was a convincing
+   object and completely the wrong one: it sat on a cream leaf next to an
+   engraved index and a printed panorama, the single most photorealistic thing
+   on a page that is otherwise entirely paper and brass. The drawer idea is
+   right and stays; only its material changes, to the Atlas's own cream and
+   brass. This is the SKIN pass — the panel's deeper refinement is its own
+   conversation, and Danny has it queued. */
+.spec-cabinet-wrap { display: flex; gap: 30px; align-items: flex-start; }
 .spec-cabinet {
-    flex: 0 0 46%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px;
-    padding: 15px; border-radius: 14px; border: 1px solid #6b5130;
-    background:
-        repeating-linear-gradient(93deg, rgba(60,38,14,0.10) 0 2px, rgba(255,235,200,0.05) 2px 7px, rgba(60,38,14,0.04) 7px 13px),
-        linear-gradient(180deg, #8a6a44 0%, #7a5a34 55%, #6f502e 100%);
-    background-color: #7a5a34;
-    box-shadow: inset 0 3px 10px rgba(30,18,4,0.45), inset 0 -2px 6px rgba(30,18,4,0.28), 0 3px 10px rgba(60,50,30,0.15);
+    flex: 1 1 42%; max-width: 520px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    background: #f3ecd6;
+    border: 1px solid #b6a67e;
 }
+/* outlines, not gaps — see .terr-tile: ten drawers in a three-wide chest
+   leaves two empty cells, and a gap sheet prints them as a hole */
 .spec-front {
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-    padding: 13px 6px 11px; border-radius: 6px; cursor: pointer;
-    border: 1px solid #59421f;
-    background: linear-gradient(180deg, #96754e 0%, #82613a 60%, #775732 100%);
-    box-shadow: 0 2px 5px rgba(30,18,4,0.35), inset 0 1px 0 rgba(255,235,200,0.25);
-    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px;
+    padding: 14px 6px 12px; cursor: pointer;
+    border: none; outline: 1px solid #d8ccae; background: #f3ecd6;
+    transition: background-color 0.2s ease;
     font-family: var(--font-body);
 }
-.spec-front:hover { transform: translateY(-2px); box-shadow: 0 5px 11px rgba(30,18,4,0.4), inset 0 1px 0 rgba(255,235,200,0.25); }
-.spec-front.open {
-    transform: translateY(2px);
-    border-color: var(--bio, #d9c592);
-    box-shadow: inset 0 3px 9px rgba(30,18,4,0.5);
-}
+.spec-front:hover { background: #fffdf6; z-index: 1; }
+/* a blank front — no plate, no pull, no cursor: an empty slot in the chest */
+.spec-blank { cursor: default; background: #efe7d0; }
+.spec-blank:hover { background: #efe7d0; }
+.spec-front.open { background: #fffdf6; box-shadow: inset 0 0 0 2px var(--bio, #9a8f77); z-index: 2; }
+/* the engraved label plate — the same brass the crew book's initial plates wear */
 .spec-front-plate {
-    background: #ecdfb6; border: 1.5px solid #8a7649; border-radius: 3px;
-    box-shadow: inset 0 0 0 2px rgba(138,118,73,0.22);
-    padding: 4px 9px; font-family: var(--font-display); font-size: 0.83em;
-    color: #4c3d1e; text-align: center; line-height: 1.15;
+    background: #e2cf9c; border: 1px solid #8a7649;
+    box-shadow: inset 0 0 0 2px rgba(255, 253, 246, 0.45);
+    padding: 4px 8px; font-family: var(--font-display); font-weight: 700;
+    font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #4c3d1e; text-align: center; line-height: 1.25;
 }
-.spec-front.open .spec-front-plate { background: #f8eecb; }
+.spec-front.open .spec-front-plate { background: #f0e0af; }
 /* the brass pull, a simple half-loop */
-.spec-front-pull { width: 36px; height: 10px; border: 3px solid #5d4a24; border-top: none;
-    border-radius: 0 0 12px 12px; box-shadow: 0 1px 1px rgba(255,235,200,0.3); }
-.spec-display { flex: 1; min-width: 0; display: flex; justify-content: center; }
-/* Each specimen: a paper card with the photograph matted in its biome's hue,
-   a naturalist's count stamp, and an engraved label plate beneath. */
+.spec-front-pull {
+    width: 34px; height: 9px; border: 2.5px solid #9a7b3f; border-top: none;
+    border-radius: 0 0 12px 12px;
+}
+.spec-front.open .spec-front-pull { border-color: #7d6231; }
+.spec-display { flex: 1 1 46%; min-width: 0; }
+/* The specimen: a photograph in a paper mount, the way every photograph in the
+   Atlas is mounted — hairline, no radius, no hover lift. */
 .spec-card {
-    display: block; width: 100%; max-width: 470px;
-    background: #fbf6e9; border-radius: 8px; overflow: hidden;
-    border: 1px solid #d9cba6; box-shadow: 0 6px 16px rgba(30,18,4,0.28);
+    display: block; width: 100%; max-width: 520px;
+    background: #fffdf6; overflow: hidden;
+    border: 1px solid #d8ccae;
     text-decoration: none; color: inherit;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
     animation: spec-lift 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.spec-card:hover { transform: translateY(-4px); box-shadow: 0 12px 26px rgba(30,18,4,0.4); }
-@keyframes spec-lift { from { opacity: 0; transform: translateY(14px); } }
+@keyframes spec-lift { from { opacity: 0; transform: translateY(10px); } }
 .spec-photo { position: relative; aspect-ratio: 22 / 15; border-bottom: 3px solid var(--bio, #9a8f77); background: #e9e0c8; }
 .spec-photo img { width: 100%; height: 100%; object-fit: cover; display: block;
     transition: transform 0.35s ease; }
-.spec-card:hover .spec-photo img { transform: scale(1.04); }
+.spec-card:hover .spec-photo img { transform: scale(1.03); }
 .spec-empty { display: flex; align-items: center; justify-content: center; height: 100%;
     color: var(--gravel); font-style: italic; font-size: 0.85em; }
 .spec-stamp {
-    position: absolute; top: 8px; right: 8px; transform: rotate(6deg);
+    position: absolute; top: 9px; right: 9px; transform: rotate(6deg);
     border: 2px solid rgba(122,59,46,0.85); color: #7a3b2e; background: rgba(251,246,233,0.72);
     border-radius: 50%; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
     font-family: var(--font-display); font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
 }
-.spec-plate { padding: 10px 12px 12px; text-align: center; }
-.spec-name { font-family: var(--font-display); font-size: 1.12em; color: var(--evergreen); letter-spacing: 0.02em; }
-.spec-meta { margin-top: 3px; font-size: 0.78em; color: var(--stone); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.spec-meta2 { margin-top: 1px; font-size: 0.74em; font-style: italic; color: var(--gravel); }
-.bio-caption { text-align: center; margin-top: 18px; font-size: 0.95em; color: var(--gravel); line-height: 1.5; }
-.bio-caption b { color: var(--evergreen); font-weight: 700; }
-@media (max-width: 720px) { .spec-cabinet-wrap { flex-direction: column; } .spec-cabinet { flex: none; width: 100%; box-sizing: border-box; } }
-
-/* --- Shared Observatory tooltip --- */
-#obs-tip {
-    position: fixed; z-index: 60; pointer-events: none;
-    background: var(--evergreen); color: #fff;
-    padding: 8px 11px; border-radius: 8px; font-size: 0.84em; line-height: 1.4;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.28); max-width: 240px;
-    opacity: 0; transform: translateY(4px); transition: opacity 0.12s ease, transform 0.12s ease;
+.spec-plate { padding: 11px 14px 13px; }
+.spec-name {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(12px, 0.95vw, 15px); letter-spacing: 0.09em;
+    text-transform: uppercase; color: #24401f;
 }
-#obs-tip.show { opacity: 1; transform: none; }
-#obs-tip .tt-title { font-weight: 700; }
-#obs-tip .tt-sub { color: #c7d3cb; font-size: 0.92em; }
+.spec-meta {
+    margin-top: 4px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #6f6a58;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.spec-meta2 {
+    margin-top: 3px; font-family: var(--font-display); font-size: 8.5px;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #9a927c;
+}
+.bio-caption { margin-top: 18px; font-size: 1em; color: #6f6a58; line-height: 1.55; max-width: 62ch; }
+.bio-caption b { color: #2f5c40; font-weight: 700; }
+@media (max-width: 900px) {
+    .spec-cabinet-wrap { flex-direction: column; }
+    .spec-cabinet { flex: none; width: 100%; max-width: none; box-sizing: border-box; }
+}
+
+/* The shared Observatory tooltip lived here. It is gone (August 2026) — every
+   panel answers on the left leaf, or in a fixed readout of its own. Nothing on
+   this page follows the cursor any more. */
 
 @media (max-width: 720px) {
     .obs-title { font-size: 2.4em; }
-    .obs-profile { font-size: 1.2em; }
-    .terr-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }

@@ -591,7 +591,37 @@ fills it in without a jolt (C1–C3 cover that case).
 
 ---
 
-# TASK D — The home page joins the rest of the Atlas
+# TASK D — ✅ **DONE, 1 August.** The home page joins the rest of the Atlas
+
+Shipped as **THE KEY MAP** — the plan of record for the build is
+[docs/HOME_KEY_MAP_BUILD.md](HOME_KEY_MAP_BUILD.md), and
+`mockups/home-d-key-map.html` is the spec it was built from. All seven stages
+landed. What the finished page is, and the four things it decided differently
+from the brief below:
+
+* **The page is a VOLUME LYING OPEN.** Left leaf a live satellite detail plate
+  that never roams, right leaf the four plates of front matter. Everything on
+  the right cross-lights the left: a milestone, a dot in the Effort Field, a
+  territory, a ridge, a month of the Cadence, a specimen drawer, a crown, an
+  expedition, a companion. One law, nine places.
+* **The continental key map was DEMOTED to a printed index diagram.** Built as
+  designed, it repeated what the film had just spent fifteen seconds showing.
+  A schematic silhouette and a photographic flyover cannot compete; two live
+  maps of the same country could not stop competing. It also cost 27 tile
+  requests and both full-screen blend layers, and now costs one 8 KB asset.
+* **Nothing on the page follows the cursor any more.** `#obs-tip` and the
+  Threads hover card are both gone; every panel answers on the leaf or in a
+  fixed readout of its own.
+* **The four crowns resolve to three trails, and the brief's fix was wrong.**
+  Letting a crowned trail "step aside for the next best" prints a false record.
+  A trail holding two records wears both, and the board fills back to four from
+  a reserve. See `buildRecords()` in records.js.
+
+R4 is asserted at 1280 / 1600 / 1920 / 2560 / 3440 / 3840.
+
+---
+
+## The original brief follows.
 
 **Danny's report, and he is exactly right:** the hike, trip and crew pages feel like one
 cohesive design language; the home page after the film "feels like elements just splashed on
@@ -817,7 +847,15 @@ is a headless screenshot sweep at **1280 / 1600 / 1920 / 2560 / 3440 / 3840**, c
 element exceeds its box and no horizontal scrollbar appears. Reuse the harness at the bottom
 of this file.
 
-## D3 — The Triangulation Network lands here
+## D3 — ✅ **DONE.** The Triangulation Network lands here
+
+Built as the sixth Observatory panel, paired with the Cadence under R3 (Danny's
+call, 1 August). Hovering a station lights its baselines, fills the panel's
+fixed readout, and frames every hike shared with that person on the leaf;
+clicking opens their Service Record. One thing the mockup did not have to
+solve: plain initials do not name one person here — Rachel G./Robby G. and
+Luke R./Lisa R. gave two pairs of identical disks — so a colliding group takes
+another letter of the first name (RaG/RoG, LuR/LiR).
 
 This is the one piece of the crew arc still owed. The plan of record already says it belongs
 in the Observatory, because that section is the Atlas's data room. Build it as a sixth
@@ -872,9 +910,12 @@ is absorbed into Task D, not done here.
    independently verifiable.
 2. **Tasks B and C — the almanac.** Both live on the hike page and can share a session. B is
    a correctness bug on six records; C is a polish bug on all of them.
-3. **Task D — the home page.** The big one, and the centrepiece. It absorbs the wide-screen
-   work and the owed Triangulation Network.
-4. **Task E — crew refinement.** Needs Danny's list, so it goes where the answer arrives.
+3. **Task D — the home page.** ✅ Done, 1 August. The big one, and the centrepiece. It
+   absorbed the wide-screen work and the owed Triangulation Network.
+4. **Task E — crew refinement.** The only task left in this arc. Needs Danny's list, so it
+   goes where the answer arrives. Two refinements of Task D's own panels are queued with
+   it by his choice: **Territories** and **The Specimen Drawer** were re-skinned into the
+   volume but not rethought as features, and he has saved notes on **Plate I**.
 5. **Then the standing roadmap resumes:** Park Badges → Gear bones → Geography deep-dive →
    The Sweep. Deferred by choice: the Voice (`notes`, The Overlook) and the mobile pass.
 

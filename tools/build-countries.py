@@ -30,6 +30,10 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HIKES = os.path.join(ROOT, 'data', 'hikes.json')
 OUT = os.path.join(ROOT, 'assets', 'countries.json')
+# The home page's index diagram — every walked country in ONE shared frame.
+# Its own file rather than a key inside countries.json, because countries.json
+# has a consumer (the Observatory's Territories) whose contract shouldn't move.
+FRAME_OUT = os.path.join(ROOT, 'assets', 'atlas-frame.json')
 
 # Plain GeoJSON (not TopoJSON) so this stays stdlib-only — one feature per
 # country, with a readable `name` in its properties.
@@ -147,25 +151,100 @@ def build(name, feature):
     }
 
 
+def build_frame(features):
+    """
+    THE ATLAS FRAME — the home page's index diagram.
+
+    Every silhouette above is normalised into its own box, which is right for a
+    Territories tile (each country drawn at its own best size) and useless for a
+    locator, where Canada and the United States must sit in ONE frame at ONE
+    scale or a dot cannot be placed on them.
+
+    So this projects every walked country through a SINGLE Lambert azimuthal
+    equal-area centred on the middle of all of them together, and — the part
+    that makes it a locator rather than a picture — writes the projection's own
+    parameters out alongside the paths. scripts/keymap.js replays exactly this
+    maths on a hike's latitude/longitude to plant its dot. Without `proj` the
+    silhouette would be a shape nobody could point at.
+
+    Islets are dropped much harder here than in a tile (2.2% of the box against
+    0.35%). A tile silhouette is printed a few hundred pixels wide; this one is
+    about a hundred, and at that size an Aleutian island or a Hawaiian one is a
+    single speck of grit floating in the ocean, which reads as a printing fault
+    rather than as land. Vancouver Island and Newfoundland clear the bar and
+    survive.
+    """
+    rings = [r for f in features for r in rings_of(f['geometry'])]
+    lons = [c[0] for r in rings for c in r]
+    lats = [c[1] for r in rings for c in r]
+    lon0 = (min(lons) + max(lons)) / 2.0
+    lat0 = (min(lats) + max(lats)) / 2.0
+
+    projected = []
+    for r in rings:
+        pts = [laea(c[0], c[1], lon0, lat0) for c in r]
+        pts = [p for p in pts if p]
+        if len(pts) >= 3:
+            projected.append(pts)
+
+    xs = [p[0] for r in projected for p in r]
+    ys = [p[1] for r in projected for p in r]
+    w, h = max(xs) - min(xs), max(ys) - min(ys)
+    scale = VIEW / max(w, h, 1e-9)
+    ox, oy = min(xs), max(ys)            # y flips: SVG counts downward
+
+    d, kept, pts_out = '', 0, 0
+    for r in projected:
+        rw = (max(p[0] for p in r) - min(p[0] for p in r)) * scale
+        rh = (max(p[1] for p in r) - min(p[1] for p in r)) * scale
+        if max(rw, rh) < VIEW * 0.022:
+            continue
+        norm = [((p[0] - ox) * scale, (oy - p[1]) * scale) for p in r]
+        norm = simplify(norm, TOLERANCE)
+        if len(norm) < 3:
+            continue
+        kept += 1
+        pts_out += len(norm)
+        for i, (x, y) in enumerate(norm):
+            d += ('M' if i == 0 else 'L') + f'{x:.2f},{y:.2f} '
+        d += 'Z '
+
+    print(f'  atlas frame: {len(projected)} rings -> {kept} kept, {pts_out} points')
+    return {
+        'countries': sorted(f['properties'].get('name') for f in features),
+        'viewBox': f'0 0 {VIEW * (w / max(w, h)):.2f} {VIEW * (h / max(w, h)):.2f}',
+        'd': d.strip(),
+        # everything scripts/keymap.js needs to place a dot:
+        #   (x, y) = laea(lon, lat, lon0, lat0) -> ((x-ox)*scale, (oy-y)*scale)
+        'proj': {'lon0': round(lon0, 6), 'lat0': round(lat0, 6),
+                 'scale': round(scale, 6), 'ox': round(ox, 9), 'oy': round(oy, 9)},
+    }
+
+
 def main():
     force = '--force' in sys.argv
     hikes = json.load(open(HIKES))
-    wanted = sorted({h.get('country') or 'United States' for h in hikes})
+    walked = sorted({h.get('country') or 'United States' for h in hikes})
     # The US is drawn state by state from assets/blank-us-map.svg — it never
-    # needs a whole-country silhouette, and shipping one would be dead weight.
-    wanted = [c for c in wanted if c != 'United States']
+    # needs a whole-country TILE silhouette, and shipping one would be dead
+    # weight. It does belong in the atlas frame below, which is a locator: a
+    # dot in California has to land on something.
+    wanted = [c for c in walked if c != 'United States']
 
     existing = {}
     if os.path.exists(OUT) and not force:
         existing = json.load(open(OUT))
 
     missing = [c for c in wanted if c not in existing]
-    if not missing:
-        print(f'Every country already has a silhouette ({", ".join(wanted) or "none needed"}). '
-              'Use --force to rebuild.')
+    need_frame = force or not os.path.exists(FRAME_OUT)
+    if not missing and not need_frame:
+        print(f'Every country already has a silhouette ({", ".join(wanted) or "none needed"}), '
+              'and the atlas frame is built. Use --force to rebuild.')
         return
 
-    print(f'Fetching world outlines for: {", ".join(missing)}')
+    todo = ', '.join(missing) if missing else '(silhouettes up to date)'
+    print(f'Fetching world outlines for: {todo}'
+          + (f' + the atlas frame ({", ".join(walked)})' if need_frame else ''))
     world = fetch(SOURCE)
     if not world:
         print('! could not fetch country geometry — nothing written')
@@ -189,6 +268,19 @@ def main():
         f.write('\n')
     size = os.path.getsize(OUT)
     print(f'\nWrote {OUT} — {len(out)} countr{"y" if len(out) == 1 else "ies"}, {size / 1024:.1f} KB')
+
+    if need_frame:
+        feats = [by_name.get(ALIASES.get(c, c)) for c in walked]
+        feats = [f for f in feats if f]
+        if not feats:
+            print('! no geometry for the atlas frame — not written')
+            return
+        frame = build_frame(feats)
+        with open(FRAME_OUT, 'w') as f:
+            json.dump(frame, f, indent=1, sort_keys=True)
+            f.write('\n')
+        print(f'Wrote {FRAME_OUT} — {", ".join(frame["countries"])}, '
+              f'{os.path.getsize(FRAME_OUT) / 1024:.1f} KB')
 
 
 if __name__ == '__main__':

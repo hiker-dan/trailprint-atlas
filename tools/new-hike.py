@@ -65,6 +65,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 INTAKE_DIR = os.path.join(REPO_ROOT, "intake")
 HIKES_PATH = os.path.join(REPO_ROOT, "data", "hikes.json")
 TRAILS_DIR = os.path.join(REPO_ROOT, "data", "trails")
+CONFIG_PATH = os.path.join(REPO_ROOT, "scripts", "config.js")
 CREDS_PATH = os.path.join(REPO_ROOT, "tools", "cloudinary-credentials.json")
 CLOUD_NAME = "dgdniwosl"
 
@@ -135,6 +136,59 @@ def yes_no(prompt, default_no=True):
     if raw == "":
         return not default_no
     return raw in ("y", "yes")
+
+
+# ----------------------------------------------------------------------------
+# The trip star — scripts/config.js's TRIP_STARS map
+# ----------------------------------------------------------------------------
+# This is the only place the wizard touches a source file rather than data, and
+# it is worth it: TRIP_STARS is hand-picked by definition, so the only way it
+# stays complete is if the picking happens at the moment a trip is created.
+# Both helpers work on the file as TEXT, the same principle as the hikes.json
+# splice — config.js is code, and re-serialising it would reformat far more
+# than the one line being added.
+
+def tripname(tag):
+    """Mirrors tripName() in config.js: the tag without its trailing month."""
+    at = tag.rfind(" - ")
+    return tag[:at] if at > 0 else tag
+
+
+def existing_trip_star(tag):
+    """The public ID already registered for this trip, or None."""
+    try:
+        text = open(CONFIG_PATH, encoding="utf-8").read()
+    except OSError:
+        return None
+    m = re.search(r"TRIP_STARS:\s*\{(.*?)\n\s*\}", text, re.S)
+    if not m:
+        return None
+    for line in m.group(1).splitlines():
+        hit = re.match(r"\s*'([^']+)':\s*'([^']+)'", line)
+        if hit and hit.group(1) == tag:
+            return hit.group(2)
+    return None
+
+
+def add_trip_star(tag, public_id):
+    """Insert one entry at the TOP of TRIP_STARS (the list runs newest-first,
+    like hikes.json), on the column the block already aligns its values to."""
+    text = open(CONFIG_PATH, encoding="utf-8").read()
+    block = re.search(r"(TRIP_STARS:\s*\{\n)(.*?)(\n[ \t]*\})", text, re.S)
+    if not block:
+        raise RuntimeError("couldn't find TRIP_STARS in config.js")
+
+    rows = [ln for ln in block.group(2).splitlines() if "':" in ln]
+    indent = re.match(r"[ \t]*", rows[0]).group(0) if rows else "        "
+    # where the existing entries start their VALUE — measured, not guessed from
+    # key lengths, so a tag longer than every current one simply takes one space
+    col = max((ln.index("'", ln.index("':") + 2) for ln in rows), default=0)
+    key = f"{indent}'{tag}':"
+    line = key + " " * max(1, col - len(key)) + f"'{public_id}',\n"
+
+    new_text = text[:block.end(1)] + line + text[block.end(1):]
+    with open(CONFIG_PATH, "w", encoding="utf-8") as fh:
+        fh.write(new_text)
 
 
 # ----------------------------------------------------------------------------
@@ -735,6 +789,24 @@ def run_wizard(hikes, gpxs, photos):
     slug = kebab(trail_name)
     photo_plan = [(f, f"{trail_id}-{slug}-{i:02d}") for i, f in enumerate(photos, 1)]
 
+    # --- The trip star -------------------------------------------------------
+    # A trip's opening frame is the grandest surface in the Atlas: the trip
+    # page's full-bleed frontispiece, and the expedition podium's mount. It is
+    # hand-picked and never derived, because a guessed frame put a selfie or a
+    # car park there. The one way that promise fails is by being FORGOTTEN, so
+    # the wizard asks here — while the photographs are in front of you — and
+    # only when the trip does not already have one. Answer once per trip, ever.
+    trip_star = None
+    if trip_tag and photo_plan and not existing_trip_star(trip_tag):
+        print(f'\n  This trip has no opening frame yet. The trip star is the first thing')
+        print(f'  anyone sees of "{tripname(trip_tag)}" — full-bleed on its chapter page.')
+        names = [f for f, _ in photo_plan]
+        if yes_no("Pick the trip star from this hike's photos?", default_no=False):
+            chosen = pick("Which photo?", names)
+            trip_star = dict(photo_plan)[chosen]
+        else:
+            print("  (skipped — the next hike on this trip will ask again)")
+
     record = {
         "trail_id": trail_id,
         "trail_name": trail_name,
@@ -765,7 +837,8 @@ def run_wizard(hikes, gpxs, photos):
         "images": [pid for _, pid in photo_plan],
         "videos": videos,
     }
-    plan = {"gpx_source": gpx_source, "photo_plan": photo_plan}
+    plan = {"gpx_source": gpx_source, "photo_plan": photo_plan,
+            "trip_star": (trip_tag, trip_star) if trip_star else None}
     return record, plan
 
 
@@ -846,6 +919,18 @@ def execute(record, plan, creds):
     write_hikes_json(record)
     checklist.append((f"{record['trail_id']} written to data/hikes.json (backup: hikes.json.bak)", True))
 
+    # 3b. Register the trip star, if this run picked one. After the record, so
+    # a config.js edit can never be left behind by a run that failed earlier;
+    # and re-checked here, because a resumed run may have written it already.
+    if plan.get("trip_star"):
+        tag, public_id = plan["trip_star"]
+        if existing_trip_star(tag):
+            checklist.append((f'trip star for "{tripname(tag)}" already registered', True))
+        else:
+            add_trip_star(tag, public_id)
+            checklist.append((f'trip star for "{tripname(tag)}" -> {public_id} '
+                              "(scripts/config.js)", True))
+
     # 4. Rebuild the map bundle.
     if plan["gpx_source"]:
         result = subprocess.run(
@@ -905,6 +990,9 @@ def main():
     for f, pid in plan["photo_plan"]:
         print(f"  upload {f} -> Cloudinary as {pid}")
     print(f"  insert {record['trail_id']} at the top of data/hikes.json")
+    if plan.get("trip_star"):
+        tag, pid = plan["trip_star"]
+        print(f'  register {pid} as the trip star for "{tripname(tag)}" (scripts/config.js)')
     if plan["gpx_source"]:
         print("  rebuild data/trails.geojson")
     print("  (description / flora / fauna stay empty — Claude drafts them with you)")

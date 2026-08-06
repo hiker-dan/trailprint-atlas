@@ -16,3 +16,13 @@ tools/cloudinary-credentials.json
 # thing git is worst at. tools/render-intro.py builds its own venv here too.
 renders/
 tools/.render-venv/
+
+# Claude Code state. GOLDEN RULE: nothing specific to this machine is ever
+# published to the public repo. So this is DEFAULT-DENY — everything inside
+# .claude/ is ignored, and anything a future plugin or hook drops in there is
+# ignored automatically rather than having to be spotted first.
+# settings.local.json alone is ~82 KB of permission rules full of absolute
+# /Users/ paths. The one exception is .claude/skills/, which is project
+# knowledge in the same category as CLAUDE.md and belongs in the repo.
+.claude/*
+!.claude/skills/

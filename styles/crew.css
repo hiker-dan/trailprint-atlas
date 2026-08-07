@@ -30,8 +30,14 @@
     --card:   #fffdf6;
     --rule:   #d8ccae;
     --bk-ink: #24401f;
-    --bk-sub: #6f6a58;
-    --muted:  #9a927c;
+    /* The two quiet inks, measured against the DARKEST end of the leaf's own
+       gradient rather than its middle — a gradient has no single background to
+       test against, so the worst point sets the bar. They were #6f6a58 (3.8:1)
+       and #9a927c (2.2:1); at 2.2:1 the outing dates were not restraint, they
+       were unreadable, and there are 203 of them. Engraved still reads as
+       engraved: this is the quiet ink, not an invisible one. */
+    --bk-sub: #5c5647;                      /* 3.8:1 -> 5.1:1 */
+    --muted:  #625b4b;                      /* 2.2:1 -> 4.6:1 */
     --margin: #b4645c;                      /* the ledger's red margin rule */
     --ruled:  rgba(140, 160, 190, 0.34);    /* the blue-grey lines of the page */
     /* Fixed columns, fluid track: every pixel of slack in the window goes to
@@ -146,9 +152,9 @@ body {
 .snap .blank {
     display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 1;
     background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%);
-    font-family: var(--font-display); font-weight: 700; font-size: 15px; color: #7d6231;
+    font-family: var(--font-display); font-weight: 700; font-size: 15px; color: #4a3a1c;
 }
-.snap .who { font-size: 7.5px; text-align: center; color: var(--bk-sub); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.snap .who { font-size: 10px; text-align: center; color: var(--bk-sub); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* the key follows the photographs rather than being pinned to the foot: on a
    tall window a pinned key opened a hole through the middle of the cover.
@@ -199,16 +205,16 @@ body {
 .hd { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
 .hd.r { text-align: right; }
 .yr { position: absolute; bottom: 5px; transform: translateX(-50%); font-family: var(--font-display);
-    font-weight: 700; font-size: 11.5px; letter-spacing: 0.15em; color: #a89769; }
+    font-weight: 700; font-size: 11.5px; letter-spacing: 0.15em; color: #6b5a2a; }
 .yrn { position: absolute; top: 2px; transform: translateX(-50%); font-size: 9px; color: var(--muted); white-space: nowrap; }
 
-.no { font-family: var(--font-display); font-size: 9.5px; color: var(--muted); text-align: right; align-self: center; letter-spacing: 0.06em; }
+.no { font-family: var(--font-display); font-size: 10.5px; color: var(--muted); text-align: right; align-self: center; letter-spacing: 0.06em; }
 
 .who { display: flex; align-items: center; gap: 8px; min-width: 0; height: var(--row); }
 .face { flex: none; width: 21px; height: 21px; border-radius: 50%; object-fit: cover;
     border: 1px solid #c2a25c; box-shadow: 0 1px 3px rgba(60, 45, 20, 0.3); background: #ded0a6; }
 .face.blank { display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-display); font-weight: 700; font-size: 8px; color: #7d6231;
+    font-family: var(--font-display); font-weight: 700; font-size: 8px; color: #4a3a1c;
     background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%); }
 /* the signature: a name in a book leans. The core crew sign it heavier. */
 .sig { font-size: clamp(16px, 1.05vw, 22px); font-style: italic; color: #2f4a63;
@@ -235,7 +241,7 @@ body {
 .tick.solo { background: none !important; border: 1.4px solid #a89769; box-shadow: none;
     width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; }
 
-.lane-stats { display: flex; align-items: center; justify-content: flex-end; gap: 11px; height: var(--row); }
+.lane-stats { position: relative; display: flex; align-items: center; justify-content: flex-end; gap: 11px; height: var(--row); }
 .lane-stats .n { font-family: var(--font-display); font-weight: 700; font-size: 15px; }
 .lane-stats .m { font-size: 11px; color: var(--bk-sub); white-space: nowrap; min-width: 76px; text-align: right; }
 
@@ -265,17 +271,138 @@ body {
 .roll.reading .lane.self .tick { opacity: 1; transform: scale(1.3); }
 .roll.reading .tick.shared { opacity: 1; box-shadow: 0 0 0 2.5px rgba(47, 92, 64, 0.5); }
 .roll.reading .lane.kin .kn { opacity: 1; }
+/* The count sits in the MARGIN, not on the ink. It used to be the last 73px of
+   the track — which is the back half of 2026 — behind a 0.9-alpha parchment
+   fill, so it covered 7 of Colm D.'s marks and 6 of those were the very ones it
+   was counting. It also had to paint over the span line, and a 90%-opaque box
+   laid across a hairline reads as a CUT rather than a cover; how hard that cut
+   looks then depends on how each browser composites the edge, which is why it
+   read as a soft fade in Gecko and a bifurcated trail in Blink. Moving it off
+   the data removes the overlay entirely, so there is nothing left to composite
+   and both browsers agree.
+
+   The stats column is the tightest on the page (it clamps to 118px), so nothing
+   can be ADDED to it — only swapped in. While a cross-read is live the ground
+   figure steps aside and the count takes its place: the count is the answer you
+   asked for, and the mileage is not what you are reading. */
 .kn {
     position: absolute; right: 0; top: 50%; transform: translateY(-50%);
-    font-family: var(--font-display); font-weight: 700; font-size: 10px; letter-spacing: 0.08em;
+    font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: 0.08em;
     color: #2f5c40; opacity: 0; transition: opacity 0.15s ease; pointer-events: none;
-    background: rgba(248, 242, 226, 0.9); padding: 1px 4px; border-radius: 2px;
+    white-space: nowrap;
 }
+.roll.reading .lane.kin .lane-stats .m,
+.roll.reading .lane.self .lane-stats .m { opacity: 0; }
 
 /* the drawer: a line opens onto the outings it stands for, and onto the door
-   into that person's own leaf of the book */
-.drawer { grid-column: 2 / 6; max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
-.lane.open .drawer { max-height: 620px; }
+   into that person's own leaf of the book.
+
+   Two things are load-bearing here. The height is animated through
+   grid-template-rows rather than max-height, which needs the single .dwr-in
+   wrapper (only ONE child can occupy a 0fr row) — max-height also meant every
+   drawer carried a hardcoded 620px ceiling that had to be larger than the
+   tallest companion's list and was therefore a silent clipping risk.
+
+   And visibility: hidden is what keeps a closed drawer OUT OF THE TAB ORDER.
+   Clipping with overflow only hides it from the eye: 257 of this page's 279
+   focusable elements sat inside closed drawers, so a keyboard visitor tabbed
+   through 257 invisible links before reaching the footer. */
+.drawer {
+    grid-column: 2 / 6; display: grid; grid-template-rows: 0fr;
+    overflow: hidden; visibility: hidden;
+    transition: grid-template-rows 0.3s ease, visibility 0s linear 0.3s;
+}
+.dwr-in { min-height: 0; overflow: hidden; }
+.lane.open .drawer {
+    grid-template-rows: 1fr; visibility: visible;
+    transition: grid-template-rows 0.3s ease, visibility 0s;
+}
+
+/* A ledger says when a line opens, and it says it with a printer's mark in the
+   entry-number margin rather than a UI chevron. Before this the only signal
+   that a lane could be opened at all was the cursor — and the cover's own
+   instruction line explains hovering and never mentions clicking. */
+/* The mark lives INSIDE the number column. Hung to its left it sat 11px
+   outside the roll, and #crew-roll is overflow-y: auto — which the spec
+   promotes to overflow-x: auto as well — so it was clipped away entirely and
+   painted nothing. The column is 22px with the figure right-aligned, which
+   leaves the left of it empty and is exactly where a printer's mark belongs. */
+.no { position: relative; }
+/* The arrowhead is cut from a solid box rather than built from borders. The
+   old way — a zero-sized element with one solid border and two transparent
+   ones — is the classic CSS triangle hack, and it reads to both a linter and a
+   human as a thick accent border on one side of a card, which is the opposite
+   of what it is. clip-path says what it means: this shape is a triangle. */
+.turn {
+    position: absolute; left: 1px; top: 50%; width: 5px; height: 7px;
+    margin-top: -3.5px; opacity: 0.4;
+    background: var(--muted);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    transform-origin: center;
+    transition: transform 0.18s ease, opacity 0.18s ease;
+}
+.lane.body:hover .turn, .lane.body:focus-visible .turn { opacity: 0.9; }
+.lane.body.open .turn { transform: rotate(90deg); opacity: 1; }
+
+/* crew.css declared exactly one focus style site-wide (.snap), and the lanes
+   could not be focused at all. */
+.lane.body:focus-visible {
+    outline: 2px solid #2f5c40; outline-offset: -2px;
+    background: rgba(255, 253, 246, 0.55);
+}
+.order button:focus-visible,
+.dwr > a:focus-visible,
+.dwr-trips a:focus-visible { outline: 2px solid #2f5c40; outline-offset: 2px; border-radius: 2px; }
+
+/* Colliding marks step up a tier so the printed count can be counted. Scoped
+   to .crew-roll on purpose: the Service Record's enlarged lane does its own
+   stacking through the same --r custom property but positions from the
+   BASELINE (bottom), and letting this transform reach it would apply the
+   offset twice. */
+.crew-roll .tick { transform: translateY(calc(var(--r, 0) * -6px)); }
+.crew-roll .roll.reading .lane.self .tick {
+    transform: translateY(calc(var(--r, 0) * -6px)) scale(1.3);
+}
+/* the doubled mark: a cluster too dense to separate is rung, so it reads as a
+   tally of several outings rather than as one */
+.crew-roll .tick.fused {
+    box-shadow: 0 0 0 2px rgba(90, 72, 36, 0.34), 0 1px 2px rgba(60, 45, 20, 0.3);
+}
+
+/* the year labels now carry the key, so they are set a little stronger */
+.lane.head .track > .yr { font-size: 12px; font-weight: 700; }
+
+/* the register's own marginalia, when it is read out of signature order */
+.ooo {
+    font-size: 11px; font-style: italic; color: var(--bk-sub);
+    padding: 7px 2px 8px; border-bottom: 1px solid var(--rule);
+}
+
+/* a viewpoint is named, never measured at zero */
+.vp {
+    font-family: var(--font-display); font-size: 10.5px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+}
+
+/* The shared outings, named. While a cross-read is live, the entries in an
+   open drawer that BOTH people walked wear the ledger's own margin rule.
+   "12 together" says how many; this says which. */
+.dwr a.shared-row { position: relative; }
+.dwr a.shared-row::before {
+    content: ''; position: absolute; left: -7px; top: 3px; bottom: 3px;
+    width: 2px; background: #2f5c40; border-radius: 1px;
+}
+.dwr a.shared-row .t { color: var(--bk-ink); font-weight: 700; }
+
+/* spoken-only: the cross-read has no other channel to assistive tech */
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .drawer, .turn { transition: none; }
+}
 .dwr-note {
     font-size: 12.5px; color: var(--bk-sub); font-style: italic;
     padding: 9px 0 8px; border-bottom: 1px dashed var(--rule); margin-bottom: 6px;
@@ -285,7 +412,7 @@ body {
 .dwr a { display: flex; gap: 9px; align-items: baseline; text-decoration: none; color: var(--bk-sub); font-size: 12px; padding: 2.5px 0; break-inside: avoid; }
 .dwr a:hover { color: var(--bk-ink); }
 .dwr .dt { width: 6px; height: 6px; border-radius: 50%; flex: none; align-self: center; }
-.dwr .d { font-size: 10.5px; color: var(--muted); min-width: 72px; }
+.dwr .d { font-size: 11.5px; color: var(--muted); min-width: 76px; }
 .dwr .t { flex: 1; }
 .dwr-trips { padding: 0 0 12px; font-size: 12px; color: var(--bk-sub); }
 .dwr-trips b { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
@@ -310,7 +437,7 @@ body {
 .plate-photo .blank {
     display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4 / 3;
     background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%);
-    font-family: var(--font-display); font-weight: 700; font-size: 44px; color: #7d6231; letter-spacing: 0.06em;
+    font-family: var(--font-display); font-weight: 700; font-size: 44px; color: #4a3a1c; letter-spacing: 0.06em;
 }
 .plate-photo .cap { position: absolute; left: 9px; right: 9px; bottom: 4px; display: flex; justify-content: space-between;
     font-family: var(--font-display); font-size: 7px; letter-spacing: 0.2em; color: var(--muted); }
@@ -341,7 +468,7 @@ body {
 .big-lane { position: relative; height: var(--lane-h, 54px); }
 .big-lane .gl { top: 0; bottom: 16px; }
 .big-lane .yr { position: absolute; bottom: 0; transform: translateX(-50%); font-family: var(--font-display);
-    font-weight: 700; font-size: 9.5px; letter-spacing: 0.14em; color: #a89769; }
+    font-weight: 700; font-size: 9.5px; letter-spacing: 0.14em; color: #6b5a2a; }
 .big-lane .span { top: auto; bottom: 26px; margin-top: 0; }
 .big-lane .tick {
     top: auto; bottom: calc(26px + var(--r, 0) * 12px);

@@ -26,3 +26,10 @@ tools/.render-venv/
 # knowledge in the same category as CLAUDE.md and belongs in the repo.
 .claude/*
 !.claude/skills/
+
+# Impeccable's design hook writes a per-session cache here, and it contains
+# absolute /Users/ paths. The plugin excludes it via .git/info/exclude, which
+# is LOCAL to this clone and would not survive re-cloning the repo — so the
+# same rule is repeated here, where it is tracked. Same golden rule as above:
+# nothing specific to this machine reaches the public repo.
+.impeccable/

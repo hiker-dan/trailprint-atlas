@@ -237,10 +237,61 @@ This item also absorbs two things that would otherwise be separate errands:
 - **The Triangulation Network** (below), which is the one piece of the crew arc still
   owed and which belongs in the Observatory.
 
-### E. Trail Crew refinement  *(needs Danny's list)*
-Danny wants to refine the Muster Roll and the Service Record but hasn't said what.
-Ask for the list when this comes up. The one refinement already known is the
-Triangulation Network, and that is done inside D.
+### E. Trail Crew refinement  *(the list exists now — 6 Aug 2026)*
+Danny wanted to refine the Muster Roll and the Service Record but hadn't said what,
+which blocked this item for weeks. The list now exists: a two-assessment design
+review of `crew.html`, run with the Atlas's own brief supplied, produced a measured
+set of findings and a working A/B mockup (`mockups/crew-full-impeccable.*`, local).
+The confirmed items are the lane click reporting back, the cross-read naming *which*
+outings are shared rather than only counting them, the year key moving onto the axis
+it decodes, colliding marks so the printed count is countable, the viewpoint-only
+companion no longer printing `0 mi · 0.0k ft`, keyboard reach into the register, and
+frozen entry numbers under the Outings sort. The Triangulation Network was the one
+refinement already known and was done inside D.
+
+**Still owed inside E, in order:**
+
+1. **`crew-member.html` has not been reviewed at all.** The pass was scoped to
+   `crew.html`; the Service Record received only the shared-stylesheet contrast fixes
+   as spillover. It needs the identical treatment — its own isolated sandbox, its own
+   two assessments, its own A/B — and it is the harder page: live Leaflet plates, the
+   enlarged lane with its own mark stacking, the 75km clustering, the loose sheet.
+2. **Motion, Danny's note 7 Aug 2026.** Two things read as mechanical on a site whose
+   whole subject is walking outdoors:
+   - The scroll that brings an opened drawer into view is an instant jump
+     (`scrollTop +=`, no easing). It should ease out. Careful: the Threads ledger has
+     to cancel in-flight smooth scrolls before measuring or the before/after
+     measurements describe different pages — the same trap applies here.
+   - **The page turn "feels weak and ugly" in execution.** The concept stays; the
+     execution needs real work. Note that `crew-book.js` documents its easing as
+     load-bearing (a page is steeply foreshortened for most of its arc, so both curves
+     spend their time where the page can be seen) — that is the theory, and the theory
+     is not landing. Treat as redesign scope, not as a bug.
+
+### F. Cross-browser parity  *(found 6 Aug 2026, in use)*
+**The whole Atlas has only ever been checked in one engine.** Danny develops in Zen
+(Gecko) and the headless harness drives Chrome (Blink), and the two have now visibly
+disagreed: on `crew.html` in Chrome he had no scroll and the shell did not follow a
+window resize, while the same page in Zen behaved. Not yet reproduced from the
+harness — a maximized Chrome window cannot be resized over CDP — so the first job is
+to reproduce it by hand at a stated window size.
+
+What the audit already shows, and what makes this systemic rather than one page:
+
+- **Eight of nine stylesheets build a fixed-viewport shell** (`100vh` and/or
+  `position: fixed` + `overflow: hidden`): credits, crew, echoes, hike, home, keymap,
+  map, trip. In that pattern the page never scrolls as a whole, so anything that does
+  not fit must live inside an internal scroller, and reaching it depends on where the
+  cursor is. Browsers differ on exactly that: scroll chaining and overlay-scrollbar
+  visibility are not the same in Gecko and Blink.
+- **Nothing uses `dvh`/`svh`/`lvh`** — every shell is the older `100vh`.
+- **No shell declares a `min-height`**, so there is no floor at which a short window
+  stops clipping and starts scrolling.
+
+Deliverable: reproduce, decide the shell contract (page-scroll fallback below a
+stated height, or an explicit internal scroller with a visible affordance), apply it
+once across all eight, then a parity sweep of every page in Chrome, Firefox and
+Safari. Desktop only — the mobile pass stays deferred.
 
 ---
 

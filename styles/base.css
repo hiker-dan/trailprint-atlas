@@ -150,12 +150,37 @@ nav#top-bar-container a:hover {
 .atlas-door:hover .ad-chev { transform: translateX(3px); }
 .atlas-door.is-return:hover .ad-chev { transform: translateX(-3px); }
 
-/* the large variant: the map sheet's full-width door, with a second line */
+/* the large variant: the map sheet's full-width door, with a second line.
+
+   It used to wear a four-pixel brass edge down one side against three
+   hairlines. That is the side-tab accent, which is among the most recognisable
+   tells of a machine-made interface, and it was doing the job badly twice
+   over: it never flipped for `.is-return`, so on a door leading BACK the heavy
+   edge sat on the side you were travelling toward.
+
+   A door in a real building is not striped down one side. It has hinges. So
+   the weight comes off the border, which is now uniform, and the leading edge
+   carries two small brass pins instead — the same brass as the frame, on the
+   side you are leaving FROM, mirroring correctly for a return door. Hardware
+   rather than decoration, which is the same move the Atlas makes everywhere
+   else: stamps instead of pins on the map, plates instead of cards, a ledger
+   brace instead of a bullet list. */
 .atlas-door.is-wide {
+    position: relative;
     display: flex; gap: 13px; padding: 12px 18px;
-    background: #fffdf6; border-left-width: 4px; border-radius: 8px;
+    background: #fffdf6; border-width: 1.5px; border-radius: 8px;
     box-shadow: 0 4px 16px rgba(20, 15, 5, 0.22);
 }
+.atlas-door.is-wide::before {
+    content: ''; position: absolute; left: 7px; top: 50%;
+    width: 3px; height: 3px; margin-top: -8px; border-radius: 50%;
+    background: #a5854a; box-shadow: 0 13px 0 #a5854a;   /* the second pin */
+    opacity: 0.65; transition: background-color 0.25s ease, box-shadow 0.25s ease;
+}
+/* the hinge is always opposite the chevron: a return door is mirrored by its
+   markup order (chevron first, glyph last), so its hinge changes sides too */
+.atlas-door.is-wide.is-return::before { left: auto; right: 7px; }
+.atlas-door.is-wide:hover::before { background: #cfc7ae; box-shadow: 0 13px 0 #cfc7ae; }
 .atlas-door.is-wide .ad-glyph { width: 22px; height: 22px; }
 .atlas-door.is-wide .ad-chev { width: 17px; height: 17px; }
 .atlas-door.is-wide:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(20, 15, 5, 0.3); }

@@ -118,9 +118,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </a>`;
     }).join('');
 
+    /* The year key has moved onto the axis it decodes: the years are already
+       printed across the register as column headings, so each one is now inked
+       in its own colour and the separate key stops being a second object. It
+       used to sit on the OTHER leaf, below eleven photographs — measured on a
+       1600x722 laptop it was 83px past the bottom of the cover, so every
+       coloured mark on the page was undocumented.
+
+       The hollow "alone" swatch stays here, because it belongs beside the
+       closing line it explains rather than on the register's axis: the
+       counter-lane is the book's last line, not one of its years. */
     document.getElementById('crew-key').innerHTML =
-        years.map(y => `<span><i style="background:${ATLAS_CONFIG.COLOR_MAP[y] || ATLAS_CONFIG.DEFAULT_COLOR}"></i>${y}</span>`).join('') +
-        `<span><i style="background:none;border:1.4px solid #a89769"></i>alone</span>`;
+        `<span><i style="background:none;border:1.4px solid #a89769"></i>hollow marks are outings walked alone</span>`;
     document.getElementById('crew-closing').innerText =
         `…and ${soloHikes.length} outings walked alone.`;
 
@@ -155,6 +164,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>`;
     };
 
+    /* The entry number is assigned in SIGNATURE order and travels with the
+       person under any sort. Renumbering 1..20 by rank is what turned a re-sort
+       into the leaderboard DESIGN.md forbids: Will R. was entry 11 in one view
+       and entry 1 in the other, under a header still reading "No.". In a bound
+       register an entry number is written once, in ink. */
+    const entryNo = new Map(signedOrder.map((p, i) => [p.name, i + 1]));
+
     function render(order) {
         const list = order === 'signed' ? signedOrder : rankOrder;
 
@@ -166,11 +182,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="track">
                     ${gridlines}
                     ${years.map(y => `
-                        <span class="yr" style="left:${midOf(y)}%">${y}</span>
+                        <span class="yr" style="left:${midOf(y)}%;color:${ATLAS_CONFIG.COLOR_MAP[y] || ATLAS_CONFIG.DEFAULT_COLOR}">${y}</span>
                         <span class="yrn" style="left:${midOf(y)}%">${yearTotal[y] || 0} outings</span>`).join('')}
                 </div>
                 <div class="hd r">Outings &middot; ground</div>
             </div>`;
+
+        /* When the roll is read against its binding, the book says so in its own
+           marginalia — the brace and ditto are silently unavailable in this
+           order, and five rows then print the same date five times over. */
+        const outOfOrder = order !== 'signed'
+            ? `<div class="ooo">Shown by outings walked, out of signature order. Entry numbers keep their place in the book; the ledger&rsquo;s brace is set aside.</div>`
+            : '';
 
         // the horizon lane: every outing the Atlas has, so a companion's own
         // marks can be read against the whole life rather than in isolation
@@ -200,13 +223,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ? '<span class="ditto">&#12291;</span>'
                 : fmtLong(p.first.date_completed);
 
+            /* A viewpoint has no distance by definition, so a companion whose
+               only outings were viewpoints printed "0 mi · 0.0k ft" — two
+               zeroes beside a real person's name, in a book made for her to
+               read. Name it instead of measuring it at nothing. */
+            const measured = p.miles >= 0.05 || p.feet >= 50;
+            const ground = measured
+                ? `${p.miles.toFixed(0)} mi &middot; ${(p.feet / 1000).toFixed(1)}k ft`
+                : `<span class="vp">Viewpoint</span>`;
+
             const left = pct(p.first.date_completed);
             const width = Math.max(0.2, pct(p.last.date_completed) - left);
             const alongside = party.filter(n => n !== p.name);
             const note = `Signed in at <b>${p.first.trail_name}</b>, ${fmtLong(p.first.date_completed)}` +
                 (alongside.length ? stop(`, alongside ${listNames(alongside)}`) : '.');
+            // data-h is what lets a cross-read NAME the shared outings rather
+            // than only counting them — see crossRead() below
             const drawer = p.hikes.slice().reverse().map(h => `
-                <a href="hike.html?id=${h.trail_id}">
+                <a href="hike.html?id=${h.trail_id}" data-h="${h.trail_id}">
                     <span class="dt" style="background:${ink(h)}"></span>
                     <span class="d">${fmtTiny(h.date_completed)}</span>
                     <span class="t">${h.trail_name}</span>
@@ -217,26 +251,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 : '';
 
             return `
-            <div class="lane body ${p.count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES ? 'core' : ''}" data-name="${p.name}">
-                <div class="no">${i + 1}</div>
+            <div class="lane body ${p.count >= ATLAS_CONFIG.CREW_CORE_MIN_HIKES ? 'core' : ''}"
+                 data-name="${p.name}" role="button" tabindex="0" aria-expanded="false">
+                <div class="no">${entryNo.get(p.name)}<span class="turn" aria-hidden="true"></span></div>
                 <div class="who">${face}<span class="sig">${p.name}</span></div>
                 <div class="when ${whenCls}">${whenTxt}</div>
                 <div class="track">
                     ${gridlines}
                     <span class="span" style="left:${left}%;width:${width}%"></span>
                     ${ticks(p.hikes)}
-                    <span class="kn"></span>
                 </div>
                 <div class="lane-stats">
                     <span class="n">${p.count}</span>
-                    <span class="m">${p.miles.toFixed(0)} mi &middot; ${(p.feet / 1000).toFixed(1)}k ft</span>
+                    <span class="m">${ground}</span>
+                    <span class="kn"></span>
                 </div>
-                <div class="drawer">
+                <div class="drawer"><div class="dwr-in">
                     <div class="dwr-note">${note}</div>
                     <div class="dwr">${drawer}</div>
                     ${trips}
                     ${recordDoor(p.name)}
-                </div>
+                </div></div>
             </div>`;
         }).join('');
 
@@ -249,9 +284,59 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="lane-stats"><span class="n" style="color:var(--muted)">${soloHikes.length}</span><span class="m">${soloHikes.reduce((s, h) => s + h.miles, 0).toFixed(0)} mi</span></div>
             </div>`;
 
-        rollEl.innerHTML = head + atlasLane + body + aloneLane;
+        rollEl.innerHTML = head + outOfOrder + atlasLane + body + aloneLane;
+        stackTicks();
         wireLanes();
     }
+
+    /* ---------------------------------------------------------------------
+       The printed count and the countable marks have to agree. Measured over
+       183 adjacent pairs on a 705px track: 83 of them (45%) sat closer than one
+       dot diameter, and 43 were exactly on top of each other. Will R.'s line
+       printed 32 and showed about 12.
+
+       Colliding marks step up a tier, which is the device the Service Record
+       already uses on its enlarged lane ("a mark buried under its neighbour
+       cannot be pointed at"). Unbounded stacking was tried first and measured
+       at 11 tiers deep, 83 marks escaping their own lane, the worst by 63px in
+       a 36px row — it broke the ruled lines the register is made of. So tiers
+       are capped and a cluster too dense to separate wears a ring instead,
+       the way a ledger tallies a repeated entry.
+
+       Collision is a SCREEN question, not a data one, so it is measured in
+       pixels and recomputed on resize — the same reasoning as map.js's stamp
+       fanning, where two trailheads 1km apart smudge at z11 and separate at z15.
+       --------------------------------------------------------------------- */
+    function stackTicks() {
+        rollEl.querySelectorAll('.lane .track').forEach(track => {
+            const w = track.getBoundingClientRect().width;
+            if (!w) return;
+            const marks = [...track.querySelectorAll('.tick')]
+                .map(el => ({ el, x: (parseFloat(el.style.left) || 0) / 100 * w }))
+                .sort((a, b) => a.x - b.x);
+
+            const DIA = 9;              // an 8px dot plus a pixel of air
+            const MAX_TIER = 2;         // three rows fit a 36px lane; eleven did not
+            const clusters = [];
+            marks.forEach(m => {
+                const last = clusters[clusters.length - 1];
+                if (last && m.x - last[last.length - 1].x < DIA) last.push(m);
+                else clusters.push([m]);
+            });
+            clusters.forEach(cl => {
+                const fused = cl.length > MAX_TIER + 1;
+                cl.forEach((m, i) => {
+                    m.el.style.setProperty('--r', fused ? 0 : i);
+                    m.el.classList.toggle('fused', fused);
+                });
+            });
+        });
+    }
+    let stackTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(stackTimer);
+        stackTimer = setTimeout(stackTicks, 120);
+    });
 
     /* ---------------------------------------------------------------------
        The cross-read: hovering a lane asks "and who else was there?", and
@@ -277,12 +362,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             lane.classList.toggle('kin', kin);
             const kn = lane.querySelector('.kn');
             if (kn) kn.textContent = kin ? `${shared} together` : '';
+
+            // "12 together" answers HOW MANY. A register answers WHICH — and
+            // that is the job this page is for. Without it a reader had to open
+            // both lines and compare 21 entries against 32 by hand. The drawer
+            // is already where a line names its outings, so the shared ones are
+            // marked there.
+            lane.querySelectorAll('.dwr a').forEach(a =>
+                a.classList.toggle('shared-row', !isSelf && person.ids.has(a.dataset.h)));
         });
+
+        // the cross-read was silent to assistive tech: no aria-live anywhere
+        if (liveEl) {
+            const kin = [...rollEl.querySelectorAll('.lane.kin')]
+                .map(l => `${l.dataset.name}, ${l.querySelector('.kn').textContent}`);
+            liveEl.textContent = kin.length
+                ? `${name} walked with ${kin.join('; ')}.`
+                : `${name}: no outings shared with anyone else in the book.`;
+        }
     }
     function clearRead() {
         rollEl.classList.remove('reading');
-        rollEl.querySelectorAll('.self, .kin, .shared').forEach(n =>
-            n.classList.remove('self', 'kin', 'shared'));
+        rollEl.querySelectorAll('.self, .kin, .shared, .shared-row').forEach(n =>
+            n.classList.remove('self', 'kin', 'shared', 'shared-row'));
+        if (liveEl) liveEl.textContent = '';
     }
 
     /* ---- one line open at a time keeps the roll calm ---- */
@@ -297,20 +400,86 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (e.target.closest('a')) return;
                 toggleLane(lane);
             });
+            // A lane was a plain div with a click listener: no tabindex, no role,
+            // no key handler. There was no keyboard route to a drawer, a
+            // cross-read, or the Service Record door — which for the nine
+            // companions with no photograph on the cover is the ONLY route.
+            lane.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                if (e.target.closest('a')) return;
+                e.preventDefault();
+                toggleLane(lane);
+            });
+            lane.addEventListener('focus', () => crossRead(lane.dataset.name));
+            lane.addEventListener('blur', clearRead);
         });
         bookWireTurns(rollEl);
     }
+
+    /* ---------------------------------------------------------------------
+       Opening a line has to REPORT BACK. Measured before this: clicking Kate
+       C. (row 18) opened her drawer 446px below the fold, so the only visible
+       result was a faint tint; Will R.'s door was sliced 20px below it; and
+       opening a line above another dragged the clicked row 337px out from
+       under the pointer.
+
+       The Atlas had already solved this twice and neither fix reached here —
+       the ?open= path calls scrollIntoView, and the home page's Threads ledger
+       holds the clicked row to the pixel by measuring it before and after every
+       DOM change. Both ideas are used below: hold the row, THEN bring the
+       drawer's foot into view, and never at the cost of pushing the row off.
+       --------------------------------------------------------------------- */
     function toggleLane(lane, force) {
         const willOpen = force !== undefined ? force : !lane.classList.contains('open');
-        if (openLane && openLane !== lane) openLane.classList.remove('open');
+        const before = lane.getBoundingClientRect().top;
+
+        if (openLane && openLane !== lane) {
+            openLane.classList.remove('open');
+            openLane.setAttribute('aria-expanded', 'false');
+        }
         lane.classList.toggle('open', willOpen);
+        lane.setAttribute('aria-expanded', String(willOpen));
         openLane = willOpen ? lane : null;
+
+        // 1. hold the clicked row exactly where the reader left it
+        rollEl.scrollTop += lane.getBoundingClientRect().top - before;
+        if (!willOpen) return;
+
+        // 2. then the door — but only once the drawer has actually grown. Doing
+        //    this synchronously does nothing at all: until the row expands the
+        //    roll's scrollHeight still equals its clientHeight, so there is
+        //    nowhere to scroll to and the assignment silently clamps to 0.
+        const drawer = lane.querySelector('.drawer');
+        if (!drawer) return;
+        let done = false;
+        const settle = () => {
+            if (done) return;
+            done = true;
+            const rollBox = rollEl.getBoundingClientRect();
+            const door = lane.querySelector('.dwr-door') || drawer;
+            const overshoot = door.getBoundingClientRect().bottom - (rollBox.bottom - 12);
+            if (overshoot <= 0) return;
+            const headroom = lane.getBoundingClientRect().top - (rollBox.top + 46);
+            rollEl.scrollTop += Math.min(overshoot, Math.max(0, headroom));
+        };
+        drawer.addEventListener('transitionend', settle, { once: true });
+        setTimeout(settle, 340);            // fallback if the transition is suppressed
     }
+
+    /* the roll's spoken channel: the cross-read is a hover effect, so without
+       this it says nothing at all to a screen reader */
+    const liveEl = Object.assign(document.createElement('div'), { className: 'sr-only' });
+    liveEl.setAttribute('aria-live', 'polite');
+    document.body.appendChild(liveEl);
 
     /* ---- the order toggle ---- */
     document.querySelectorAll('.order button').forEach(btn => {
+        btn.setAttribute('aria-pressed', String(btn.classList.contains('on')));
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.order button').forEach(b => b.classList.toggle('on', b === btn));
+            document.querySelectorAll('.order button').forEach(b => {
+                b.classList.toggle('on', b === btn);
+                b.setAttribute('aria-pressed', String(b === btn));   // was carried by class alone
+            });
             render(btn.dataset.sort);
         });
     });

@@ -288,6 +288,33 @@ needs new per-hike information, the first step is always to add the field to the
   the palette variables (`--trail-green`, `--evergreen`, `--charcoal`, …) from `base.css`
   instead of hardcoding hex values.
 
+## Two engines — don't grow the parity debt
+
+**The whole Atlas has only ever been checked in one engine at a time.** Danny develops
+in Zen (Gecko); the headless harness drives Chrome (Blink); the two have already
+visibly disagreed (crew.html scrolled in one and not the other). The full sweep is its
+own roadmap item — **Part F, deliberately scheduled after the design overhaul** — but
+the debt is easy to grow by accident, so new work carries these rules now. The point is
+that F stays the size it already is.
+
+- **Don't add another bare `100vh` shell.** Eight of the nine stylesheets already build
+  a fixed-viewport shell (`100vh` and/or `position: fixed` + `overflow: hidden`), **none
+  declares a `min-height`**, and nothing uses `dvh`/`svh`/`lvh`. So there is no floor at
+  which a short window stops clipping and starts scrolling. A new shell needs that floor
+  from the start; retrofitting nine of them is the work F exists to do once.
+- **Anything that can overflow needs an explicit internal scroller with a visible
+  affordance.** In a fixed shell the page never scrolls as a whole, so reaching hidden
+  content depends on where the cursor is — and **scroll chaining and overlay-scrollbar
+  visibility are exactly where Gecko and Blink differ.** A scroller nobody can find is a
+  bug in one engine and invisible in the other.
+- **Prefer what both engines have shipped, and say so in a comment when you deliberately
+  skip something.** `scrollend` is avoided in `crew-member.js` for this reason (a timer
+  does the job). `navigator.connection` does not exist in Firefox at all, which is half
+  of why `intro-film.js` reads its width from the layout instead.
+- **The harness cannot see Gecko.** When a change touches scrolling, sticky positioning,
+  or a fixed shell, hand Danny a specific thing to check in Zen — which page, which
+  element, what to try. Verifying in Chrome alone is not verifying.
+
 ## History
 
 GEMINI.md (the previous collaboration charter) was replaced by this file in June 2026 —

@@ -194,3 +194,20 @@ nav#top-bar-container a:hover {
     transition: color 0.25s ease;
 }
 .atlas-door.is-wide:hover .ad-sub { color: #cfc7ae; }
+
+/* THE DOOR IS DEFINED HERE, SO ITS MOTION PREFERENCE BELONGS HERE.
+   This rule lived in crew.css, which meant it was honoured on the two crew
+   pages and nowhere else — the same component went on lifting and sliding on
+   the map, the hike page, the trip chapter and the home page. A door is the
+   one thing on this site that appears on every page, so a copy of its
+   behaviour in one page's sheet is the exact mistake "never restyle one door
+   alone" is written to prevent.
+
+   The hover still reads unmistakably: the card fills dark green, the type
+   goes to cream, the shadow deepens. All that goes is the travel. */
+@media (prefers-reduced-motion: reduce) {
+    .atlas-door, .atlas-door svg, .ad-sub { transition: none; }
+    .atlas-door.is-wide:hover { transform: none; }
+    .atlas-door:hover .ad-chev,
+    .atlas-door.is-return:hover .ad-chev { transform: none; }
+}

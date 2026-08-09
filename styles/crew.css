@@ -354,6 +354,32 @@ body {
 .dwr > a:focus-visible,
 .dwr-trips a:focus-visible { outline: 2px solid #2f5c40; outline-offset: 2px; border-radius: 2px; }
 
+/* THE SERVICE RECORD'S 56 TAB STOPS. Every focus rule above targets an element
+   that lives on crew.html, so not one of them reached the record — and all 56
+   of its stops wore Chrome's default blue on parchment. */
+/* NO border-radius here, deliberately. An outline already follows whatever
+   radius the element itself has, so setting one buys nothing and costs the
+   shape: 2px squared off all 14 circular lane marks (50% -> 2px) and took the
+   wide door from 8px to 2px, so a keyboard visitor watched each mark pop from
+   dot to square as it was reached. The rounded value was copied from the rule
+   above, where the targets are rectangular links with no radius of their own. */
+.crew-record a:focus-visible,
+.crew-record .tick:focus-visible,
+.crew-record .print:focus-visible,
+.crew-record .atlas-door:focus-visible {
+    outline: 2px solid #2f5c40; outline-offset: 2px;
+}
+.crew-record .tick:focus-visible { outline-offset: 3px; }
+
+/* THE FOOTER WAS BLEEDING CHARCOAL INTO THE DESK. .atlas-footer is static with
+   a #333 background, and the book is FIXED and inset 52px from the top and
+   14px from the sides — so the footer printed a dark band above the spread and
+   a slab down each side rather than landing below the fold as the comment at
+   the top of this file assumes. A fixed book has nothing to push it with. Its
+   four links were also focusable while completely invisible. */
+.crew-record ~ .atlas-footer,
+.crew-roll ~ .atlas-footer { display: none; }
+
 /* Colliding marks step up a tier so the printed count can be counted. Scoped
    to .crew-roll on purpose: the Service Record's enlarged lane does its own
    stacking through the same --r custom property but positions from the
@@ -433,14 +459,17 @@ body {
 /* the portrait, in the same mount the cover photographs use */
 .plate-photo { position: relative; background: var(--card); border: 1px solid #ddd0ae; padding: 6px 6px 20px;
     box-shadow: 0 4px 12px rgba(60, 45, 20, 0.28); }
-.plate-photo img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: #ded0a6; }
+/* 3:2 with a face-aware crop (crew-member.js asks Cloudinary for g_face):
+   a 4:3 landscape had the person at about 8% of the frame, seen from
+   behind, under a caption reading PLATE - PORTRAIT. */
+.plate-photo img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; background: #ded0a6; }
 .plate-photo .blank {
-    display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 4 / 3;
+    display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 3 / 2;
     background: radial-gradient(circle at 37% 30%, #ecdcb2 0%, #d8c496 70%);
     font-family: var(--font-display); font-weight: 700; font-size: 44px; color: #4a3a1c; letter-spacing: 0.06em;
 }
 .plate-photo .cap { position: absolute; left: 9px; right: 9px; bottom: 4px; display: flex; justify-content: space-between;
-    font-family: var(--font-display); font-size: 7px; letter-spacing: 0.2em; color: var(--muted); }
+    font-family: var(--font-display); font-size: 8px; letter-spacing: 0.2em; color: var(--muted); }
 
 /* the service block: a ledger, not a stat row */
 .svc { margin: 15px 0 0; }
@@ -452,21 +481,55 @@ body {
 .svc .v b { font-family: var(--font-display); font-weight: 700; font-size: 17px; letter-spacing: 0.02em; }
 .svc .v a { color: #2f5c40; text-decoration: none; font-weight: 700; }
 .svc .v a:hover { text-decoration: underline; }
+/* Remarks: the service record's own word for what a measurement column
+   cannot hold. Set exactly as Signed in and Ground are. */
+.svc .remarks { line-height: 1.5; }
+.svc .remarks b { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; }
+/* the share of the Atlas, printed where the count already was: "Outings 32"
+   was on the leaf all along, it just never said 32 of what */
+.svc .of { font-style: italic; color: var(--bk-sub); font-size: 11.5px; }
 
 /* THE LANE, enlarged — the same track the roll draws, given room to become
    the INDEX to the plates on the facing leaf */
-.lane-block { margin-top: 18px; }
+/* its own stacking context: a lit mark lifts to z-index 3 and used to sail
+   OVER the sticky door on the way past */
+.lane-block { margin-top: 18px; position: relative; z-index: 0; }
 .lane-hd { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
 .lane-hd .t { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
 .lane-hd .c { font-size: 11px; color: var(--muted); font-style: italic; }
-/* The lane is measured from its BASELINE up, because marks that collide have
-   to stack: two outings a day apart draw on top of each other at this width,
-   and a mark buried under its neighbour cannot be pointed at — which would
-   quietly make some trails unreachable on the leaf where the lane's whole
-   job is to be the index. --lane-h and each mark's --r are set by
-   crew-member.js from the measured width, and recomputed when it changes. */
-.big-lane { position: relative; height: var(--lane-h, 54px); }
+/* Each COURSE is measured from its BASELINE up, because marks that collide
+   have to stack: two outings a day apart draw on top of each other at this
+   width, and a mark buried under its neighbour cannot be pointed at — which
+   would quietly make some trails unreachable on the leaf whose whole job is
+   to be the index to the plates. Every course's own --ch and each mark's --r
+   are set by crew-member.js from the measured width, and recomputed when it
+   changes. (--lane-h was the single-course version of --ch, retired when the
+   lane learned to wrap.) */
+/* THE LANE WRAPS (August 2026). Five years to a COURSE, and the lane is
+   however many courses that takes — so a year is one fifth of the leaf on
+   every line, forever, and the Atlas's sixth year starts a second line
+   instead of squeezing the first. Set like a paragraph, read top to bottom;
+   a partial final course draws only the fraction its years need, which is
+   what keeps a year the same width whether it is alone on its line or one
+   of five. --ch is that course's own measured height. */
+.big-lane { display: flex; flex-direction: column; gap: 13px; margin-bottom: 2px; }
+.big-lane .course { position: relative; height: var(--ch, 54px); }
 .big-lane .gl { top: 0; bottom: 16px; }
+/* THE REST OF THE BOOK: the outings walked WITHOUT this person, threaded on
+   a register rule beneath the lane's own marks. Not a second track — it
+   shares the course's axis, gridlines and rule, so a person's share of the
+   Atlas is read as ink above paper rather than stated twice in figures.
+   The rule lands exactly where the year gridlines already stop (bottom:16px)
+   so the grid meets it rather than crossing it. Inert by design: no hover,
+   no click, no tab stop. */
+.big-lane .rail { position: absolute; left: 0; right: 0; bottom: 16px; height: 1px;
+    background: rgba(120, 100, 62, 0.34); }
+/* Solid dots, not hollow rings. 91 marks share a 313px rule, so the median gap
+   between neighbours is 1.5px and two thirds of them touch. Overlapping rings
+   interfere and read as a scribble; a quiet solid dot merges into a denser
+   passage, which is the honest reading of a busy month. */
+.big-lane .rm { position: absolute; bottom: 16px; width: 3px; height: 3px;
+    margin: 0 0 -1.5px -1.5px; border-radius: 50%; background: rgba(120, 100, 62, 0.46); }
 .big-lane .yr { position: absolute; bottom: 0; transform: translateX(-50%); font-family: var(--font-display);
     font-weight: 700; font-size: 9.5px; letter-spacing: 0.14em; color: #6b5a2a; }
 .big-lane .span { top: auto; bottom: 26px; margin-top: 0; }
@@ -481,15 +544,125 @@ body {
 .big-lane .stem { position: absolute; width: 1px; background: rgba(120, 100, 62, 0.3); }
 .big-lane .tick:hover, .big-lane .tick.lit { transform: scale(1.5); box-shadow: 0 0 0 3px rgba(47, 92, 64, 0.45); z-index: 3; }
 .big-lane.reading .tick:not(.lit) { opacity: 0.28; }
+
+/* A MARK THAT STANDS FOR SEVERAL wears a brass ring and CARRIES ITS OWN COUNT.
+   The count was tried above the mark (it landed on the mark stacked over its
+   head) and up-and-right (it landed on the next mark along, which became the
+   common case once a whole chapter became one mark). A survey sheet does not
+   caption a cluster, it draws a numbered symbol — so the mark grows and holds
+   the number inside itself, where it cannot collide with anything.
+   NB 16px here is also declared in crew-member.js as dia(): collision
+   clearance is measured edge to edge, so the arithmetic needs the diameter. */
+.big-lane .tick.fused {
+    width: 16px; height: 16px; margin: 0 0 -8px -8px;
+    box-shadow: 0 0 0 2.5px rgba(90, 72, 36, 0.42), 0 1px 2px rgba(60, 45, 20, 0.35);
+}
+/* The ring and the lit halo are the SAME property, and this rule sits after
+   the hover/lit one at equal specificity (0-3-0) — so without this a chapter
+   mark, the one thing on the lane most worth pointing at, was the only mark
+   that never lit. The halo goes outside the brass ring rather than replacing it. */
+.big-lane .tick.fused:hover, .big-lane .tick.fused.lit {
+    box-shadow: 0 0 0 2.5px rgba(90, 72, 36, 0.42), 0 0 0 5.5px rgba(47, 92, 64, 0.45);
+}
+.big-lane .tick .fn {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 9px; font-weight: 700;
+    color: #fffdf6; letter-spacing: 0.02em; line-height: 1;
+    text-shadow: 0 1px 1.5px rgba(40, 28, 8, 0.5);
+    pointer-events: none;
+}
 /* the readout: what the pointer is on. No floating tooltip — the Atlas rule. */
 .readout { margin-top: 8px; min-height: 34px; padding-top: 8px; border-top: 1px dashed var(--rule); }
 .readout .t { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.04em;
     text-transform: uppercase; line-height: 1.2; }
 .readout .d { font-size: 11.5px; font-style: italic; color: var(--bk-sub); margin-top: 2px; }
 .readout.rest .t { font-family: var(--font-body); font-weight: 400; font-size: 12px; font-style: italic;
-    text-transform: none; letter-spacing: 0; color: var(--muted); }
+    text-transform: none; letter-spacing: 0; color: var(--muted); line-height: 1.4; }
 
-.rec-back { margin-top: auto; padding-top: 16px; }
+/* =====================================================================
+   THE CHAPTERS PANEL (August 2026) — the readout grew into the space
+   under the lane, because two problems turned out to be one.
+
+   The ledger's Trips row was six links of the same green separated by
+   <br>, so a chapter whose name wrapped looked like two chapters, sitting
+   in a ledger where every other row is one short fact. And the record
+   never listed the outings INSIDE a chapter at all. Both are answered
+   here, where the timeline is already pointing.
+
+   Three states in one box: at rest the legend and every chapter walked
+   together; on a single outing its name and place with the chapter list
+   still standing; on a chapter's mark that chapter's span and every
+   outing on it. The box holds its height (crew-member.js measures every
+   state and reserves the tallest) so nothing moves between them, and it
+   is STATIC — a sticky version rode over the courses of a wrapped lane
+   and clipped them.
+   ===================================================================== */
+/* the chapter's name, when the panel is showing one, is the door to it */
+.readout .t.tlink {
+    display: block; color: var(--bk-ink); text-decoration: none;
+    border-bottom: 1px solid rgba(122, 106, 60, 0.4); padding-bottom: 3px;
+    transition: color 0.18s ease, border-color 0.18s ease;
+}
+.readout .t.tlink:hover { color: #2f5c40; border-bottom-color: #2f5c40; }
+/* the small engraved label over a list — the same voice as .lane-hd .t */
+.tx-hd { margin: 9px 0 3px; font-family: var(--font-display); font-size: 7.5px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+/* THE LIST: year ink, name, and the one figure that tells the rows apart, in
+   fixed columns so the figures line up in a column of their own. That column
+   is the whole difference between a register and a paragraph of links. */
+.plist { display: flex; flex-direction: column; }
+.prow {
+    display: grid; grid-template-columns: 7px 1fr auto; gap: 8px;
+    align-items: center; padding: 2px 4px 2px 2px;
+    text-decoration: none; color: var(--bk-ink);
+    border-bottom: 1px solid rgba(184, 165, 120, 0.3);
+    transition: background-color 0.16s ease, color 0.16s ease;
+}
+.prow:last-child { border-bottom: none; }
+.pdot { width: 7px; height: 7px; border-radius: 50%;
+    border: 1px solid rgba(255, 253, 246, 0.85); box-shadow: 0 1px 2px rgba(60, 45, 20, 0.3); }
+/* a long trail name takes the room it has and stops: the row is an index
+   entry, and an index entry that wraps stops being scannable */
+.pnm { font-size: 12px; line-height: 1.35; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pdt { font-family: var(--font-display); font-size: 9px; letter-spacing: 0.08em;
+    color: var(--bk-sub); white-space: nowrap; }
+/* a row answers to the ink both ways: hover a row and it lights the plates,
+   hover a trail on the plates and its row lights back */
+.prow:hover, .prow.lit { background: rgba(122, 106, 60, 0.12); }
+.prow:hover .pnm, .prow.lit .pnm { color: #2f5c40; font-weight: 700; }
+
+/* THE DOOR KEEPS THE FOOT OF THE LEAF. Measured: it sat 48px below its own
+   scroll fold at 1280 and 124px at 2560 — it got WORSE as the window grew,
+   behind a 0px overlay scrollbar. The way out of a book should not be a thing
+   you have to discover. Sticky inside the existing scroll container needs no
+   new wrapper; the paper behind it is the LEAF'S OWN gradient, re-cut by
+   crew-member.js into --door-paper/-w/-x, because a flat --leaf-l
+   fill printed a pale rectangle across the page (it is only the 9% stop of a
+   four-stop gradient, and the door sits nearer the 62% one). */
+.rec-back {
+    position: sticky; bottom: -18px; z-index: 5;
+    margin-top: auto; padding-top: 18px; padding-bottom: 4px;
+    /* THE PADDING IS A FADE, NOT A LID. The 18px above the door is where its
+       paper thins to transparent, so chapter rows stay legible underneath it —
+       but the element still swallowed the pointer across that whole band, and
+       at the leaf's opening scroll position three of Will R.'s six chapters
+       were visible and completely dead. Anything you can read through, you
+       must be able to reach through. */
+    pointer-events: none;
+}
+.rec-back > * { pointer-events: auto; }
+.rec-back::before {
+    content: ''; position: absolute; inset: 0; z-index: -1;
+    background-color: var(--leaf-l);
+    background-image: var(--door-paper);
+    background-size: var(--door-paper-w, 100%) 100%;
+    background-position: var(--door-paper-x, 0) 0;
+    background-repeat: no-repeat;
+    -webkit-mask-image: linear-gradient(to top, #000 58%, transparent);
+    mask-image: linear-gradient(to top, #000 58%, transparent);
+}
 
 /* the doors are base.css's own .atlas-door — only their scale is set here.
    NB no width:100%: display:flex already fills the container, and without a
@@ -516,11 +689,35 @@ body {
    dozen hikes across the cluster cap's full 75 km. The column COUNT is fixed
    and the plates take the extra width — auto-fill got it exactly backwards,
    packing ever more, ever smaller plates onto a bigger desk. */
-.plates { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-@media (min-width: 2200px) { .plates { grid-template-columns: repeat(3, 1fr); } }
+.plates { display: grid; gap: 20px; }   /* the columns are set per plate-count below */
 .plates:empty { display: none; }
+/* A record has as many plates as its owner's country needs, and the grid
+   composes to THAT, not to the desk. crew.css's own rule: empty paper at
+   the bottom of a page is a margin; in the middle it is a mistake. */
+.plates { grid-template-columns: 1fr; }
+.plates.n2, .plates.n4 { grid-template-columns: repeat(2, 1fr); }
+.plates.n3, .plates.n5 { grid-template-columns: repeat(3, 1fr); }
+/* one region means room to make that region large, which is exactly what
+   its owner opened the page to look at */
+.plates.n1 .p-map { height: clamp(360px, 46vh, 620px); }
+.plates.n2 .p-map { height: clamp(300px, 36vh, 500px); }
+/* a little paper past the last plate, so the loose sheet does not end flush
+   against the bottom of its own scroll. NB scroll-padding-bottom was tried
+   here first and does nothing for this: it insets the scrollport for
+   scroll-into-view and snap alignment only, and adds no room at the end of
+   the content — the loose sheet sat exactly as far below the fold as before. */
+.sheets { padding-bottom: 24px; }
 
-.plate { background: var(--card); border: 1px solid #cdbf9c; box-shadow: 0 4px 14px rgba(60, 45, 20, 0.24); padding: 5px; }
+.plate { background: var(--card); border: 1px solid #cdbf9c; box-shadow: 0 4px 14px rgba(60, 45, 20, 0.24); padding: 5px;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease; }
+/* One plate in four was replying and the leaf kept it to itself: the lit
+   trail is a ~15px mark on a 536px plate with every other trail dimmed, and
+   nothing said WHICH sheet had spoken. The plate holding the answer takes
+   the ink in its own collar. A chapter can light two at once, which is
+   right: the Alaska week is on Denali and Chugach both. */
+.plate.answering { border-color: #7a6a3c;
+    box-shadow: 0 0 0 1.5px rgba(122, 106, 60, 0.5), 0 6px 18px rgba(60, 45, 20, 0.28); }
+.plate.answering .p-name, .plate.answering .p-no { color: var(--bk-ink); }
 .p-collar { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 5px 6px 7px; }
 .p-no { font-family: var(--font-display); font-size: 7.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--muted); }
 .p-name { font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: 0.05em;
@@ -618,5 +815,12 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
     .page-turn, .leaf-scrim { display: none; }
-    .snap, .tick, .drawer, .kn { transition: none; }
+    /* `.tick` alone is 0-1-0 and loses to `.big-lane .tick` at 0-2-0, so the
+       marks kept animating through the whole preference. Matched here. */
+    /* the doors are NOT listed here any more: .atlas-door is base.css's, and
+       so is this preference for it now — a copy here only ever covered the
+       two crew pages while the same door went on moving everywhere else */
+    .snap, .tick, .drawer, .kn,
+    .big-lane .tick, .big-lane .stem,
+    .plate, .print, .prow, .readout .t.tlink { transition: none; }
 }
